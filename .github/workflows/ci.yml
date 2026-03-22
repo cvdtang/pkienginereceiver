@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  quality-gate:
+    name: Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Check for changes
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4
+        id: filter
+        with:
+          filters: |
+            src: &src
+              - '.github/workflows/ci.yml'
+              - 'justfile'
+              - 'go.{mod,sum}'
+              - '**/*.go'
+            integration:
+              - *src
+              - 'test/terraform/*.tf'
+              - 'test/testdata/*.yaml'
+            config:
+              - *src
+              - 'test/builder-config.yaml'
+
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        with:
+          go-version-file: go.mod
+
+      - uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4
+        with:
+          terraform_wrapper: false
+
+      - uses: extractions/setup-just@f8a3cce218d9f83db3a2ecd90e41ac3de6cdfd9b # v3
+
+      - name: Download modules & check consistency
+        if: steps.filter.outputs.src == 'true'
+        run: go mod download && just tidy-check
+
+      - name: Run mdatagen & commit if changed
+        if: steps.filter.outputs.src == 'true' && startsWith(github.ref, 'refs/heads/')
+        run: |
+          just mdatagen
+          if ! git diff --quiet; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add .
+            git commit -m "chore: update generated metadata"
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
+
+      - name: Vet
+        if: steps.filter.outputs.src == 'true'
+        run: just vet
+
+      - name: Unit tests
+        if: steps.filter.outputs.src == 'true'
+        run: just test-short
+
+      - name: Integration tests
+        if: steps.filter.outputs.integration == 'true'
+        run: just test-long
+
+      - name: Test OTEL collector build
+        if: steps.filter.outputs.config == 'true'
+        run: just build-oc

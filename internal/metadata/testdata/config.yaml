@@ -1,0 +1,83 @@
+default:
+all_set:
+  metrics:
+    pkiengine.crl.cache.evictions:
+      enabled: true
+    pkiengine.crl.cache.hits:
+      enabled: true
+    pkiengine.crl.cache.misses:
+      enabled: true
+    pkiengine.crl.processing_status:
+      enabled: true
+    pkiengine.crl.x509.next_update:
+      enabled: true
+    pkiengine.crl.x509.revoked_certificates:
+      enabled: true
+    pkiengine.crl.x509.this_update:
+      enabled: true
+    pkiengine.issuer.errors:
+      enabled: true
+    pkiengine.issuer.x509.not_after:
+      enabled: true
+    pkiengine.issuer.x509.not_before:
+      enabled: true
+    pkiengine.mount.certificates_stored:
+      enabled: true
+    pkiengine.mount.errors:
+      enabled: true
+  resource_attributes:
+    engine.address:
+      enabled: true
+    engine.namespace:
+      enabled: true
+none_set:
+  metrics:
+    pkiengine.crl.cache.evictions:
+      enabled: false
+    pkiengine.crl.cache.hits:
+      enabled: false
+    pkiengine.crl.cache.misses:
+      enabled: false
+    pkiengine.crl.processing_status:
+      enabled: false
+    pkiengine.crl.x509.next_update:
+      enabled: false
+    pkiengine.crl.x509.revoked_certificates:
+      enabled: false
+    pkiengine.crl.x509.this_update:
+      enabled: false
+    pkiengine.issuer.errors:
+      enabled: false
+    pkiengine.issuer.x509.not_after:
+      enabled: false
+    pkiengine.issuer.x509.not_before:
+      enabled: false
+    pkiengine.mount.certificates_stored:
+      enabled: false
+    pkiengine.mount.errors:
+      enabled: false
+  resource_attributes:
+    engine.address:
+      enabled: false
+    engine.namespace:
+      enabled: false
+filter_set_include:
+  resource_attributes:
+    engine.address:
+      enabled: true
+      metrics_include:
+        - regexp: ".*"
+    engine.namespace:
+      enabled: true
+      metrics_include:
+        - regexp: ".*"
+filter_set_exclude:
+  resource_attributes:
+    engine.address:
+      enabled: true
+      metrics_exclude:
+        - strict: "engine.address-val"
+    engine.namespace:
+      enabled: true
+      metrics_exclude:
+        - strict: "engine.namespace-val"

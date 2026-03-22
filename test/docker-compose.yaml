@@ -1,0 +1,16 @@
+services:
+  vault:
+    image: hashicorp/vault:latest
+    ports:
+      - 127.0.0.1:8200:8200
+    environment:
+      SKIP_SETCAP: "true"
+      VAULT_DEV_ROOT_TOKEN_ID: dev-root-token
+
+  # openbao:
+  #   image: openbao/openbao:latest
+  #   ports:
+  #     - 127.0.0.1:8200:8200
+  #   environment:
+  #     SKIP_SETCAP: "true"
+  #     BAO_DEV_ROOT_TOKEN_ID: dev-root-token

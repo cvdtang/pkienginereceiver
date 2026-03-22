@@ -1,0 +1,17 @@
+.direnv
+.venv/
+*.tgz
+*.tar.gz
+*.zip
+__debug*
+
+.vscode
+.terraform*
+!.terraform.lock.hcl
+terraform.*
+*.tfstate
+
+ocb-*
+metrics.json
+mockery
+coverage.out

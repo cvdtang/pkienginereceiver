@@ -1,0 +1,337 @@
+resourceMetrics:
+  - resource:
+      attributes:
+        - key: engine.address
+          value:
+            stringValue: http://localhost:8200
+        - key: engine.namespace
+          value:
+            stringValue: tenant-a
+    scopeMetrics:
+      - metrics:
+          - description: Number of CRL cache evictions.
+            gauge:
+              dataPoints:
+                - asInt: "0"
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.crl.cache.evictions
+            unit: '{evictions}'
+          - description: Number of CRL cache hits.
+            gauge:
+              dataPoints:
+                - asInt: "0"
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.crl.cache.hits
+            unit: '{hits}'
+          - description: Number of CRL cache misses.
+            gauge:
+              dataPoints:
+                - asInt: "5"
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.crl.cache.misses
+            unit: '{misses}'
+          - description: CRL processing status as an integer value.
+            gauge:
+              dataPoints:
+                - asInt: "2"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: issuer
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/crl
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "2"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/crl/der
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "0"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/crl/fake
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "2"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/crl/pem
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "1"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/json
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.crl.processing_status
+            unit: '{status}'
+          - description: Time until the CRL `nextUpdate` field.
+            gauge:
+              dataPoints:
+                - asInt: "4319"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: issuer
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/crl
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "4319"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/crl/der
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "4319"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/crl/pem
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.crl.x509.next_update
+            unit: minutes
+          - description: Number of certificates listed in the CRL `revokedCertificates` field.
+            gauge:
+              dataPoints:
+                - asInt: "0"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: issuer
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/crl
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "0"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/crl/der
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "0"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/crl/pem
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.crl.x509.revoked_certificates
+            unit: count
+          - description: Time since the CRL `thisUpdate` field.
+            gauge:
+              dataPoints:
+                - asInt: "-1"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: issuer
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/crl
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "-1"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/crl/der
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "-1"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/crl/pem
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.crl.x509.this_update
+            unit: minutes
+          - description: Number of errors that occurred while processing issuers.
+            name: pkiengine.issuer.errors
+            sum:
+              dataPoints:
+                - asInt: "0"
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            unit: '{errors}'
+          - description: Time until certificate expiration as specified by the `notAfter` field.
+            gauge:
+              dataPoints:
+                - asInt: "123456"
+                  attributes:
+                    - key: cert.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                    - key: cert.x509.subject.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                    - key: engine.mount
+                      value:
+                        stringValue: pki/ica_0/
+                    - key: issuer.id
+                      value:
+                        stringValue: 00000000-0000-0000-0000-000000000000
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.issuer.x509.not_after
+            unit: minutes
+          - description: Time util certificate validity start as specified by the `notBefore` field.
+            gauge:
+              dataPoints:
+                - asInt: "-1"
+                  attributes:
+                    - key: cert.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                    - key: cert.x509.subject.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                    - key: engine.mount
+                      value:
+                        stringValue: pki/ica_0/
+                    - key: issuer.id
+                      value:
+                        stringValue: 00000000-0000-0000-0000-000000000000
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.issuer.x509.not_before
+            unit: minutes
+          - description: Number of certificates stored in the mount.
+            gauge:
+              dataPoints:
+                - asInt: "1"
+                  attributes:
+                    - key: engine.mount
+                      value:
+                        stringValue: pki/ica_0/
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.mount.certificates_stored
+            unit: '{certificates_stored}'
+          - description: Number of errors that occurred while processing mounts.
+            name: pkiengine.mount.errors
+            sum:
+              dataPoints:
+                - asInt: "0"
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            unit: '{errors}'
+        scope:
+          name: github.com/cvdtang/pkienginereceiver
+          version: latest

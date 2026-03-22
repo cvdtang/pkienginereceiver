@@ -1,0 +1,27 @@
+receivers:
+  pkiengine:
+    address: http://127.0.0.1:8200
+    collection_interval: 30s
+    auth:
+      type: approle
+      approle:
+        mount_path: approle
+        role_id: my-role-id
+        secret_id: my-secret-id
+
+exporters:
+  debug:
+    verbosity: detailed
+  file:
+    path: metrics.json
+    format: json
+
+service:
+  telemetry:
+    logs:
+      level: debug
+
+  pipelines:
+    metrics:
+      receivers: [pkiengine]
+      exporters: [debug]

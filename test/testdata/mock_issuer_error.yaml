@@ -1,0 +1,66 @@
+resourceMetrics:
+  - resource:
+      attributes:
+        - key: engine.address
+          value:
+            stringValue: http://127.0.0.1:8200
+        - key: engine.namespace
+          value:
+            stringValue: ""
+    scopeMetrics:
+      - metrics:
+          - description: Number of CRL cache evictions.
+            gauge:
+              dataPoints:
+                - asInt: "0"
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.crl.cache.evictions
+            unit: '{evictions}'
+          - description: Number of CRL cache hits.
+            gauge:
+              dataPoints:
+                - asInt: "0"
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.crl.cache.hits
+            unit: '{hits}'
+          - description: Number of CRL cache misses.
+            gauge:
+              dataPoints:
+                - asInt: "0"
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.crl.cache.misses
+            unit: '{misses}'
+          - description: Number of errors that occurred while processing issuers.
+            name: pkiengine.issuer.errors
+            sum:
+              dataPoints:
+                - asInt: "1"
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            unit: '{errors}'
+          - description: Number of certificates stored in the mount.
+            gauge:
+              dataPoints:
+                - asInt: "1"
+                  attributes:
+                    - key: engine.mount
+                      value:
+                        stringValue: pki/
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.mount.certificates_stored
+            unit: '{certificates_stored}'
+          - description: Number of errors that occurred while processing mounts.
+            name: pkiengine.mount.errors
+            sum:
+              dataPoints:
+                - asInt: "0"
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            unit: '{errors}'
+        scope:
+          name: github.com/cvdtang/pkienginereceiver
+          version: latest
