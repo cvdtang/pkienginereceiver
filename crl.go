@@ -23,6 +23,9 @@ var errCrlUnsupportedProtocol = errors.New("unsupported protocol")
 var errNotModified = errors.New("CRL not modified")
 
 const (
+	httpScheme  = "http"
+	httpsScheme = "https"
+
 	cacheReasonNetworkFetch       = "network_fetch"
 	cacheReasonFreshInScrape      = "fresh_in_scrape"
 	cacheReasonHTTP304NotModified = "http_304_not_modified"
@@ -59,6 +62,7 @@ func newFetchError(err error, retryable bool) error {
 	if err == nil {
 		return nil
 	}
+
 	return &crlFetchError{
 		err:       err,
 		retryable: retryable,
@@ -75,13 +79,14 @@ func newPermanentFetchError(err error) error {
 
 func isRetryableFetchError(err error) bool {
 	var fetchErr *crlFetchError
+
 	return errors.As(err, &fetchErr) && fetchErr.retryable
 }
 
 type crlFetcher interface {
-	fetch(ctx context.Context, uri string, timeout time.Duration, previousETag string, previousLastModified time.Time) (res fetchResult, err error)
-	fetchHTTP(ctx context.Context, uri string, timeout time.Duration, previousETag string, previousLastModified time.Time) (res fetchResult, err error)
-	fetchLDAP(ctx context.Context, dialer ldapDialer, uri string, timeout time.Duration) (fetchable int64, data []byte, err error)
+	fetch(ctx context.Context, uri string, timeout time.Duration, previousETag string, previousLastModified time.Time) (fetchResult, error)
+	fetchHTTP(ctx context.Context, uri string, timeout time.Duration, previousETag string, previousLastModified time.Time) (fetchResult, error)
+	fetchLDAP(ctx context.Context, dialer ldapDialer, uri string, timeout time.Duration) (int64, []byte, error)
 }
 
 var _ crlFetcher = (*realCrlFetcher)(nil)
@@ -91,17 +96,18 @@ type realCrlFetcher struct {
 }
 
 // Routes CRL fetching to the protocol-specific fetcher.
-func (f *realCrlFetcher) fetch(ctx context.Context, uri string, timeout time.Duration, previousETag string, previousLastModified time.Time) (res fetchResult, err error) {
+func (f *realCrlFetcher) fetch(ctx context.Context, uri string, timeout time.Duration, previousETag string, previousLastModified time.Time) (fetchResult, error) {
 	u, err := url.Parse(uri)
 	if err != nil {
 		return fetchResult{}, newPermanentFetchError(fmt.Errorf("%w: %w", errCrlParseUri, err))
 	}
 
 	switch u.Scheme {
-	case "http", "https":
+	case httpScheme, httpsScheme:
 		return f.fetchHTTP(ctx, uri, timeout, previousETag, previousLastModified)
-	case "ldap", "ldaps":
+	case ldapScheme, ldapsScheme:
 		fetchable, data, err := f.fetchLDAP(ctx, &realLdapDialer{}, uri, timeout)
+
 		return fetchResult{
 			Fetchable: fetchable,
 			Data:      data,
@@ -197,12 +203,14 @@ func (c *crl) collect(ctx context.Context) (crlMetrics, error) {
 			cacheReason: cacheReasonFreshInScrape,
 		}
 		c.recordCacheOutcome(outcome.cached)
+
 		return outcome.metrics, nil
 	}
 
 	collectedWithSingleflight := false
 	result, err, doShared := c.shared.crlFetchSfg.Do(cacheKey, func() (any, error) {
 		collectedWithSingleflight = true
+
 		return c.collectWithSingleflight(ctx, scheme, cacheKey)
 	})
 	shared = doShared
@@ -221,12 +229,14 @@ func (c *crl) collect(ctx context.Context) (crlMetrics, error) {
 	// non-leader shared callers are treated as cache hits.
 	sharedWaiter := doShared && !collectedWithSingleflight
 	c.recordCacheOutcome(outcome.cached || sharedWaiter)
+
 	return outcome.metrics, nil
 }
 
 func (c *crl) recordCacheOutcome(cached bool) {
 	if cached {
 		c.shared.crlCacheHits.Add(1)
+
 		return
 	}
 	c.shared.crlCacheMisses.Add(1)
@@ -262,6 +272,7 @@ func (c *crl) collectWithSingleflight(ctx context.Context, scheme string, cacheK
 		res, fetchErr = c.fetchWithRetries(ctx, "", time.Time{})
 		if fetchErr != nil {
 			c.logger.Error("crl fetch failed", zap.Error(fetchErr))
+
 			return crlCollectOutcome{
 				metrics:     c.cacheFetchError(cacheKey, time.Now(), fetchErr),
 				cacheReason: cacheReasonHTTP304CacheMiss,
@@ -276,6 +287,7 @@ func (c *crl) collectWithSingleflight(ctx context.Context, scheme string, cacheK
 
 	if fetchErr != nil {
 		c.logger.Error("crl fetch failed", zap.Error(fetchErr))
+
 		return crlCollectOutcome{
 			metrics:     c.cacheFetchError(cacheKey, time.Now(), fetchErr),
 			cacheReason: cacheReasonNetworkFetch,
@@ -290,7 +302,7 @@ func (c *crl) collectWithSingleflight(ctx context.Context, scheme string, cacheK
 
 // Fetches CRL data with protocol-agnostic retry behavior.
 func (c *crl) fetchWithRetries(ctx context.Context, previousETag string, previousLastModified time.Time) (fetchResult, error) {
-	maxAttempts := int(c.shared.crlFetchRetries) + 1
+	maxAttempts := c.shared.crlFetchRetries + 1
 
 	for attempt := range maxAttempts {
 		if ctx.Err() != nil {
@@ -319,6 +331,7 @@ func (c *crl) fetchWithRetries(ctx context.Context, previousETag string, previou
 			select {
 			case <-ctx.Done():
 				timer.Stop()
+
 				return fetchResult{}, ctx.Err()
 			case <-timer.C:
 			}
@@ -350,6 +363,7 @@ func (c *crl) resolveScheme() (string, bool) {
 	scheme := strings.ToLower(u.Scheme)
 	if !isSupportedCrlScheme(scheme) {
 		c.logger.Debug("unimplemented CDP protocol", zap.String("scheme", u.Scheme))
+
 		return scheme, true
 	}
 
@@ -362,6 +376,7 @@ func (c *crl) getFreshCacheEntry(cacheKey string) (crlCacheEntry, bool) {
 	if !ok || !entry.isFreshFor(c.shared.scrapeStartTime) {
 		return crlCacheEntry{}, false
 	}
+
 	return entry, true
 }
 
@@ -374,6 +389,7 @@ func (c *crl) getCachedHTTPValidators(cacheKey, scheme string) (string, time.Tim
 	if !ok {
 		return "", time.Time{}
 	}
+
 	return entry.eTag, entry.lastModified
 }
 
@@ -393,10 +409,11 @@ func (c *crl) refreshCacheEntryAfterNotModified(cacheKey string, now time.Time, 
 		entry.lastModified = res.LastModified
 	}
 	c.shared.crlCache.Add(cacheKey, entry)
+
 	return entry.metrics, true
 }
 
-// Stores fetch error metrics in cache
+// Stores fetch error metrics in cache.
 func (c *crl) cacheFetchError(cacheKey string, now time.Time, fetchErr error) crlMetrics {
 	metrics := newCrlMetrics()
 	metrics.err = fetchErr
@@ -404,6 +421,7 @@ func (c *crl) cacheFetchError(cacheKey string, now time.Time, fetchErr error) cr
 		metrics:     metrics,
 		lastChecked: now,
 	})
+
 	return metrics
 }
 
@@ -420,6 +438,7 @@ func (c *crl) cacheFetchSuccess(cacheKey string, now time.Time, res fetchResult)
 		lastModified: res.LastModified,
 		lastChecked:  now,
 	})
+
 	return metrics
 }
 
@@ -430,12 +449,12 @@ func isSupportedCrlScheme(scheme string) bool {
 
 // Reports whether the CRL scheme is HTTP(S).
 func isHttpCrlScheme(scheme string) bool {
-	return scheme == "http" || scheme == "https"
+	return scheme == httpScheme || scheme == httpsScheme
 }
 
 // Reports whether the CRL scheme is LDAP(S).
 func isLdapCrlScheme(scheme string) bool {
-	return scheme == "ldap" || scheme == "ldaps"
+	return scheme == ldapScheme || scheme == ldapsScheme
 }
 
 // Reports whether a cache entry is fresh for the current scrape start.
@@ -453,6 +472,7 @@ func (c *crl) createMetrics(res fetchResult) (crlMetrics, error) {
 	crl, err := c.parse(res.Data)
 	if err != nil {
 		metrics.processingStatus = crlProcessingStatusParseFailed
+
 		return metrics, err
 	}
 
@@ -471,6 +491,7 @@ func (c *crl) parse(data []byte) (*x509.RevocationList, error) {
 	if block != nil {
 		data = block.Bytes
 	}
+
 	return x509.ParseRevocationList(data)
 }
 
@@ -496,6 +517,7 @@ func (c *crl) emit(mb *metadata.MetricsBuilder, metrics crlMetrics) {
 				zap.Error(metrics.err),
 			)
 		}
+
 		return
 	}
 

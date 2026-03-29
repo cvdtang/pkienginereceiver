@@ -33,7 +33,7 @@ func newVault(ctx context.Context, cfg config, logger *zap.Logger) (*vault, erro
 
 	authToken, err := getAuthToken(ctx, &cfg.Auth, client)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get auth token from secret store: %v", err)
+		return nil, fmt.Errorf("failed to get auth token from secret store: %w", err)
 	}
 
 	vault := &vault{

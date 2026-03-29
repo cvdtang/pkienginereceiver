@@ -17,7 +17,7 @@ func createTestScrapeState(t *testing.T) *scrapeShared {
 	cache, err := newLruCrlCache(10, nil)
 	require.NoError(t, err)
 
-	shared, err := newScrapeShared(
+	shared := newScrapeShared(
 		time.Second,
 		0,
 		0,
@@ -28,7 +28,7 @@ func createTestScrapeState(t *testing.T) *scrapeShared {
 		receivertest.NewNopSettings(metadata.Type),
 		metadata.DefaultMetricsBuilderConfig().Metrics,
 	)
-	require.NoError(t, err)
+
 	return shared
 }
 
@@ -58,7 +58,7 @@ func TestClaimCRLConcurrent(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(workers)
 
-	for i := 0; i < workers; i++ {
+	for range workers {
 		go func() {
 			defer wg.Done()
 			if state.claimCRL("http://example.test/crl", metadata.AttributeCrlRoleSubject, metadata.AttributeCrlKindBase) {

@@ -25,13 +25,14 @@ func NewFactory() receiver.Factory {
 func createDefaultConfig() component.Config {
 	scraperConfig := scraperhelper.NewDefaultControllerConfig()
 	scraperConfig.CollectionInterval = 5 * time.Minute
+
 	return &config{
 		ControllerConfig:     scraperConfig,
 		MetricsBuilderConfig: metadata.DefaultMetricsBuilderConfig(),
 		Address:              "http://127.0.0.1:8200",
 		Namespace:            "",
 		MatchRegex:           ".*",
-		ConcurrencyLimit:     uint(runtime.GOMAXPROCS(0)),
+		ConcurrencyLimit:     runtime.GOMAXPROCS(0),
 		Crl: crlConfig{
 			Enabled:       true,
 			Timeout:       5 * time.Second,
@@ -60,7 +61,10 @@ func createMetricsReceiver(_ context.Context, settings receiver.Settings, cfg co
 	if err := rCfg.validate(); err != nil {
 		return nil, err
 	}
-	pki := newPkiEngineScraper(rCfg, settings)
+	pki, err := newPkiEngineScraper(rCfg, settings)
+	if err != nil {
+		return nil, err
+	}
 	s, err := scraper.NewMetrics(
 		pki.scrape,
 		scraper.WithStart(pki.start),

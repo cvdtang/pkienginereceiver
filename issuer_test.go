@@ -144,7 +144,7 @@ func TestIssuerProcessErrorCertificateEmpty(t *testing.T) {
 	errMsg := "certificate attribute is empty"
 
 	mockSecretStore.On("readIssuer", ctx, issuer.mountPath, issuer.id).Return(&vaultapi.Secret{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"certificate": "",
 		},
 	}, nil)
@@ -163,7 +163,7 @@ func TestIssuerProcessCertificateProcessError(t *testing.T) {
 	errMsg := "failed processing certificate"
 
 	mockSecretStore.On("readIssuer", ctx, issuer.mountPath, issuer.id).Return(&vaultapi.Secret{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"certificate": "junk",
 		},
 	}, nil)
@@ -181,7 +181,7 @@ func TestIssuerProcessSkipCopiedIssuer(t *testing.T) {
 	_, certPEM := getTestCertData(t, "example.org CA")
 
 	mockSecretStore.On("readIssuer", ctx, issuer.mountPath, issuer.id).Return(&vaultapi.Secret{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"certificate": string(certPEM),
 			"key_id":      "",
 		},
@@ -235,10 +235,10 @@ func TestIssuerProcessCRLTasksRespectCRLEnabled(t *testing.T) {
 			issuer.state.crlEnabled = tt.crlEnabled
 
 			mockSecretStore.On("readIssuer", ctx, issuer.mountPath, issuer.id).Return(&vaultapi.Secret{
-				Data: map[string]interface{}{
+				Data: map[string]any{
 					"certificate":                   string(certPEM),
-					"crl_distribution_points":       []interface{}{"https://subject.example/crl"},
-					"delta_crl_distribution_points": []interface{}{"https://subject.example/crl/delta"},
+					"crl_distribution_points":       []any{"https://subject.example/crl"},
+					"delta_crl_distribution_points": []any{"https://subject.example/crl/delta"},
 				},
 			}, nil)
 
@@ -255,9 +255,9 @@ func TestIssuerBuildCRLTasksScrapeParent(t *testing.T) {
 
 	parentCrlUri := "https://parent.example/crl"
 	issuerSecret := &vaultapi.Secret{
-		Data: map[string]interface{}{
-			"crl_distribution_points":       []interface{}{"https://subject.example/crl"},
-			"delta_crl_distribution_points": []interface{}{"https://subject.example/crl/delta"},
+		Data: map[string]any{
+			"crl_distribution_points":       []any{"https://subject.example/crl"},
+			"delta_crl_distribution_points": []any{"https://subject.example/crl/delta"},
 		},
 	}
 

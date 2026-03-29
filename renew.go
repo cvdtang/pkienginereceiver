@@ -2,6 +2,7 @@ package pkienginereceiver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -21,6 +22,7 @@ func (v *vault) manageTokenLifecycle(ctx context.Context, authTokenWatcher *vaul
 			return
 		case <-authTokenWatcher.DoneCh():
 			v.logger.Debug("token failed to renew (e.g. expired or revoked), re-auth required")
+
 			return
 		case renewalInfo := <-authTokenWatcher.RenewCh():
 			if renewalInfo.Secret.Auth != nil {
@@ -81,7 +83,7 @@ func (v *vault) startTokenRenewal(renewCtx context.Context, renewWg *sync.WaitGr
 	defer renewWg.Done()
 
 	if err := v.keepRenewingTokenLease(renewCtx); err != nil {
-		if err != context.Canceled {
+		if !errors.Is(err, context.Canceled) {
 			v.logger.Error("token renewal stopped unexpectedly", zap.Error(err))
 		}
 	}

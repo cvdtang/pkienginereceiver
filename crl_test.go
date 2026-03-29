@@ -42,6 +42,7 @@ func createHTTPTestCRL(t *testing.T, uri string) (*crl, *scrapeShared) {
 	crl, state := createTestCRL(t)
 	crl.fetcher = &realCrlFetcher{client: http.DefaultClient}
 	crl.uri = uri
+
 	return crl, state
 }
 
@@ -66,6 +67,7 @@ func createTestCrlData(t *testing.T) ([]byte, []byte) {
 		caKey, err := rsa.GenerateKey(rand.Reader, 2048)
 		if err != nil {
 			testCrlDataErr = err
+
 			return
 		}
 
@@ -86,11 +88,13 @@ func createTestCrlData(t *testing.T) ([]byte, []byte) {
 		caCertDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
 		if err != nil {
 			testCrlDataErr = err
+
 			return
 		}
 		caCert, err := x509.ParseCertificate(caCertDER)
 		if err != nil {
 			testCrlDataErr = err
+
 			return
 		}
 
@@ -147,7 +151,7 @@ func TestCRL_Collect(t *testing.T) {
 
 	// Check cache
 	cachedEntry, ok := state.crlCache.Get(crl.uri)
-	assert.Equal(t, ok, true, "Error results should be cached")
+	assert.True(t, ok, "Error results should be cached")
 	assert.Error(t, cachedEntry.metrics.err)
 
 	// Call again to check if cache matches via timestamp
@@ -172,6 +176,7 @@ func TestCRL_Parse(t *testing.T) {
 			input:       validDER,
 			expectError: false,
 			assertFunc: func(t *testing.T, crl *x509.RevocationList) {
+				t.Helper()
 				assert.NotNil(t, crl)
 				assert.Equal(t, big.NewInt(1), crl.Number, "CRL number should match")
 				assert.Len(t, crl.RevokedCertificateEntries, 1, "Should have 1 revoked entry")
@@ -182,6 +187,7 @@ func TestCRL_Parse(t *testing.T) {
 			input:       validPEM,
 			expectError: false,
 			assertFunc: func(t *testing.T, crl *x509.RevocationList) {
+				t.Helper()
 				assert.NotNil(t, crl)
 				assert.Equal(t, big.NewInt(1), crl.Number, "CRL number should match")
 				assert.Len(t, crl.RevokedCertificateEntries, 1, "Should have 1 revoked entry")
@@ -319,7 +325,7 @@ func TestCRL_Collect_RetrySuccessOnRetryableError(t *testing.T) {
 	metrics, err := crl.collect(ctx)
 	require.NoError(t, err)
 	require.NoError(t, metrics.err)
-	assert.Equal(t, int64(crlProcessingStatusSuccess), metrics.processingStatus)
+	assert.Equal(t, crlProcessingStatusSuccess, metrics.processingStatus)
 }
 
 func TestCRL_Collect_NoRetryOnPermanentError(t *testing.T) {
@@ -339,7 +345,7 @@ func TestCRL_Collect_NoRetryOnPermanentError(t *testing.T) {
 
 	metrics, err := crl.collect(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, int64(crlProcessingStatusFetchFailed), metrics.processingStatus)
+	assert.Equal(t, crlProcessingStatusFetchFailed, metrics.processingStatus)
 	assert.ErrorContains(t, metrics.err, "invalid request")
 }
 
@@ -365,7 +371,7 @@ func TestCRL_Collect_RetryIntervalHonorsContextCancellation(t *testing.T) {
 	elapsed := time.Since(start)
 
 	require.NoError(t, err)
-	assert.Equal(t, int64(crlProcessingStatusFetchFailed), metrics.processingStatus)
+	assert.Equal(t, crlProcessingStatusFetchFailed, metrics.processingStatus)
 	assert.ErrorIs(t, metrics.err, context.DeadlineExceeded)
 	assert.Less(t, elapsed, 250*time.Millisecond, "retry wait should stop early on context cancellation")
 }
@@ -434,10 +440,22 @@ func TestCRL_Emit(t *testing.T) {
 				m.revokedCertificates = 2
 			},
 			expectedMetrics: map[string]func(*testing.T, int64){
-				"pkiengine.crl.processing_status":         func(t *testing.T, v int64) { assert.Equal(t, int64(crlProcessingStatusSuccess), v) },
-				"pkiengine.crl.x509.this_update":          func(t *testing.T, v int64) { assert.Negative(t, v) },
-				"pkiengine.crl.x509.next_update":          func(t *testing.T, v int64) { assert.Positive(t, v) },
-				"pkiengine.crl.x509.revoked_certificates": func(t *testing.T, v int64) { assert.Equal(t, int64(2), v) },
+				"pkiengine.crl.processing_status": func(t *testing.T, v int64) {
+					t.Helper()
+					assert.Equal(t, crlProcessingStatusSuccess, v)
+				},
+				"pkiengine.crl.x509.this_update": func(t *testing.T, v int64) {
+					t.Helper()
+					assert.Negative(t, v)
+				},
+				"pkiengine.crl.x509.next_update": func(t *testing.T, v int64) {
+					t.Helper()
+					assert.Positive(t, v)
+				},
+				"pkiengine.crl.x509.revoked_certificates": func(t *testing.T, v int64) {
+					t.Helper()
+					assert.Equal(t, int64(2), v)
+				},
 			},
 		},
 		{
@@ -447,7 +465,8 @@ func TestCRL_Emit(t *testing.T) {
 			},
 			expectedMetrics: map[string]func(*testing.T, int64){
 				"pkiengine.crl.processing_status": func(t *testing.T, v int64) {
-					assert.Equal(t, int64(crlProcessingStatusFetchFailed), v)
+					t.Helper()
+					assert.Equal(t, crlProcessingStatusFetchFailed, v)
 				},
 			},
 		},
@@ -458,7 +477,8 @@ func TestCRL_Emit(t *testing.T) {
 			},
 			expectedMetrics: map[string]func(*testing.T, int64){
 				"pkiengine.crl.processing_status": func(t *testing.T, v int64) {
-					assert.Equal(t, int64(crlProcessingStatusParseFailed), v)
+					t.Helper()
+					assert.Equal(t, crlProcessingStatusParseFailed, v)
 				},
 			},
 		},
@@ -525,14 +545,12 @@ func TestCRL_Collect_Concurrency(t *testing.T) {
 
 	atomic.StoreInt32(&httpRequestCount, 0)
 
-	for i := 0; i < concurrency; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range concurrency {
+		wg.Go(func() {
 			<-startSignal
 			_, err := sharedCrl.collect(t.Context())
 			errCh <- err
-		}()
+		})
 	}
 
 	close(startSignal)
@@ -565,6 +583,7 @@ func TestCRL_Collect_HttpCaching(t *testing.T) {
 		if r.Header.Get("If-None-Match") == etag {
 			requestHasValidator.Store(true)
 			w.WriteHeader(http.StatusNotModified)
+
 			return
 		}
 
@@ -663,6 +682,7 @@ func TestCRL_Collect_HttpCachingLastModifiedOnly(t *testing.T) {
 			assert.Equal(t, lastModified.Format(http.TimeFormat), ifModifiedSince, "Revalidation should send cached Last-Modified")
 			assert.Empty(t, r.Header.Get("If-None-Match"), "ETag validator should be absent when no ETag was cached")
 			w.WriteHeader(http.StatusNotModified)
+
 			return
 		}
 
@@ -719,6 +739,7 @@ func TestCRL_Collect_HttpCachingDateFallback(t *testing.T) {
 			assert.Equal(t, fallbackDate.Format(http.TimeFormat), ifModifiedSince, "Date fallback should be reused as If-Modified-Since")
 			assert.Empty(t, r.Header.Get("If-None-Match"), "If-None-Match should remain empty without an ETag")
 			w.WriteHeader(http.StatusNotModified)
+
 			return
 		}
 
@@ -778,6 +799,7 @@ func TestCRL_Collect_HttpCachingMalformedLastModified(t *testing.T) {
 			assert.Equal(t, fallbackDate.Format(http.TimeFormat), ifModifiedSince, "Malformed Last-Modified should fallback to Date")
 			assert.Empty(t, r.Header.Get("If-None-Match"), "If-None-Match should remain empty without an ETag")
 			w.WriteHeader(http.StatusNotModified)
+
 			return
 		}
 
@@ -908,6 +930,7 @@ func TestCRL_Collect_HTTP304CacheMissFallback(t *testing.T) {
 			atomic.AddInt32(&conditionalRequestCount, 1)
 			state.crlCache.Remove(sharedCrl.uri)
 			w.WriteHeader(http.StatusNotModified)
+
 			return
 		}
 
@@ -929,7 +952,7 @@ func TestCRL_Collect_HTTP304CacheMissFallback(t *testing.T) {
 	metrics, err := sharedCrl.collect(t.Context())
 	require.NoError(t, err)
 
-	assert.Equal(t, int64(crlProcessingStatusSuccess), metrics.processingStatus)
+	assert.Equal(t, crlProcessingStatusSuccess, metrics.processingStatus)
 	assert.Equal(t, int32(1), atomic.LoadInt32(&conditionalRequestCount), "Expected one conditional request")
 	assert.Equal(t, int32(2), atomic.LoadInt32(&fullRequestCount), "Expected fallback unconditional fetch after cache miss on 304")
 	assert.EqualValues(t, 0, state.crlCacheHits.Load(), "304 cache-miss fallback should not count as a hit")
@@ -970,7 +993,7 @@ func TestCRL_Collect_HTTPRevalidationFailureReportsFetchFailure(t *testing.T) {
 	metrics, err := crl.collect(ctx)
 	require.NoError(t, err)
 
-	assert.Equal(t, int64(crlProcessingStatusFetchFailed), metrics.processingStatus)
+	assert.Equal(t, crlProcessingStatusFetchFailed, metrics.processingStatus)
 	assert.Error(t, metrics.err)
 }
 

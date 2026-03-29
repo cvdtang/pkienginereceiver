@@ -76,7 +76,6 @@ func (ie *issuer) renderAiaUrlTemplate(url string) string {
 
 // Reads issuer data, processes the certificate and prepares CRL tasks.
 func (ie *issuer) collect(ctx context.Context) (issuerResult, error) {
-
 	var err error
 	var issuer *api.Secret
 
@@ -87,6 +86,7 @@ func (ie *issuer) collect(ctx context.Context) (issuerResult, error) {
 
 	if err != nil {
 		ie.logger.Error("failed reading issuer", zap.Error(err))
+
 		return issuerResult{}, err
 	}
 
@@ -110,6 +110,7 @@ func (ie *issuer) collect(ctx context.Context) (issuerResult, error) {
 	crtText, ok := issuer.Data["certificate"].(string)
 	if !ok || crtText == "" {
 		err := errors.New("certificate attribute is empty or invalid")
+
 		return issuerResult{}, err
 	}
 
@@ -139,8 +140,10 @@ func (ie *issuer) shouldSkip(issuer *api.Secret) bool {
 	keyID, ok := issuer.Data["key_id"].(string)
 	if ok && keyID == "" {
 		ie.logger.Debug("skipping non-local issuer (empty key_id)")
+
 		return true
 	}
+
 	return false
 }
 
@@ -167,6 +170,7 @@ func (ie *issuer) buildCRLTasks(issuer *api.Secret, cert certificate, logger *za
 	deltaIssuerURIs, err := cert.listDeltaCrlDistributionPoints()
 	if err != nil {
 		logger.Error("failed parsing delta CRL extension")
+
 		return tasks
 	}
 	appendTasks(deltaIssuerURIs, metadata.AttributeCrlRoleIssuer, metadata.AttributeCrlKindDelta)
@@ -194,6 +198,7 @@ func (ie *issuer) buildCRLTasksForURIs(issuer *api.Secret, urls []string, role m
 			kind: kind,
 		})
 	}
+
 	return tasks
 }
 
@@ -201,6 +206,7 @@ func (ie *issuer) listBaseCrlDistributionPoints(issuer *api.Secret) []string {
 	if issuer == nil || issuer.Data == nil {
 		return []string{}
 	}
+
 	return toStringSlice(issuer.Data["crl_distribution_points"])
 }
 
@@ -208,5 +214,6 @@ func (ie *issuer) listDeltaCrlDistributionPoints(issuer *api.Secret) []string {
 	if issuer == nil || issuer.Data == nil {
 		return []string{}
 	}
+
 	return toStringSlice(issuer.Data["delta_crl_distribution_points"])
 }

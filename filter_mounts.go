@@ -16,6 +16,7 @@ func getFilteredMounts(ctx context.Context, logger *zap.Logger, secretStore secr
 
 	if len(pkiMountPaths) == 0 {
 		logger.Warn("no engine mounts found of type pki")
+
 		return nil, nil
 	}
 
@@ -31,6 +32,7 @@ func getFilteredMounts(ctx context.Context, logger *zap.Logger, secretStore secr
 			zap.Int("total_pki_mounts", len(pkiMountPaths)),
 			zap.String("regex", cfg.MatchRegex),
 		)
+
 		return nil, nil
 	}
 

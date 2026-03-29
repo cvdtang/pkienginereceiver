@@ -1,8 +1,8 @@
 package pkienginereceiver
 
-// Converts a []interface{} value into a []string.
-func toStringSlice(i interface{}) []string {
-	raw, ok := i.([]interface{})
+// Converts a []any value into a []string.
+func toStringSlice(i any) []string {
+	raw, ok := i.([]any)
 	if !ok {
 		return nil
 	}
@@ -11,5 +11,6 @@ func toStringSlice(i interface{}) []string {
 	for i, v := range raw {
 		res[i], _ = v.(string) // Defaults to "" if not a string
 	}
+
 	return res
 }

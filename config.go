@@ -15,12 +15,13 @@ import (
 type config struct {
 	scraperhelper.ControllerConfig `mapstructure:",squash"`
 	metadata.MetricsBuilderConfig  `mapstructure:",squash"`
-	Address                        string     `mapstructure:"address"`
-	Namespace                      string     `mapstructure:"namespace"`
-	MatchRegex                     string     `mapstructure:"match_regex"`
-	ConcurrencyLimit               uint       `mapstructure:"concurrency_limit"`
-	Crl                            crlConfig  `mapstructure:"crl"`
-	Auth                           authConfig `mapstructure:"auth"`
+
+	Address          string     `mapstructure:"address"`
+	Namespace        string     `mapstructure:"namespace"`
+	MatchRegex       string     `mapstructure:"match_regex"`
+	ConcurrencyLimit int        `mapstructure:"concurrency_limit"`
+	Crl              crlConfig  `mapstructure:"crl"`
+	Auth             authConfig `mapstructure:"auth"`
 
 	compiledRegex *regexp.Regexp
 }
@@ -28,21 +29,20 @@ type config struct {
 type crlConfig struct {
 	Enabled       bool          `mapstructure:"enabled"`
 	ScrapeParent  bool          `mapstructure:"scrape_parent"`
-	CacheSize     uint          `mapstructure:"cache_size"`
+	CacheSize     int           `mapstructure:"cache_size"`
 	Timeout       time.Duration `mapstructure:"timeout"`
-	Retries       uint          `mapstructure:"retries"`
+	Retries       int           `mapstructure:"retries"`
 	RetryInterval time.Duration `mapstructure:"retry_interval"`
 }
 
 func (c *config) validate() error {
-
 	u, err := url.ParseRequestURI(c.Address)
 
 	if err != nil {
 		return fmt.Errorf("failed parsing address uri: %w", err)
 	}
 
-	if !slices.Contains([]string{"http", "https"}, u.Scheme) {
+	if !slices.Contains([]string{httpScheme, httpsScheme}, u.Scheme) {
 		return fmt.Errorf("address invalid protocol")
 	}
 
@@ -58,6 +58,16 @@ func (c *config) validate() error {
 
 	if !slices.Contains(c.Auth.supportedMethods(), c.Auth.AuthType) {
 		return fmt.Errorf("got unsupported auth type: '%s'", c.Auth.AuthType)
+	}
+
+	if c.ConcurrencyLimit < 0 {
+		return fmt.Errorf("concurrency limit must be greater than or equal to 0")
+	}
+	if c.Crl.CacheSize < 0 {
+		return fmt.Errorf("crl cache size must be greater than or equal to 0")
+	}
+	if c.Crl.Retries < 0 {
+		return fmt.Errorf("crl retries must be greater than or equal to 0")
 	}
 
 	switch c.Auth.AuthType {

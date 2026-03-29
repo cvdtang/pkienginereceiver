@@ -33,8 +33,8 @@ func TestMountProcessGetClusterConfigurationErr(t *testing.T) {
 	mount := createTestMount(t, mockSecretStore)
 
 	mockSecretStore.On("readClusterConfiguration", ctx, mount.path).Return(nil, fmt.Errorf("error"))
-	mockSecretStore.On("listCertificates", ctx, mount.path).Return(&vaultapi.Secret{Data: map[string]interface{}{"keys": []interface{}{}}}, nil).Maybe()
-	mockSecretStore.On("listIssuers", ctx, mount.path).Return(&vaultapi.Secret{Data: map[string]interface{}{"keys": []interface{}{}}}, nil).Maybe()
+	mockSecretStore.On("listCertificates", ctx, mount.path).Return(&vaultapi.Secret{Data: map[string]any{"keys": []any{}}}, nil).Maybe()
+	mockSecretStore.On("listIssuers", ctx, mount.path).Return(&vaultapi.Secret{Data: map[string]any{"keys": []any{}}}, nil).Maybe()
 
 	_, err := mount.collect(ctx)
 	assert.Error(t, err)
@@ -48,15 +48,15 @@ func TestMountProcessListIssuersErr(t *testing.T) {
 	mount := createTestMount(t, mockSecretStore)
 
 	mockSecretStore.On("readClusterConfiguration", ctx, mount.path).Return(&vaultapi.Secret{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"path":     "",
 			"aia_path": "",
 		},
 	}, nil)
 
 	mockSecretStore.On("listCertificates", ctx, mount.path).Return(&vaultapi.Secret{
-		Data: map[string]interface{}{
-			"keys": []interface{}{"17:67:16:b0:b9:45:58:c0:3a:29:e3:cb:d6:98:33:7a:a6:3b:66:c1"},
+		Data: map[string]any{
+			"keys": []any{"17:67:16:b0:b9:45:58:c0:3a:29:e3:cb:d6:98:33:7a:a6:3b:66:c1"},
 		},
 	}, nil)
 

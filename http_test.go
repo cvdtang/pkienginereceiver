@@ -153,45 +153,54 @@ func TestFetchHTTP_Headers_WithoutKnownLastModified(t *testing.T) {
 func TestFetchHTTP_ResponseMetadata(t *testing.T) {
 	t.Parallel()
 
-	expectedETag := "new-etag"
-	expectedLastModified := time.Date(2025, 1, 1, 1, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name                 string
+		expectedETag         string
+		expectedLastModified time.Time
+		writeHeaders         func(w http.ResponseWriter)
+		assertMsg            string
+	}{
+		{
+			name:                 "ETag and Last-Modified",
+			expectedETag:         "new-etag",
+			expectedLastModified: time.Date(2025, 1, 1, 1, 0, 0, 0, time.UTC),
+			writeHeaders: func(w http.ResponseWriter) {
+				w.Header().Set("ETag", "new-etag")
+				w.Header().Set("Last-Modified", time.Date(2025, 1, 1, 1, 0, 0, 0, time.UTC).Format(http.TimeFormat))
+			},
+			assertMsg: "LastModified should match",
+		},
+		{
+			name:                 "ETag and Date fallback",
+			expectedETag:         "etag-only",
+			expectedLastModified: time.Date(2025, 1, 1, 1, 0, 0, 0, time.UTC),
+			writeHeaders: func(w http.ResponseWriter) {
+				w.Header().Set("ETag", "etag-only")
+				w.Header().Set("Date", time.Date(2025, 1, 1, 1, 0, 0, 0, time.UTC).Format(http.TimeFormat))
+			},
+			assertMsg: "LastModified should fallback to Date",
+		},
+	}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("ETag", expectedETag)
-		w.Header().Set("Last-Modified", expectedLastModified.Format(http.TimeFormat))
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("data"))
-	}))
-	defer server.Close()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	fetcher := &realCrlFetcher{client: http.DefaultClient}
-	res, err := fetcher.fetchHTTP(t.Context(), server.URL, 10*time.Second, "", time.Time{})
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				tt.writeHeaders(w)
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte("data"))
+			}))
+			defer server.Close()
 
-	require.NoError(t, err)
-	assert.Equal(t, expectedETag, res.ETag)
-	assert.True(t, res.LastModified.Equal(expectedLastModified), "LastModified should match")
-}
+			fetcher := &realCrlFetcher{client: http.DefaultClient}
+			res, err := fetcher.fetchHTTP(t.Context(), server.URL, 10*time.Second, "", time.Time{})
 
-func TestFetchHTTP_ResponseMetadata_ETagOnly(t *testing.T) {
-	t.Parallel()
-
-	expectedETag := "etag-only"
-	expectedDate := time.Date(2025, 1, 1, 1, 0, 0, 0, time.UTC)
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("ETag", expectedETag)
-		w.Header().Set("Date", expectedDate.Format(http.TimeFormat))
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("data"))
-	}))
-	defer server.Close()
-
-	fetcher := &realCrlFetcher{client: http.DefaultClient}
-	res, err := fetcher.fetchHTTP(t.Context(), server.URL, 10*time.Second, "", time.Time{})
-
-	require.NoError(t, err)
-	assert.Equal(t, expectedETag, res.ETag)
-	assert.True(t, res.LastModified.Equal(expectedDate), "LastModified should fallback to Date")
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedETag, res.ETag)
+			assert.True(t, res.LastModified.Equal(tt.expectedLastModified), tt.assertMsg)
+		})
+	}
 }
 
 func TestFetchHTTP_ResponseMetadata_LastModifiedOnly(t *testing.T) {
