@@ -13,6 +13,14 @@ import (
 	"github.com/go-ldap/ldap/v3"
 )
 
+const (
+	ldapScheme    = "ldap"
+	ldapsScheme   = "ldaps"
+	ldapScopeBase = "base"
+	ldapScopeOne  = "one"
+	ldapScopeSub  = "sub"
+)
+
 // Components of a parsed LDAP URI.
 type ldapURI struct {
 	Scheme     string   // ldap, ldaps, ldapi
@@ -32,7 +40,7 @@ func parseLdapUri(uri string) (*ldapURI, error) {
 		return nil, fmt.Errorf("invalid URI format: %w", err)
 	}
 
-	if u.Scheme != "ldap" && u.Scheme != "ldaps" {
+	if u.Scheme != ldapScheme && u.Scheme != ldapsScheme {
 		return nil, errors.New("unsupported scheme: must be ldap or ldaps")
 	}
 
@@ -53,8 +61,9 @@ func parseLdapUri(uri string) (*ldapURI, error) {
 	// Must split by '?' manually.
 	if u.RawQuery == "" {
 		// Set defaults if no query is present
-		result.Scope = "base"
+		result.Scope = ldapScopeBase
 		result.Filter = "(objectClass=*)"
+
 		return result, nil
 	}
 
@@ -70,7 +79,7 @@ func parseLdapUri(uri string) (*ldapURI, error) {
 	if len(parts) > 1 && parts[1] != "" {
 		result.Scope = parts[1]
 	} else {
-		result.Scope = "base" // Default per RFC
+		result.Scope = ldapScopeBase // Default per RFC
 	}
 
 	// Part 2: Filter
@@ -168,7 +177,7 @@ func (f *realCrlFetcher) parseAndPrepare(uri string) (*ldapParams, error) {
 	//   "certificateRevocationList;binary".
 	attribute := parsed.Attributes[0]
 	if !strings.HasSuffix(attribute, ";binary") {
-		attribute = attribute + ";binary"
+		attribute += ";binary"
 	}
 
 	// Add filter parentheses
@@ -187,11 +196,11 @@ func (f *realCrlFetcher) parseAndPrepare(uri string) (*ldapParams, error) {
 
 	var scope int
 	switch parsed.Scope {
-	case "base":
+	case ldapScopeBase:
 		scope = ldap.ScopeBaseObject
-	case "one":
+	case ldapScopeOne:
 		scope = ldap.ScopeSingleLevel
-	case "sub":
+	case ldapScopeSub:
 		scope = ldap.ScopeWholeSubtree
 	default:
 		return nil, fmt.Errorf("invalid 'scope' parameter value: %s. Valid values are 'base', 'one', or 'sub'", parsed.Scope)
@@ -207,9 +216,8 @@ func (f *realCrlFetcher) parseAndPrepare(uri string) (*ldapParams, error) {
 }
 
 // Fetches CRL bytes from an LDAP endpoint.
-func (f *realCrlFetcher) fetchLDAP(ctx context.Context, dialer ldapDialer, uri string, timeout time.Duration) (fetchable int64, data []byte, err error) {
-	fetchable = 0
-
+func (f *realCrlFetcher) fetchLDAP(ctx context.Context, dialer ldapDialer, uri string, timeout time.Duration) (int64, []byte, error) {
+	var fetchable int64 = 0
 	params, err := f.parseAndPrepare(uri)
 	if err != nil {
 		return fetchable, nil, newPermanentFetchError(fmt.Errorf("failed to parse ldap uri: %w", err))

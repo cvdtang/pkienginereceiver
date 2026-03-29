@@ -165,7 +165,7 @@ func (cfg *authJWT) authenticate(ctx context.Context, client *vaultapi.Client) (
 		return nil, err
 	}
 
-	loginData := map[string]interface{}{
+	loginData := map[string]any{
 		"role": cfg.RoleName,
 		"jwt":  token,
 	}

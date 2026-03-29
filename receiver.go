@@ -34,6 +34,7 @@ type pkiEngineScraper struct {
 func (s *pkiEngineScraper) start(ctx context.Context, _ component.Host) error {
 	// Get derived context that outlives the scrape job for token renewer.
 	s.renewCtx, s.renewCancel = context.WithCancel(ctx)
+
 	return nil
 }
 
@@ -44,10 +45,11 @@ func (s *pkiEngineScraper) shutdown(ctx context.Context) error {
 		s.renewCancel()
 	}
 	s.renewWg.Wait()
+
 	return nil
 }
 
-func newPkiEngineScraper(cfg *config, settings receiver.Settings) *pkiEngineScraper {
+func newPkiEngineScraper(cfg *config, settings receiver.Settings) (*pkiEngineScraper, error) {
 	scraper := &pkiEngineScraper{
 		logger: settings.Logger.With(
 			zap.String("engine.address", cfg.Address),
@@ -66,12 +68,16 @@ func newPkiEngineScraper(cfg *config, settings receiver.Settings) *pkiEngineScra
 			scraper.crlEvictionsTotal.Add(1)
 			settings.Logger.Debug("crl evicted from LRU cache", zap.String("key", key))
 		}
-		backend, _ := newLruCrlCache(int(cfg.Crl.CacheSize), onEvict)
+		backend, err := newLruCrlCache(cfg.Crl.CacheSize, onEvict)
+		if err != nil {
+			return nil, fmt.Errorf("failed creating CRL cache: %w", err)
+		}
 		crlCache = backend
 	}
 
 	scraper.crlCache = crlCache
-	return scraper
+
+	return scraper, nil
 }
 
 // Lazily create the secret store client and starts token renewal.
@@ -106,7 +112,7 @@ func (s *pkiEngineScraper) scrape(ctx context.Context) (pmetric.Metrics, error) 
 	s.crlEvictionsTotal.Store(0)
 
 	// Shared state across all mount, issuer and CRL tasks.
-	sharedState, err := newScrapeShared(
+	sharedState := newScrapeShared(
 		s.cfg.Crl.Timeout,
 		s.cfg.Crl.Retries,
 		s.cfg.Crl.RetryInterval,
@@ -117,9 +123,6 @@ func (s *pkiEngineScraper) scrape(ctx context.Context) (pmetric.Metrics, error) 
 		s.settings,
 		s.cfg.Metrics,
 	)
-	if err != nil {
-		return pmetric.NewMetrics(), fmt.Errorf("failed creating processor instance: %w", err)
-	}
 
 	// Exit early when no mounts match current filters.
 	filteredMountPaths, err := getFilteredMounts(ctx, s.logger, s.secretStore, s.cfg)
@@ -128,7 +131,7 @@ func (s *pkiEngineScraper) scrape(ctx context.Context) (pmetric.Metrics, error) 
 	}
 
 	// Enqueue one root task per mount; each root can fan out more tasks.
-	runner := newTaskRunner(ctx, int(s.cfg.ConcurrencyLimit))
+	runner := newTaskRunner(ctx, s.cfg.ConcurrencyLimit)
 	errorTotals := &scrapeErrorTotals{}
 
 	for _, mountPath := range filteredMountPaths {
@@ -144,6 +147,7 @@ func (s *pkiEngineScraper) scrape(ctx context.Context) (pmetric.Metrics, error) 
 	rb := sharedState.mb.NewResourceBuilder()
 	rb.SetEngineAddress(s.cfg.Address)
 	rb.SetEngineNamespace(s.cfg.Namespace)
+
 	return sharedState.mb.Emit(metadata.WithResource(rb.Emit())), nil
 }
 
@@ -224,11 +228,12 @@ func (s *pkiEngineScraper) enqueueMount(runner *taskRunner, sharedState *scrapeS
 		mountPath,
 	)
 
-	_ = runner.enqueue(func(ctx context.Context) {
+	runner.enqueue(func(ctx context.Context) {
 		result, err := mount.collect(ctx)
 		if err != nil {
 			errorTotals.mountErrors.Add(1)
 			mount.logger.Warn("failed processing mount", zap.Error(err))
+
 			return
 		}
 
@@ -245,11 +250,12 @@ func (s *pkiEngineScraper) enqueueMount(runner *taskRunner, sharedState *scrapeS
 				result.clusterConfig,
 			)
 
-			_ = runner.enqueue(func(ctx context.Context) {
+			runner.enqueue(func(ctx context.Context) {
 				issuerResult, err := issuer.collect(ctx)
 				if err != nil {
 					errorTotals.issuerErrors.Add(1)
 					issuer.logger.Warn("failed processing issuer", zap.Error(err))
+
 					return
 				}
 				if issuerResult.skipped {
@@ -267,10 +273,11 @@ func (s *pkiEngineScraper) enqueueMount(runner *taskRunner, sharedState *scrapeS
 							zap.String("crl.role", task.role.String()),
 							zap.String("crl.kind", task.kind.String()),
 						)
+
 						continue
 					}
 
-					_ = runner.enqueue(func(ctx context.Context) {
+					runner.enqueue(func(ctx context.Context) {
 						crl := newCRL(
 							issuerResult.logger,
 							sharedState,
@@ -282,6 +289,7 @@ func (s *pkiEngineScraper) enqueueMount(runner *taskRunner, sharedState *scrapeS
 						metrics, err := crl.collect(ctx)
 						if err != nil {
 							crl.logger.Warn("failed processing crl", zap.Error(err))
+
 							return
 						}
 
@@ -291,5 +299,4 @@ func (s *pkiEngineScraper) enqueueMount(runner *taskRunner, sharedState *scrapeS
 			})
 		}
 	})
-
 }

@@ -17,7 +17,7 @@ import (
 type scrapeShared struct {
 	crlFetchSfg           *singleflight.Group
 	crlFetchTimeout       time.Duration
-	crlFetchRetries       uint
+	crlFetchRetries       int
 	crlFetchRetryInterval time.Duration
 	crlEnabled            bool
 	crlScrapeParent       bool
@@ -39,7 +39,7 @@ type scrapeShared struct {
 // Creates per-scrape shared resources reused across mounts.
 func newScrapeShared(
 	crlFetchTimeout time.Duration,
-	crlFetchRetries uint,
+	crlFetchRetries int,
 	crlFetchRetryInterval time.Duration,
 	crlEnabled bool,
 	crlScrapeParent bool,
@@ -47,7 +47,7 @@ func newScrapeShared(
 	metricsBuilderCfg metadata.MetricsBuilderConfig,
 	settings receiver.Settings,
 	metricsCfg metadata.MetricsConfig,
-) (*scrapeShared, error) {
+) *scrapeShared {
 	return &scrapeShared{
 		crlFetchSfg:           &singleflight.Group{},
 		crlFetchTimeout:       crlFetchTimeout,
@@ -65,7 +65,7 @@ func newScrapeShared(
 		),
 		mbMutex: &sync.Mutex{},
 		crlSeen: make(map[string]struct{}),
-	}, nil
+	}
 }
 
 // Checks whether this scrape should process the CRL keyed by uri|role|kind.
@@ -79,6 +79,7 @@ func (s *scrapeShared) claimCRL(uri string, role metadata.AttributeCrlRole, kind
 		return false
 	}
 	s.crlSeen[key] = struct{}{}
+
 	return true
 }
 
@@ -90,5 +91,6 @@ func crlDedupKey(uri string, role metadata.AttributeCrlRole, kind metadata.Attri
 	b.WriteString(role.String())
 	b.WriteByte('|')
 	b.WriteString(kind.String())
+
 	return b.String()
 }

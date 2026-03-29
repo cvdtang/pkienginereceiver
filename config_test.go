@@ -41,6 +41,7 @@ func TestConfig_Validate(t *testing.T) {
 			c: func() *config {
 				cfg := validConfig()
 				cfg.Address = "127.0.0.1:8200"
+
 				return cfg
 			}(),
 			errorExpected: "failed parsing address uri:",
@@ -50,6 +51,7 @@ func TestConfig_Validate(t *testing.T) {
 			c: func() *config {
 				cfg := validConfig()
 				cfg.Address = "ftp://127.0.0.1:8200"
+
 				return cfg
 			}(),
 			errorExpected: "address invalid protocol",
@@ -59,6 +61,7 @@ func TestConfig_Validate(t *testing.T) {
 			c: func() *config {
 				cfg := validConfig()
 				cfg.Address = "http://"
+
 				return cfg
 			}(),
 			errorExpected: "address no host specified",
@@ -69,6 +72,7 @@ func TestConfig_Validate(t *testing.T) {
 				cfg := validConfig()
 				// backtracking not supported by RE2
 				cfg.MatchRegex = "\\1"
+
 				return cfg
 			}(),
 			errorExpected: "failed compiling regex:",
@@ -78,6 +82,7 @@ func TestConfig_Validate(t *testing.T) {
 			c: func() *config {
 				cfg := validConfig()
 				cfg.Auth.AuthType = "not implemented"
+
 				return cfg
 			}(),
 			errorExpected: "got unsupported auth type:",
@@ -87,6 +92,7 @@ func TestConfig_Validate(t *testing.T) {
 			c: func() *config {
 				cfg := validConfig()
 				cfg.Crl.RetryInterval = -1 * time.Second
+
 				return cfg
 			}(),
 			errorExpected: "crl retry interval must be greater than or equal to 0",
@@ -96,15 +102,47 @@ func TestConfig_Validate(t *testing.T) {
 			c: func() *config {
 				cfg := validConfig()
 				cfg.Crl.Timeout = -1 * time.Second
+
 				return cfg
 			}(),
 			errorExpected: "crl timeout must be greater than or equal to 0",
+		},
+		{
+			name: "negative concurrency limit",
+			c: func() *config {
+				cfg := validConfig()
+				cfg.ConcurrencyLimit = -1
+
+				return cfg
+			}(),
+			errorExpected: "concurrency limit must be greater than or equal to 0",
+		},
+		{
+			name: "negative crl cache size",
+			c: func() *config {
+				cfg := validConfig()
+				cfg.Crl.CacheSize = -1
+
+				return cfg
+			}(),
+			errorExpected: "crl cache size must be greater than or equal to 0",
+		},
+		{
+			name: "negative crl retries",
+			c: func() *config {
+				cfg := validConfig()
+				cfg.Crl.Retries = -1
+
+				return cfg
+			}(),
+			errorExpected: "crl retries must be greater than or equal to 0",
 		},
 		{
 			name: "token missing token",
 			c: func() *config {
 				cfg := validConfig()
 				cfg.Auth.AuthToken.Token = ""
+
 				return cfg
 			}(),
 			errorExpected: "token auth no token specified",
@@ -115,6 +153,7 @@ func TestConfig_Validate(t *testing.T) {
 				cfg := validConfig()
 				cfg.Auth.AuthType = authTypeAppRole
 				cfg.Auth.AuthAppRole.SecretID = "secret-id"
+
 				return cfg
 			}(),
 			errorExpected: "approle auth no role id specified",
@@ -125,6 +164,7 @@ func TestConfig_Validate(t *testing.T) {
 				cfg := validConfig()
 				cfg.Auth.AuthType = authTypeAppRole
 				cfg.Auth.AuthAppRole.RoleID = "role-id"
+
 				return cfg
 			}(),
 			errorExpected: "approle auth no secret id specified",
@@ -135,6 +175,7 @@ func TestConfig_Validate(t *testing.T) {
 				cfg := validConfig()
 				cfg.Auth.AuthType = authTypeKubernetes
 				cfg.Auth.AuthKubernetes.ServiceAccountTokenPath = "/tmp/token"
+
 				return cfg
 			}(),
 			errorExpected: "kubernetes auth no role specified",
@@ -145,6 +186,7 @@ func TestConfig_Validate(t *testing.T) {
 				cfg := validConfig()
 				cfg.Auth.AuthType = authTypeKubernetes
 				cfg.Auth.AuthKubernetes.RoleName = "role"
+
 				return cfg
 			}(),
 			errorExpected: "kubernetes auth no service account token or path specified",
@@ -155,6 +197,7 @@ func TestConfig_Validate(t *testing.T) {
 				cfg := validConfig()
 				cfg.Auth.AuthType = authTypeJWT
 				cfg.Auth.AuthJWT.Token = "jwt-token"
+
 				return cfg
 			}(),
 			errorExpected: "jwt auth no role specified",
@@ -165,6 +208,7 @@ func TestConfig_Validate(t *testing.T) {
 				cfg := validConfig()
 				cfg.Auth.AuthType = authTypeJWT
 				cfg.Auth.AuthJWT.RoleName = "role"
+
 				return cfg
 			}(),
 			errorExpected: "jwt auth no token or path specified",

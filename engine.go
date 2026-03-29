@@ -14,7 +14,7 @@ var _ secretStore = (*vault)(nil)
 
 type secretStore interface {
 	readClusterConfiguration(ctx context.Context, mount string) (*vaultapi.Secret, error)
-	listMountPathsTypePki(ctx context.Context) (pkiMountPaths []string, err error)
+	listMountPathsTypePki(ctx context.Context) ([]string, error)
 	listIssuers(ctx context.Context, mount string) (*vaultapi.Secret, error)
 	readIssuer(ctx context.Context, mount string, id string) (*vaultapi.Secret, error)
 	listCertificates(ctx context.Context, mount string) (*vaultapi.Secret, error)
@@ -29,13 +29,15 @@ var (
 func (v *vault) readClusterConfiguration(ctx context.Context, mount string) (*vaultapi.Secret, error) {
 	path := path.Join(mount, "config/cluster")
 	secret, err := v.client.Logical().ReadWithContext(ctx, path)
+
 	return secret, err
 }
 
 // Call secret store to list mounts, only return mounts of type `pki`.
 //
 // API: https://developer.hashicorp.com/vault/api-docs/system/mounts
-func (v *vault) listMountPathsTypePki(ctx context.Context) (pkiMountPaths []string, err error) {
+func (v *vault) listMountPathsTypePki(ctx context.Context) ([]string, error) {
+	pkiMountPaths := make([]string, 0)
 
 	sys := v.client.Sys()
 
@@ -52,13 +54,14 @@ func (v *vault) listMountPathsTypePki(ctx context.Context) (pkiMountPaths []stri
 		pkiMountPaths = append(pkiMountPaths, path)
 	}
 
-	return
+	return pkiMountPaths, nil
 }
 
 // API: https://developer.hashicorp.com/vault/api-docs/secret/pki#list-issuers
 func (v *vault) listIssuers(ctx context.Context, mount string) (*vaultapi.Secret, error) {
 	path := path.Join(mount, "issuers")
 	secret, err := v.client.Logical().ListWithContext(ctx, path)
+
 	return secret, err
 }
 
@@ -66,6 +69,7 @@ func (v *vault) listIssuers(ctx context.Context, mount string) (*vaultapi.Secret
 func (v *vault) readIssuer(ctx context.Context, mount string, id string) (*vaultapi.Secret, error) {
 	path := path.Join(mount, "issuer", id)
 	issuer, err := v.client.Logical().ReadWithContext(ctx, path)
+
 	return issuer, err
 }
 
@@ -73,5 +77,6 @@ func (v *vault) readIssuer(ctx context.Context, mount string, id string) (*vault
 func (v *vault) listCertificates(ctx context.Context, mount string) (*vaultapi.Secret, error) {
 	path := path.Join(mount, "certs")
 	secret, err := v.client.Logical().ListWithContext(ctx, path)
+
 	return secret, err
 }

@@ -52,6 +52,7 @@ func (f *realCrlFetcher) fetchHTTP(ctx context.Context, uri string, timeout time
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return res, err
 		}
+
 		return res, newRetryableFetchError(fmt.Errorf("failed to fetch crl: %w", err))
 	}
 	defer resp.Body.Close()
@@ -60,6 +61,7 @@ func (f *realCrlFetcher) fetchHTTP(ctx context.Context, uri string, timeout time
 		res.Fetchable = 1
 		res.ETag = resp.Header.Get("ETag")
 		res.LastModified = parseLastModifiedHeader(resp.Header, false)
+
 		return res, errNotModified
 	}
 
@@ -71,6 +73,7 @@ func (f *realCrlFetcher) fetchHTTP(ctx context.Context, uri string, timeout time
 		if isRetryableHTTPStatus(resp.StatusCode) {
 			return res, newRetryableFetchError(err)
 		}
+
 		return res, newPermanentFetchError(err)
 	}
 
@@ -91,5 +94,6 @@ func isRetryableHTTPStatus(statusCode int) bool {
 	if statusCode == http.StatusRequestTimeout || statusCode == http.StatusTooManyRequests {
 		return true
 	}
+
 	return statusCode >= http.StatusInternalServerError
 }

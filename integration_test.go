@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"net"
 	"net/url"
 	"os"
 	"os/exec"
@@ -173,7 +174,7 @@ var integrationMatrixAuthScenarios = []authScenario{
 		name: "kubernetes_bound_service_account_token",
 		configFunc: func(cfg *config, suite *IntegrationSuite, _ tfProjectVars) {
 			cfg.Auth.AuthType = "kubernetes"
-			cfg.Auth.AuthKubernetes.RoleName = "otel-collector"
+			cfg.Auth.AuthKubernetes.RoleName = saName
 			cfg.Auth.AuthKubernetes.ServiceAccountTokenPath = suite.boundTokenPath
 		},
 	},
@@ -181,7 +182,7 @@ var integrationMatrixAuthScenarios = []authScenario{
 		name: "kubernetes_long_lived_secret_token",
 		configFunc: func(cfg *config, suite *IntegrationSuite, _ tfProjectVars) {
 			cfg.Auth.AuthType = "kubernetes"
-			cfg.Auth.AuthKubernetes.RoleName = "otel-collector"
+			cfg.Auth.AuthKubernetes.RoleName = saName
 			cfg.Auth.AuthKubernetes.ServiceAccountToken = configopaque.String(suite.longLivedServiceAccountToken)
 		},
 	},
@@ -189,7 +190,7 @@ var integrationMatrixAuthScenarios = []authScenario{
 		name: "jwt",
 		configFunc: func(cfg *config, suite *IntegrationSuite, _ tfProjectVars) {
 			cfg.Auth.AuthType = "jwt"
-			cfg.Auth.AuthJWT.RoleName = "otel-collector"
+			cfg.Auth.AuthJWT.RoleName = saName
 			cfg.Auth.AuthJWT.TokenPath = suite.boundTokenPath
 		},
 	},
@@ -208,6 +209,7 @@ var integrationMatrixScenarios = []integrationScenario{
 
 type IntegrationSuite struct {
 	suite.Suite
+
 	nw                           *testcontainers.DockerNetwork
 	k3s                          *k3s.K3sContainer
 	longLivedServiceAccountToken string
@@ -333,6 +335,8 @@ var scrapeMetricsCompareOptions = []pmetrictest.CompareMetricsOption{
 }
 
 func (suite *IntegrationSuite) TestMatrix() {
+	suite.T().Parallel()
+
 	baseVars := suite.baseTFVars()
 
 	for _, img := range integrationMatrixImages {
@@ -389,7 +393,7 @@ func (suite *IntegrationSuite) runImageVersion(t *testing.T, img integrationImag
 
 	tf := setupTerraform(t, ctx, t.TempDir(), secretStoreContainer)
 	secretStoreAddr := resolveSecretStoreAddress(t, ctx, secretStoreContainer)
-	k3dAddr := fmt.Sprintf("https://%s:6443", suite.k3s.GetContainerID()[:12])
+	k3dAddr := "https://" + net.JoinHostPort(suite.k3s.GetContainerID()[:12], "6443")
 
 	suite.runNamespacedMatrix(t, ctx, tf, false, baseVars, secretStoreAddr, k3dAddr)
 	if img.runNamespacedTests {
@@ -446,7 +450,7 @@ func resolveSecretStoreAddress(t *testing.T, ctx context.Context, container test
 	natPort, err := container.MappedPort(ctx, "8200/tcp")
 	require.NoError(t, err)
 
-	return fmt.Sprintf("http://%s:%s", host, natPort.Port())
+	return "http://" + net.JoinHostPort(host, natPort.Port())
 }
 
 func buildIntegrationCases(
@@ -469,10 +473,13 @@ func buildIntegrationCases(
 			})
 		}
 	}
+
 	return cases
 }
 
 func setupTerraform(t *testing.T, ctx context.Context, tfDir string, secretStoreContainer testcontainers.Container) *tfexec.Terraform {
+	t.Helper()
+
 	sourceDir := filepath.Join("test", "terraform")
 	copyTerraformFiles(t, sourceDir, tfDir)
 
@@ -500,6 +507,8 @@ func setupTerraform(t *testing.T, ctx context.Context, tfDir string, secretStore
 }
 
 func applyTerraform(t *testing.T, ctx context.Context, tf *tfexec.Terraform, vars tfProjectVars, secretStoreAddr, k3dAddr string) {
+	t.Helper()
+
 	err := tf.Apply(ctx, terraformApplyOptions(vars, secretStoreAddr, k3dAddr)...)
 	require.NoError(t, err, "terraform apply failed")
 }
@@ -602,8 +611,10 @@ func assertScrapeMetrics(t *testing.T, sink *consumertest.MetricsSink, expectedF
 			err := golden.WriteMetrics(t, expectedPath, lastMetrics)
 			lock.Unlock()
 			require.NoError(t, err)
+
 			return true
 		}, testScrapeTimeout, testScrapeInterval)
+
 		return
 	}
 
@@ -619,6 +630,7 @@ func assertScrapeMetrics(t *testing.T, sink *consumertest.MetricsSink, expectedF
 			return false
 		}
 		normalizeMetrics(lastMetrics)
+
 		return pmetrictest.CompareMetrics(expected, lastMetrics, scrapeMetricsCompareOptions...) == nil
 	}, testScrapeTimeout, testScrapeInterval)
 }
@@ -634,10 +646,11 @@ func latestMetricsSnapshot(sink *consumertest.MetricsSink) (pmetric.Metrics, boo
 
 func goldenPathLock(path string) *sync.Mutex {
 	lock, _ := goldenPathLocks.LoadOrStore(path, &sync.Mutex{})
+
 	return lock.(*sync.Mutex)
 }
 
-// Copy Terraform files to enable parallel apply
+// Copy Terraform files to enable parallel apply.
 func copyTerraformFiles(t *testing.T, src, dst string) {
 	t.Helper()
 
@@ -706,15 +719,17 @@ func setupK8sAuthResources(t *testing.T, ctx context.Context, k8s *kubernetes.Cl
 	err = kwait.PollUntilContextTimeout(ctx, 200*time.Millisecond, 10*time.Second, true, func(ctx context.Context) (bool, error) {
 		s, err := k8s.CoreV1().Secrets(ns).Get(ctx, secretName, metav1.GetOptions{})
 		if err != nil {
-			return false, nil
+			return false, err
 		}
 		if tData, ok := s.Data["token"]; ok && len(tData) > 0 {
 			if caData, ok := s.Data["ca.crt"]; ok && len(caData) > 0 {
 				caCrt = string(caData)
 			}
 			longLivedToken = string(tData)
+
 			return true, nil
 		}
+
 		return false, nil
 	})
 	require.NoErrorf(t, err, "failed to retrieve service account token from secret %q in namespace %q", secretName, ns)
@@ -745,6 +760,7 @@ func createTokenBoundReferencePod(t *testing.T, ctx context.Context, k8s *kubern
 	}, metav1.CreateOptions{})
 	require.NoError(t, err)
 	require.NotEmpty(t, pod.UID, "token reference pod UID must be set")
+
 	return pod
 }
 
@@ -774,6 +790,7 @@ func createBoundServiceAccountToken(
 	tokenResp, err := k8s.CoreV1().ServiceAccounts(ns).CreateToken(ctx, serviceAccountName, tokenReq, metav1.CreateOptions{})
 	require.NoError(t, err)
 	require.NotEmptyf(t, tokenResp.Status.Token, "empty token returned for service account %q in namespace %q", serviceAccountName, ns)
+
 	return tokenResp.Status.Token
 }
 
@@ -801,7 +818,7 @@ func parseJWTClaims(t *testing.T, token string) (string, []string, string) {
 	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
 	require.NoError(t, err)
 
-	var claims map[string]interface{}
+	var claims map[string]any
 	err = json.Unmarshal(payload, &claims)
 	require.NoError(t, err)
 
@@ -813,10 +830,10 @@ func parseJWTClaims(t *testing.T, token string) (string, []string, string) {
 	return issuer, audiences, subject
 }
 
-func parseJWTAudience(t *testing.T, raw interface{}) []string {
+func parseJWTAudience(t *testing.T, raw any) []string {
 	t.Helper()
 
-	if v, ok := raw.([]interface{}); ok && len(v) > 0 {
+	if v, ok := raw.([]any); ok && len(v) > 0 {
 		if s, ok := v[0].(string); ok {
 			return []string{s}
 		}
@@ -824,6 +841,7 @@ func parseJWTAudience(t *testing.T, raw interface{}) []string {
 	if s, ok := raw.(string); ok {
 		return []string{s}
 	}
+
 	return nil
 }
 
@@ -899,7 +917,7 @@ func normalizeMetrics(metrics pmetric.Metrics) {
 	const normalizedNotAfter = int64(123456)
 
 	rms := metrics.ResourceMetrics()
-	for i := 0; i < rms.Len(); i++ {
+	for i := range rms.Len() {
 		rm := rms.At(i)
 		if v, ok := rm.Resource().Attributes().Get("engine.address"); ok {
 			strVal := v.Str()
@@ -909,10 +927,10 @@ func normalizeMetrics(metrics pmetric.Metrics) {
 		}
 
 		sms := rm.ScopeMetrics()
-		for j := 0; j < sms.Len(); j++ {
+		for j := range sms.Len() {
 			sm := sms.At(j)
 			ms := sm.Metrics()
-			for k := 0; k < ms.Len(); k++ {
+			for k := range ms.Len() {
 				m := ms.At(k)
 				normalizeNotAfter := m.Name() == "pkiengine.issuer.x509.not_after"
 				var dps pmetric.NumberDataPointSlice
@@ -923,7 +941,7 @@ func normalizeMetrics(metrics pmetric.Metrics) {
 					dps = m.Sum().DataPoints()
 				}
 
-				for l := 0; l < dps.Len(); l++ {
+				for l := range dps.Len() {
 					dp := dps.At(l)
 					if normalizeNotAfter && dp.ValueType() == pmetric.NumberDataPointValueTypeInt && dp.IntValue() > 0 {
 						dp.SetIntValue(normalizedNotAfter)

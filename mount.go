@@ -59,7 +59,7 @@ type clusterConfig struct {
 	aiaPath string
 }
 
-// Get AIA templating values
+// Get AIA templating values.
 func (m *mount) getClusterConfiguration(ctx context.Context) (*clusterConfig, error) {
 	var secret *api.Secret
 	var err error
@@ -121,12 +121,14 @@ func (m *mount) collect(ctx context.Context) (mountResult, error) {
 	clusterConfig, err := m.getClusterConfiguration(ctx)
 	if err != nil {
 		m.logger.Error("failed reading cluster config", zap.Error(err))
+
 		return mountResult{}, fmt.Errorf("failed reading cluster config: %w", err)
 	}
 
 	metrics, err := m.collectMetrics(ctx)
 	if err != nil {
 		m.logger.Error("failed collecting metrics", zap.Error(err))
+
 		return mountResult{}, fmt.Errorf("failed collecting metrics: %w", err)
 	}
 

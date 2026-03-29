@@ -33,7 +33,7 @@ func newTaskRunner(ctx context.Context, workerCount int) *taskRunner {
 	}
 
 	runner.workers.Add(workerCount)
-	for i := 0; i < workerCount; i++ {
+	for range workerCount {
 		go runner.worker()
 	}
 
@@ -41,22 +41,19 @@ func newTaskRunner(ctx context.Context, workerCount int) *taskRunner {
 }
 
 // Submits a task if the runner is active and the queue accepts it.
-func (r *taskRunner) enqueue(task taskFunc) bool {
+func (r *taskRunner) enqueue(task taskFunc) {
 	if task == nil {
-		return false
+		return
 	}
 	if r.ctx.Err() != nil {
-		return false
+		return
 	}
 
 	r.counter.Add(1)
 	if !r.queue.push(task) {
 		// Queue closed while enqueueing; undo the task count.
 		r.counter.Done()
-		return false
 	}
-
-	return true
 }
 
 // Blocks until all queued work is completed and workers exit.
@@ -96,6 +93,7 @@ type taskQueue struct {
 func newTaskQueue() *taskQueue {
 	q := &taskQueue{}
 	q.cond = sync.NewCond(&q.mu)
+
 	return q
 }
 
@@ -110,6 +108,7 @@ func (q *taskQueue) push(task taskFunc) bool {
 
 	q.tasks = append(q.tasks, task)
 	q.cond.Signal()
+
 	return true
 }
 
@@ -131,6 +130,7 @@ func (q *taskQueue) pop() (taskFunc, bool) {
 	// Clear the slot to release references promptly.
 	q.tasks[0] = nil
 	q.tasks = q.tasks[1:]
+
 	return task, true
 }
 
@@ -152,6 +152,7 @@ type taskCounter struct {
 func newTaskCounter() *taskCounter {
 	c := &taskCounter{}
 	c.cond = sync.NewCond(&c.mu)
+
 	return c
 }
 

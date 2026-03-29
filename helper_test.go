@@ -11,13 +11,13 @@ func TestToStringSlice(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		input    interface{}
+		input    any
 		expected []string
 	}{
 		{
 			// When given a interface of slice string check if returns slice of strings.
 			name:     "Valid []interface{} containing strings",
-			input:    interface{}([]interface{}{"hello", "world"}),
+			input:    any([]any{"hello", "world"}),
 			expected: []string{"hello", "world"},
 		},
 		{
