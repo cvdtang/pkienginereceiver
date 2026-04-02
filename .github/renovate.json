@@ -2,7 +2,7 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["helpers:pinGitHubActionDigests"],
   "enabledManagers": ["gomod", "terraform", "custom.regex", "ocb", "github-actions"],
-  "baseBranches": ["improve-updates"],
+  // "baseBranches": ["..."],
   "useBaseBranchConfig": "merge",
   "recreateWhen": "always",
   "prHourlyLimit": 0,
