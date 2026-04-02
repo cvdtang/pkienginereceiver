@@ -4,7 +4,7 @@ set shell := ["bash", "-c"]
 VAULT_ADDR     := env_var_or_default("VAULT_ADDR", "http://127.0.0.1:8200")
 VAULT_TOKEN    := env_var_or_default("VAULT_TOKEN", "dev-root-token")
 # renovate: datasource=github-tags depName=open-telemetry/opentelemetry-collector-releases extractVersion=^cmd/builder/v(?<version>.*)$
-TARGET_VERSION := "0.148.0"
+TARGET_VERSION := "0.149.0"
 BUILDER_CONFIG := "test/builder-config.yaml"
 OCB_BIN        := "bin/ocb-" + TARGET_VERSION
 DIST_DIR       := "../otelcol-dev"

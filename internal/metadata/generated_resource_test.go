@@ -30,16 +30,15 @@ func TestResourceBuilder(t *testing.T) {
 			default:
 				assert.Failf(t, "unexpected test case: %s", tt)
 			}
-
-			val, ok := res.Attributes().Get("engine.address")
+			engineAddressAttrVal, ok := res.Attributes().Get("engine.address")
 			assert.True(t, ok)
 			if ok {
-				assert.Equal(t, "engine.address-val", val.Str())
+				assert.Equal(t, "engine.address-val", engineAddressAttrVal.Str())
 			}
-			val, ok = res.Attributes().Get("engine.namespace")
+			engineNamespaceAttrVal, ok := res.Attributes().Get("engine.namespace")
 			assert.True(t, ok)
 			if ok {
-				assert.Equal(t, "engine.namespace-val", val.Str())
+				assert.Equal(t, "engine.namespace-val", engineNamespaceAttrVal.Str())
 			}
 		})
 	}
