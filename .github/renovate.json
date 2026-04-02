@@ -3,6 +3,7 @@
   "extends": ["helpers:pinGitHubActionDigests"],
   "enabledManagers": ["gomod", "terraform", "custom.regex", "ocb", "github-actions"],
   "baseBranches": ["improve-updates"],
+  "useBaseBranchConfig": "merge",
   "recreateWhen": "always",
   "prHourlyLimit": 0,
   "prConcurrentLimit": 0,
