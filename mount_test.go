@@ -6,6 +6,7 @@ import (
 
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -66,7 +67,7 @@ func TestMountProcessListIssuersErr(t *testing.T) {
 
 	expectedStoredCertificates := int64(1)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, result.issuerIDs)
-	assert.Equal(t, result.metrics.storedCertificates, &expectedStoredCertificates)
+	assert.Equal(t, &expectedStoredCertificates, result.metrics.storedCertificates)
 }

@@ -68,7 +68,7 @@ func TestScrapeErrListingMounts(t *testing.T) {
 
 	metrics, err := scraper.scrape(ctx)
 
-	assert.EqualError(t, err, "failed to list pki mounts: "+testError)
+	require.EqualError(t, err, "failed to list pki mounts: "+testError)
 	assert.Equal(t, pmetric.NewMetrics(), metrics)
 }
 
@@ -86,7 +86,7 @@ func TestScrapeNoMounts(t *testing.T) {
 
 	metrics, err := scraper.scrape(ctx)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 0, metrics.ResourceMetrics().Len(), "Expected empty metrics")
 }
 
@@ -134,7 +134,7 @@ func TestScrape(t *testing.T) {
 	require.NoError(t, err)
 
 	actualMetrics, err := scraper.scrape(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = scraper.shutdown(ctx)
 	require.NoError(t, err)

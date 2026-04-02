@@ -89,31 +89,44 @@
       "description": "Group all GitHub Actions updates",
       "matchManagers": ["github-actions"],
       "groupName": "github actions",
-      "minimumReleaseAge": "7 days"
+      "minimumReleaseAge": "14 days"
     },
     {
       "description": "Dedicated PR for Vault updates",
       "matchManagers": ["custom.regex"],
       "matchDepNames": ["hashicorp/vault"],
-      "groupName": "vault"
+      "groupName": "vault",
+      "commitMessagePrefix": "test(integration): ",
+      "commitMessageAction": "",
+      "commitMessageTopic": "vault",
+      "commitMessageExtra": "{{prettyNewVersion}}"
     },
     {
       "description": "Dedicated PR for OpenBao updates",
       "matchManagers": ["custom.regex"],
       "matchDepNames": ["openbao/openbao"],
-      "groupName": "openbao"
+      "groupName": "openbao",
+      "commitMessagePrefix": "test(integration): ",
+      "commitMessageAction": "",
+      "commitMessageTopic": "openbao",
+      "commitMessageExtra": "{{prettyNewVersion}}"
     },
     {
       "description": "Dedicated PR for k3s updates",
       "matchManagers": ["custom.regex"],
       "matchDepNames": ["rancher/k3s"],
-      "groupName": "k3s"
+      "groupName": "k3s",
+      "commitMessagePrefix": "test(integration): ",
+      "commitMessageAction": "",
+      "commitMessageTopic": "k3s",
+      "commitMessageExtra": "{{prettyNewVersion}}"
     },
     {
       "description": "Group README regex-managed dependency updates",
       "matchManagers": ["custom.regex"],
       "matchFileNames": ["README.md"],
-      "groupName": "readme dependencies"
+      "groupName": "readme dependencies",
+      "commitMessageSuffix": "[skip ci]"
     }
   ]
 }

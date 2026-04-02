@@ -231,7 +231,7 @@ func (f *realCrlFetcher) fetchLDAP(ctx context.Context, dialer ldapDialer, uri s
 	if err != nil {
 		return fetchable, nil, newRetryableFetchError(fmt.Errorf("failed connecting to ldap server: %w", err))
 	}
-	defer conn.Close()
+	defer conn.Close() //nolint:errcheck
 
 	if err := ctx.Err(); err != nil {
 		return fetchable, nil, err
@@ -270,5 +270,6 @@ func (f *realCrlFetcher) fetchLDAP(ctx context.Context, dialer ldapDialer, uri s
 	}
 
 	fetchable = 1
+
 	return fetchable, crlBytes, nil
 }

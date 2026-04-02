@@ -146,17 +146,17 @@ func TestCRL_Collect(t *testing.T) {
 	crl.fetcher = mockCrlFetcher
 
 	freshMetrics, err := crl.collect(ctx)
-	assert.NoError(t, err, "Should suppresses error but returns metrics with err set")
-	assert.Error(t, freshMetrics.err)
+	require.NoError(t, err, "Should suppresses error but returns metrics with err set")
+	require.Error(t, freshMetrics.err)
 
 	// Check cache
 	cachedEntry, ok := state.crlCache.Get(crl.uri)
 	assert.True(t, ok, "Error results should be cached")
-	assert.Error(t, cachedEntry.metrics.err)
+	require.Error(t, cachedEntry.metrics.err)
 
 	// Call again to check if cache matches via timestamp
 	cachedMetrics, err := crl.collect(t.Context())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, freshMetrics.err, cachedMetrics.err)
 }
 
@@ -209,7 +209,7 @@ func TestCRL_Parse(t *testing.T) {
 			gotCrl, err := crl.parse(tc.input)
 
 			if tc.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Nil(t, gotCrl)
 			} else {
 				require.NoError(t, err)
@@ -283,15 +283,15 @@ func TestCRL_Collect_Verification(t *testing.T) {
 			metrics, err := crl.collect(ctx)
 
 			if tt.expectCollectErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 
 			if tt.expectMetricsErr {
-				assert.Error(t, metrics.err)
+				require.Error(t, metrics.err)
 			} else {
-				assert.NoError(t, metrics.err)
+				require.NoError(t, metrics.err)
 			}
 
 			if !tt.expectCollectErr {
@@ -372,7 +372,7 @@ func TestCRL_Collect_RetryIntervalHonorsContextCancellation(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, crlProcessingStatusFetchFailed, metrics.processingStatus)
-	assert.ErrorIs(t, metrics.err, context.DeadlineExceeded)
+	require.ErrorIs(t, metrics.err, context.DeadlineExceeded)
 	assert.Less(t, elapsed, 250*time.Millisecond, "retry wait should stop early on context cancellation")
 }
 
@@ -413,9 +413,9 @@ func TestCRL_Fetch_UnsupportedProtocols(t *testing.T) {
 
 			res, err := crl.fetcher.fetch(ctx, crl.uri, time.Second, "", time.Time{})
 
-			assert.Equal(t, res.Fetchable, int64(0), "unsupported should return fetchable=false/0")
+			assert.Equal(t, int64(0), res.Fetchable, "unsupported should return fetchable=false/0")
 			if tc.expectErrIs != nil {
-				assert.ErrorIs(t, err, tc.expectErrIs)
+				require.ErrorIs(t, err, tc.expectErrIs)
 			}
 			if tc.expectErrString != "" {
 				assert.EqualError(t, err, tc.expectErrString)
