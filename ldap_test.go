@@ -8,6 +8,7 @@ import (
 	"github.com/go-ldap/ldap/v3"
 	"github.com/stretchr/testify/assert"
 	mock "github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseLdapUri(t *testing.T) {
@@ -107,12 +108,12 @@ func TestParseLdapUri(t *testing.T) {
 			got, err := parseLdapUri(tt.input)
 
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				if tt.errMatch != "" {
 					assert.Contains(t, err.Error(), tt.errMatch)
 				}
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tt.want, got)
 			}
 		})
@@ -152,7 +153,7 @@ func Test_fetchCrlLdap_Success(t *testing.T) {
 	crl, _ := createTestCRL(t)
 	fetchable, data, err := crl.fetcher.fetchLDAP(t.Context(), mockDialer, testURI, timeout)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, int64(1), fetchable, "fetchable should be 1 on success")
 	assert.Equal(t, testCRL, data, "fetched data should match the mocked CRL")
 }
@@ -172,8 +173,8 @@ func Test_fetchCrlLdap_Dial_Error(t *testing.T) {
 	crl, _ := createTestCRL(t)
 	fetchable, _, err := crl.fetcher.fetchLDAP(t.Context(), mockDialer, testURI, time.Second)
 
-	assert.Error(t, err, "expected an error from failed dial")
-	assert.ErrorContains(t, err, "failed connecting to ldap server:")
+	require.Error(t, err, "expected an error from failed dial")
+	require.ErrorContains(t, err, "failed connecting to ldap server:")
 	assert.Equal(t, int64(0), fetchable, "fetchable should be 0 on failure")
 }
 
@@ -242,8 +243,8 @@ func Test_fetchLDAP_Search_Scenarios(t *testing.T) {
 			crlEntry, _ := createTestCRL(t)
 			fetchable, data, err := crlEntry.fetcher.fetchLDAP(t.Context(), mockDialer, testURI, timeout)
 
-			assert.Error(t, err)
-			assert.ErrorContains(t, err, tt.wantErrContains)
+			require.Error(t, err)
+			require.ErrorContains(t, err, tt.wantErrContains)
 			assert.Equal(t, int64(0), fetchable)
 			assert.Nil(t, data)
 		})

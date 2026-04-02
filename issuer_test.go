@@ -188,7 +188,7 @@ func TestIssuerProcessSkipCopiedIssuer(t *testing.T) {
 	}, nil)
 
 	result, err := issuer.collect(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, result.skipped)
 }
 

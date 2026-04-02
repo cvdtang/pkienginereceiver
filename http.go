@@ -29,7 +29,8 @@ func parseLastModifiedHeader(headers http.Header, allowDateFallback bool) time.T
 }
 
 // Fetches CRL data over HTTP with conditional revalidation headers.
-func (f *realCrlFetcher) fetchHTTP(ctx context.Context, uri string, timeout time.Duration, previousETag string, previousLastModified time.Time) (res fetchResult, err error) {
+func (f *realCrlFetcher) fetchHTTP(ctx context.Context, uri string, timeout time.Duration, previousETag string, previousLastModified time.Time) (fetchResult, error) {
+	res := fetchResult{}
 	res.Fetchable = 0
 
 	derivedCtx, cancel := context.WithTimeout(ctx, timeout)
@@ -55,7 +56,7 @@ func (f *realCrlFetcher) fetchHTTP(ctx context.Context, uri string, timeout time
 
 		return res, newRetryableFetchError(fmt.Errorf("failed to fetch crl: %w", err))
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode == http.StatusNotModified {
 		res.Fetchable = 1

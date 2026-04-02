@@ -80,7 +80,7 @@ func TestFetchHTTP_ConnectionClosed(t *testing.T) {
 		// Hijack the connection and close it immediately to simulate a network failure
 		hj, _ := w.(http.Hijacker)
 		conn, _, _ := hj.Hijack()
-		conn.Close()
+		_ = conn.Close()
 	}))
 	defer server.Close()
 
@@ -107,7 +107,7 @@ func TestFetchHTTP_Headers(t *testing.T) {
 	res, err := fetcher.fetchHTTP(t.Context(), server.URL, 10*time.Second, expectedETag, expectedLastModified)
 
 	require.ErrorIs(t, err, errNotModified)
-	assert.Equal(t, res.Fetchable, int64(1))
+	assert.Equal(t, int64(1), res.Fetchable)
 }
 
 func TestFetchHTTP_Headers_NotModifiedResponseMetadata(t *testing.T) {
@@ -235,8 +235,8 @@ func TestFetchHTTP_Timeout(t *testing.T) {
 	fetcher := &realCrlFetcher{client: http.DefaultClient}
 	// Timeout 0 -> context timeout 0 -> immediate
 	_, err := fetcher.fetchHTTP(t.Context(), server.URL, 0, "", time.Time{})
-	assert.Error(t, err)
-	assert.ErrorContains(t, err, "context deadline exceeded")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "context deadline exceeded")
 }
 
 func TestFetchHTTP_MalformedLastModified(t *testing.T) {

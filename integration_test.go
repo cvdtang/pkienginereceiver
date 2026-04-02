@@ -271,6 +271,52 @@ func (suite *IntegrationSuite) SetupSuite() {
 	suite.setupK8sAuthState(t, ctx, k8s, restCfg)
 }
 
+func TestIntegrationTestSuite(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	t.Parallel()
+	suite.Run(t, new(IntegrationSuite))
+}
+
+type integrationTestCase struct {
+	name          string
+	expectedFile  string
+	cfgMatchRegex string
+	tfVars        tfProjectVars
+	auth          authScenario
+}
+
+var scrapeMetricsCompareOptions = []pmetrictest.CompareMetricsOption{
+	pmetrictest.IgnoreTimestamp(),
+	pmetrictest.IgnoreStartTimestamp(),
+	pmetrictest.IgnoreResourceMetricsOrder(),
+	pmetrictest.IgnoreMetricDataPointsOrder(),
+	pmetrictest.IgnoreMetricValues(
+		"pkiengine.issuer.x509.not_after",
+		"pkiengine.issuer.x509.not_before",
+		"pkiengine.crl.x509.next_update",
+		"pkiengine.crl.x509.this_update",
+	),
+}
+
+//nolint:testifylint // This suite intentionally uses testing subtests so image matrices can run in parallel.
+func (suite *IntegrationSuite) TestMatrix() {
+	suite.T().Parallel()
+
+	baseVars := suite.baseTFVars()
+
+	for _, img := range integrationMatrixImages {
+		for _, tag := range img.tags {
+			testName := fmt.Sprintf("image=%s/version=%s", img.subtestImageName, tag)
+			suite.T().Run(testName, func(t *testing.T) {
+				t.Parallel()
+				suite.runImageVersion(t, img, tag, baseVars)
+			})
+		}
+	}
+}
+
 func (suite *IntegrationSuite) setupK8sAuthState(t *testing.T, ctx context.Context, k8s *kubernetes.Clientset, restCfg *rest.Config) {
 	t.Helper()
 
@@ -303,51 +349,6 @@ func (suite *IntegrationSuite) setupK8sAuthState(t *testing.T, ctx context.Conte
 
 	err := os.WriteFile(suite.boundTokenPath, []byte(boundToken), 0600)
 	require.NoError(t, err)
-}
-
-func TestIntegrationTestSuite(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-	t.Parallel()
-	suite.Run(t, new(IntegrationSuite))
-}
-
-type integrationTestCase struct {
-	name          string
-	expectedFile  string
-	cfgMatchRegex string
-	tfVars        tfProjectVars
-	auth          authScenario
-}
-
-var scrapeMetricsCompareOptions = []pmetrictest.CompareMetricsOption{
-	pmetrictest.IgnoreTimestamp(),
-	pmetrictest.IgnoreStartTimestamp(),
-	pmetrictest.IgnoreResourceMetricsOrder(),
-	pmetrictest.IgnoreMetricDataPointsOrder(),
-	pmetrictest.IgnoreMetricValues(
-		"pkiengine.issuer.x509.not_after",
-		"pkiengine.issuer.x509.not_before",
-		"pkiengine.crl.x509.next_update",
-		"pkiengine.crl.x509.this_update",
-	),
-}
-
-func (suite *IntegrationSuite) TestMatrix() {
-	suite.T().Parallel()
-
-	baseVars := suite.baseTFVars()
-
-	for _, img := range integrationMatrixImages {
-		for _, tag := range img.tags {
-			testName := fmt.Sprintf("image=%s/version=%s", img.subtestImageName, tag)
-			suite.T().Run(testName, func(t *testing.T) {
-				t.Parallel()
-				suite.runImageVersion(t, img, tag, baseVars)
-			})
-		}
-	}
 }
 
 func (suite *IntegrationSuite) baseTFVars() tfProjectVars {
@@ -420,15 +421,15 @@ func (suite *IntegrationSuite) runNamespacedMatrix(
 	testCases := buildIntegrationCases(namespaced, vars, integrationMatrixAuthScenarios, integrationMatrixScenarios)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			suite.runIntegrationCase(t, tc, secretStoreAddr)
+			suite.runIntegrationCase(t, ctx, tc, secretStoreAddr)
 		})
 	}
 }
 
-func (suite *IntegrationSuite) runIntegrationCase(t *testing.T, tc integrationTestCase, secretStoreAddr string) {
+func (suite *IntegrationSuite) runIntegrationCase(t *testing.T, ctx context.Context, tc integrationTestCase, secretStoreAddr string) {
 	t.Helper()
 
-	sink, observedLogs, shutdown := startScraperReceiver(t, suite, tc, secretStoreAddr)
+	sink, observedLogs, shutdown := startScraperReceiver(t, ctx, suite, tc, secretStoreAddr)
 	defer shutdown()
 
 	t.Run("scrape", func(t *testing.T) {
@@ -551,10 +552,8 @@ func terraformOutputString(t *testing.T, ctx context.Context, tf *tfexec.Terrafo
 	return value
 }
 
-func startScraperReceiver(t *testing.T, suite *IntegrationSuite, tc integrationTestCase, secretStoreAddr string) (*consumertest.MetricsSink, *observer.ObservedLogs, func()) {
+func startScraperReceiver(t *testing.T, ctx context.Context, suite *IntegrationSuite, tc integrationTestCase, secretStoreAddr string) (*consumertest.MetricsSink, *observer.ObservedLogs, func()) {
 	t.Helper()
-
-	ctx := t.Context()
 
 	// Configure Receiver
 	factory := NewFactory()

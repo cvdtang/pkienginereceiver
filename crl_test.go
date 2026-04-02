@@ -146,17 +146,17 @@ func TestCRL_Collect(t *testing.T) {
 	crl.fetcher = mockCrlFetcher
 
 	freshMetrics, err := crl.collect(ctx)
-	assert.NoError(t, err, "Should suppresses error but returns metrics with err set")
-	assert.Error(t, freshMetrics.err)
+	require.NoError(t, err, "Should suppresses error but returns metrics with err set")
+	require.Error(t, freshMetrics.err)
 
 	// Check cache
 	cachedEntry, ok := state.crlCache.Get(crl.uri)
 	assert.True(t, ok, "Error results should be cached")
-	assert.Error(t, cachedEntry.metrics.err)
+	require.Error(t, cachedEntry.metrics.err)
 
 	// Call again to check if cache matches via timestamp
 	cachedMetrics, err := crl.collect(t.Context())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, freshMetrics.err, cachedMetrics.err)
 }
 
@@ -209,7 +209,7 @@ func TestCRL_Parse(t *testing.T) {
 			gotCrl, err := crl.parse(tc.input)
 
 			if tc.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Nil(t, gotCrl)
 			} else {
 				require.NoError(t, err)
@@ -283,15 +283,15 @@ func TestCRL_Collect_Verification(t *testing.T) {
 			metrics, err := crl.collect(ctx)
 
 			if tt.expectCollectErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 
 			if tt.expectMetricsErr {
-				assert.Error(t, metrics.err)
+				require.Error(t, metrics.err)
 			} else {
-				assert.NoError(t, metrics.err)
+				require.NoError(t, metrics.err)
 			}
 
 			if !tt.expectCollectErr {
@@ -372,7 +372,7 @@ func TestCRL_Collect_RetryIntervalHonorsContextCancellation(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, crlProcessingStatusFetchFailed, metrics.processingStatus)
-	assert.ErrorIs(t, metrics.err, context.DeadlineExceeded)
+	require.ErrorIs(t, metrics.err, context.DeadlineExceeded)
 	assert.Less(t, elapsed, 250*time.Millisecond, "retry wait should stop early on context cancellation")
 }
 
@@ -413,9 +413,9 @@ func TestCRL_Fetch_UnsupportedProtocols(t *testing.T) {
 
 			res, err := crl.fetcher.fetch(ctx, crl.uri, time.Second, "", time.Time{})
 
-			assert.Equal(t, res.Fetchable, int64(0), "unsupported should return fetchable=false/0")
+			assert.Equal(t, int64(0), res.Fetchable, "unsupported should return fetchable=false/0")
 			if tc.expectErrIs != nil {
-				assert.ErrorIs(t, err, tc.expectErrIs)
+				require.ErrorIs(t, err, tc.expectErrIs)
 			}
 			if tc.expectErrString != "" {
 				assert.EqualError(t, err, tc.expectErrString)
@@ -524,11 +524,11 @@ func TestCRL_Emit(t *testing.T) {
 func TestCRL_Collect_Concurrency(t *testing.T) {
 	t.Parallel()
 
-	var httpRequestCount int32
+	var httpRequestCount atomic.Int32
 	_, data := createTestCrlData(t)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&httpRequestCount, 1)
+		httpRequestCount.Add(1)
 		// Simulate latency to ensure overlap
 		time.Sleep(50 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
@@ -543,7 +543,7 @@ func TestCRL_Collect_Concurrency(t *testing.T) {
 	startSignal := make(chan struct{})
 	errCh := make(chan error, concurrency)
 
-	atomic.StoreInt32(&httpRequestCount, 0)
+	httpRequestCount.Store(0)
 
 	for range concurrency {
 		wg.Go(func() {
@@ -561,7 +561,7 @@ func TestCRL_Collect_Concurrency(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	requests := atomic.LoadInt32(&httpRequestCount)
+	requests := httpRequestCount.Load()
 	assert.Equal(t, int32(1), requests, "Singleflight should result in exactly 1 HTTP request")
 	assert.EqualValues(t, concurrency-1, sharedCrl.shared.crlCacheHits.Load(), "Singleflight waiters should be counted as cache hits")
 	assert.EqualValues(t, 1, sharedCrl.shared.crlCacheMisses.Load(), "Only the request that performed the network fetch should count as a cache miss")
@@ -571,14 +571,14 @@ func TestCRL_Collect_Concurrency(t *testing.T) {
 func TestCRL_Collect_HttpCaching(t *testing.T) {
 	t.Parallel()
 
-	var httpRequestCount int32
+	var httpRequestCount atomic.Int32
 	etag := `"fake-etag"`
 	_, data := createTestCrlData(t)
 	require.NotEmpty(t, data, "expected test CRL payload")
 	requestHasValidator := atomic.Bool{}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&httpRequestCount, 1)
+		httpRequestCount.Add(1)
 
 		if r.Header.Get("If-None-Match") == etag {
 			requestHasValidator.Store(true)
@@ -598,20 +598,20 @@ func TestCRL_Collect_HttpCaching(t *testing.T) {
 	// Initial fetch (200 OK).
 	_, err := sharedCrl.collect(t.Context())
 	require.NoError(t, err)
-	requestsInitial := atomic.LoadInt32(&httpRequestCount)
+	requestsInitial := httpRequestCount.Load()
 	assert.Equal(t, int32(1), requestsInitial, "Initial fetch should trigger request")
 
 	// Same scrape: served from cache without extra request.
 	_, err = sharedCrl.collect(t.Context())
 	require.NoError(t, err)
-	requestsAfterCache := atomic.LoadInt32(&httpRequestCount)
+	requestsAfterCache := httpRequestCount.Load()
 	assert.Equal(t, requestsInitial, requestsAfterCache, "Same scrape should not trigger a second network check")
 
 	// New scrape: one conditional check.
 	advanceScrape(state)
 	_, err = sharedCrl.collect(t.Context())
 	require.NoError(t, err)
-	requestsAfterRescrape := atomic.LoadInt32(&httpRequestCount)
+	requestsAfterRescrape := httpRequestCount.Load()
 	assert.Equal(t, requestsInitial+1, requestsAfterRescrape, "New scrape should trigger one HTTP revalidation")
 	assert.True(t, requestHasValidator.Load(), "Revalidation must send If-None-Match")
 	assert.EqualValues(t, 2, state.crlCacheHits.Load(), "Expected two cache hits (same-scrape reuse and 304 revalidation)")
@@ -622,13 +622,13 @@ func TestCRL_Collect_HttpCaching(t *testing.T) {
 func TestCRL_Collect_HttpCachingDisabled(t *testing.T) {
 	t.Parallel()
 
-	var httpRequestCount int32
+	var httpRequestCount atomic.Int32
 	_, data := createTestCrlData(t)
 	require.NotEmpty(t, data, "expected test CRL payload")
 	conditionalHeaderSeen := atomic.Bool{}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&httpRequestCount, 1)
+		httpRequestCount.Add(1)
 
 		if r.Header.Get("If-None-Match") != "" || r.Header.Get("If-Modified-Since") != "" {
 			conditionalHeaderSeen.Store(true)
@@ -647,18 +647,18 @@ func TestCRL_Collect_HttpCachingDisabled(t *testing.T) {
 	// Initial fetch.
 	_, err := sharedCrl.collect(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, int32(1), atomic.LoadInt32(&httpRequestCount), "Initial fetch should trigger request")
+	assert.Equal(t, int32(1), httpRequestCount.Load(), "Initial fetch should trigger request")
 
 	// Same scrape: cache disabled should fetch again.
 	_, err = sharedCrl.collect(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, int32(2), atomic.LoadInt32(&httpRequestCount), "Same scrape should trigger a second request when cache is disabled")
+	assert.Equal(t, int32(2), httpRequestCount.Load(), "Same scrape should trigger a second request when cache is disabled")
 
 	// New scrape: should fetch again without validators.
 	advanceScrape(state)
 	_, err = sharedCrl.collect(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, int32(3), atomic.LoadInt32(&httpRequestCount), "New scrape should trigger request when cache is disabled")
+	assert.Equal(t, int32(3), httpRequestCount.Load(), "New scrape should trigger request when cache is disabled")
 	assert.False(t, conditionalHeaderSeen.Load(), "Disabled cache must not send conditional headers")
 }
 
@@ -666,7 +666,7 @@ func TestCRL_Collect_HttpCachingDisabled(t *testing.T) {
 func TestCRL_Collect_HttpCachingLastModifiedOnly(t *testing.T) {
 	t.Parallel()
 
-	var httpRequestCount int32
+	var httpRequestCount atomic.Int32
 	_, data := createTestCrlData(t)
 	require.NotEmpty(t, data)
 
@@ -675,7 +675,7 @@ func TestCRL_Collect_HttpCachingLastModifiedOnly(t *testing.T) {
 	requestHasETagValidator := atomic.Bool{}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&httpRequestCount, 1)
+		httpRequestCount.Add(1)
 
 		if ifModifiedSince := r.Header.Get("If-Modified-Since"); ifModifiedSince != "" {
 			requestHasLastModifiedValidator.Store(true)
@@ -702,19 +702,19 @@ func TestCRL_Collect_HttpCachingLastModifiedOnly(t *testing.T) {
 	// Initial fetch (200 OK with Last-Modified only).
 	_, err := sharedCrl.collect(t.Context())
 	require.NoError(t, err)
-	requestsInitial := atomic.LoadInt32(&httpRequestCount)
+	requestsInitial := httpRequestCount.Load()
 	assert.Equal(t, int32(1), requestsInitial, "Initial fetch should trigger request")
 
 	// Same scrape: served from cache without extra request.
 	_, err = sharedCrl.collect(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, requestsInitial, atomic.LoadInt32(&httpRequestCount), "Same scrape should not trigger a second network check")
+	assert.Equal(t, requestsInitial, httpRequestCount.Load(), "Same scrape should not trigger a second network check")
 
 	// New scrape: one conditional check using If-Modified-Since.
 	advanceScrape(state)
 	_, err = sharedCrl.collect(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, requestsInitial+1, atomic.LoadInt32(&httpRequestCount), "New scrape should trigger one HTTP revalidation")
+	assert.Equal(t, requestsInitial+1, httpRequestCount.Load(), "New scrape should trigger one HTTP revalidation")
 	assert.True(t, requestHasLastModifiedValidator.Load(), "Revalidation must send If-Modified-Since")
 	assert.False(t, requestHasETagValidator.Load(), "ETag validator must not be sent when missing")
 }
@@ -723,7 +723,7 @@ func TestCRL_Collect_HttpCachingLastModifiedOnly(t *testing.T) {
 func TestCRL_Collect_HttpCachingDateFallback(t *testing.T) {
 	t.Parallel()
 
-	var httpRequestCount int32
+	var httpRequestCount atomic.Int32
 	_, data := createTestCrlData(t)
 	require.NotEmpty(t, data)
 
@@ -732,7 +732,7 @@ func TestCRL_Collect_HttpCachingDateFallback(t *testing.T) {
 	requestHasUnexpectedIfNoneMatch := atomic.Bool{}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&httpRequestCount, 1)
+		httpRequestCount.Add(1)
 
 		if ifModifiedSince := r.Header.Get("If-Modified-Since"); ifModifiedSince != "" {
 			requestHasDateValidator.Store(true)
@@ -758,23 +758,23 @@ func TestCRL_Collect_HttpCachingDateFallback(t *testing.T) {
 
 	_, err := sharedCrl.collect(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, int32(1), atomic.LoadInt32(&httpRequestCount), "Initial fetch should trigger request")
+	assert.Equal(t, int32(1), httpRequestCount.Load(), "Initial fetch should trigger request")
 
 	// Same scrape should be cache hit.
 	_, err = sharedCrl.collect(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, int32(1), atomic.LoadInt32(&httpRequestCount), "Same scrape should not trigger a second request")
+	assert.Equal(t, int32(1), httpRequestCount.Load(), "Same scrape should not trigger a second request")
 
 	// Each new scrape should perform conditional revalidation using Date fallback.
 	advanceScrape(state)
 	_, err = sharedCrl.collect(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, int32(2), atomic.LoadInt32(&httpRequestCount), "New scrape should trigger conditional revalidation via Date fallback")
+	assert.Equal(t, int32(2), httpRequestCount.Load(), "New scrape should trigger conditional revalidation via Date fallback")
 
 	advanceScrape(state)
 	_, err = sharedCrl.collect(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, int32(3), atomic.LoadInt32(&httpRequestCount), "Subsequent new scrape should also revalidate conditionally")
+	assert.Equal(t, int32(3), httpRequestCount.Load(), "Subsequent new scrape should also revalidate conditionally")
 	assert.True(t, requestHasDateValidator.Load(), "Date fallback should produce conditional If-Modified-Since requests")
 	assert.False(t, requestHasUnexpectedIfNoneMatch.Load(), "If-None-Match should remain empty without an ETag")
 }
@@ -783,7 +783,7 @@ func TestCRL_Collect_HttpCachingDateFallback(t *testing.T) {
 func TestCRL_Collect_HttpCachingMalformedLastModified(t *testing.T) {
 	t.Parallel()
 
-	var httpRequestCount int32
+	var httpRequestCount atomic.Int32
 	_, data := createTestCrlData(t)
 	require.NotEmpty(t, data)
 
@@ -792,7 +792,7 @@ func TestCRL_Collect_HttpCachingMalformedLastModified(t *testing.T) {
 	requestHasUnexpectedIfNoneMatch := atomic.Bool{}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&httpRequestCount, 1)
+		httpRequestCount.Add(1)
 
 		if ifModifiedSince := r.Header.Get("If-Modified-Since"); ifModifiedSince != "" {
 			requestHasDateFallbackValidator.Store(true)
@@ -819,18 +819,18 @@ func TestCRL_Collect_HttpCachingMalformedLastModified(t *testing.T) {
 
 	_, err := sharedCrl.collect(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, int32(1), atomic.LoadInt32(&httpRequestCount), "Initial fetch should trigger request")
+	assert.Equal(t, int32(1), httpRequestCount.Load(), "Initial fetch should trigger request")
 
 	// New scrape should revalidate with Date fallback.
 	advanceScrape(state)
 	_, err = sharedCrl.collect(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, int32(2), atomic.LoadInt32(&httpRequestCount), "Malformed Last-Modified should trigger Date-based revalidation")
+	assert.Equal(t, int32(2), httpRequestCount.Load(), "Malformed Last-Modified should trigger Date-based revalidation")
 
 	advanceScrape(state)
 	_, err = sharedCrl.collect(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, int32(3), atomic.LoadInt32(&httpRequestCount), "Subsequent new scrape should keep using Date-based revalidation")
+	assert.Equal(t, int32(3), httpRequestCount.Load(), "Subsequent new scrape should keep using Date-based revalidation")
 	assert.True(t, requestHasDateFallbackValidator.Load(), "Date fallback should be used when Last-Modified is malformed")
 	assert.False(t, requestHasUnexpectedIfNoneMatch.Load(), "Malformed Last-Modified must not produce If-None-Match")
 }
@@ -839,14 +839,14 @@ func TestCRL_Collect_HttpCachingMalformedLastModified(t *testing.T) {
 func TestCRL_Collect_HttpCachingWithoutAnyValidators(t *testing.T) {
 	t.Parallel()
 
-	var httpRequestCount int32
+	var httpRequestCount atomic.Int32
 	_, data := createTestCrlData(t)
 	require.NotEmpty(t, data)
 
 	conditionalHeaderSeen := atomic.Bool{}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&httpRequestCount, 1)
+		httpRequestCount.Add(1)
 
 		if r.Header.Get("If-None-Match") != "" || r.Header.Get("If-Modified-Since") != "" {
 			conditionalHeaderSeen.Store(true)
@@ -862,23 +862,23 @@ func TestCRL_Collect_HttpCachingWithoutAnyValidators(t *testing.T) {
 
 	_, err := sharedCrl.collect(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, int32(1), atomic.LoadInt32(&httpRequestCount), "Initial fetch should trigger request")
+	assert.Equal(t, int32(1), httpRequestCount.Load(), "Initial fetch should trigger request")
 
 	// Same scrape should be cache hit.
 	_, err = sharedCrl.collect(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, int32(1), atomic.LoadInt32(&httpRequestCount), "Same scrape should not trigger a second request")
+	assert.Equal(t, int32(1), httpRequestCount.Load(), "Same scrape should not trigger a second request")
 
 	// Each new scrape should perform a full GET.
 	advanceScrape(state)
 	_, err = sharedCrl.collect(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, int32(2), atomic.LoadInt32(&httpRequestCount), "New scrape should trigger a full request without any validators")
+	assert.Equal(t, int32(2), httpRequestCount.Load(), "New scrape should trigger a full request without any validators")
 
 	advanceScrape(state)
 	_, err = sharedCrl.collect(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, int32(3), atomic.LoadInt32(&httpRequestCount), "Subsequent new scrape should also trigger a full request")
+	assert.Equal(t, int32(3), httpRequestCount.Load(), "Subsequent new scrape should also trigger a full request")
 	assert.False(t, conditionalHeaderSeen.Load(), "No conditional headers should be sent when no validators are available")
 }
 
@@ -919,22 +919,22 @@ func TestCRL_Collect_HTTP304CacheMissFallback(t *testing.T) {
 	data, _ := createTestCrlData(t)
 	require.NotEmpty(t, data)
 
-	var conditionalRequestCount int32
-	var fullRequestCount int32
+	var conditionalRequestCount atomic.Int32
+	var fullRequestCount atomic.Int32
 	etag := `"v1"`
 
 	sharedCrl, state := createTestCRL(t)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("If-None-Match") == etag {
-			atomic.AddInt32(&conditionalRequestCount, 1)
+			conditionalRequestCount.Add(1)
 			state.crlCache.Remove(sharedCrl.uri)
 			w.WriteHeader(http.StatusNotModified)
 
 			return
 		}
 
-		atomic.AddInt32(&fullRequestCount, 1)
+		fullRequestCount.Add(1)
 		w.Header().Set("ETag", etag)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(data)
@@ -946,15 +946,15 @@ func TestCRL_Collect_HTTP304CacheMissFallback(t *testing.T) {
 
 	_, err := sharedCrl.collect(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, int32(1), atomic.LoadInt32(&fullRequestCount))
+	assert.Equal(t, int32(1), fullRequestCount.Load())
 
 	advanceScrape(state)
 	metrics, err := sharedCrl.collect(t.Context())
 	require.NoError(t, err)
 
 	assert.Equal(t, crlProcessingStatusSuccess, metrics.processingStatus)
-	assert.Equal(t, int32(1), atomic.LoadInt32(&conditionalRequestCount), "Expected one conditional request")
-	assert.Equal(t, int32(2), atomic.LoadInt32(&fullRequestCount), "Expected fallback unconditional fetch after cache miss on 304")
+	assert.Equal(t, int32(1), conditionalRequestCount.Load(), "Expected one conditional request")
+	assert.Equal(t, int32(2), fullRequestCount.Load(), "Expected fallback unconditional fetch after cache miss on 304")
 	assert.EqualValues(t, 0, state.crlCacheHits.Load(), "304 cache-miss fallback should not count as a hit")
 	assert.EqualValues(t, 2, state.crlCacheMisses.Load(), "Initial fetch and fallback re-fetch should both count as misses")
 }

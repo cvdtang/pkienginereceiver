@@ -92,9 +92,6 @@ get-ocb:
 tidy-check:
     go mod tidy -diff
 
-vet:
-    go vet ./...
-
-ci: tidy-check mdatagen vet test-long build-oc
+ci: tidy-check mdatagen lint test-long build-oc
 
 release: update ci

@@ -37,6 +37,7 @@
 
             # Lint
             shellcheck
+            golangci-lint
           ];
         };
       });
