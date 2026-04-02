@@ -934,10 +934,6 @@ func normalizeMetrics(metrics pmetric.Metrics) {
 				normalizeNotAfter := m.Name() == "pkiengine.issuer.x509.not_after"
 				var dps pmetric.NumberDataPointSlice
 				switch m.Type() {
-				case pmetric.MetricTypeEmpty:
-				case pmetric.MetricTypeHistogram:
-				case pmetric.MetricTypeExponentialHistogram:
-				case pmetric.MetricTypeSummary:
 				case pmetric.MetricTypeGauge:
 					dps = m.Gauge().DataPoints()
 				case pmetric.MetricTypeSum:
