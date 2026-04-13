@@ -9,6 +9,7 @@
   "reviewers": ["cvdtang"],
   "gitAuthor": "Renovate Bot <bot@renovateapp.com>",
   "pinDigests": true,
+  "ignoreDeps": ["github.com/cvdtang/pkienginereceiver"],
 
   "ocb": {
     "managerFilePatterns": ["/(^|/)test\\/builder-config\\.ya?ml$/"]
@@ -16,14 +17,17 @@
 
   "customManagers": [
     {
-      "description": "Update gomod reference in README.md",
+      "description": "Update OTel builder versions",
       "customType": "regex",
-      "managerFilePatterns": ["/README\\.md/"],
+      "managerFilePatterns": ["/README\\.md/", "/justfile/"],
       "matchStrings": [
-        "gomod:\\s*github\\.com/(?<depName>[^\\s]+)\\s+(?<currentValue>v[^\\s]+)"
+        "gomod:\\s*github\\.com/[^\\s]+\\s+(?<currentValue>v[^\\s]+)",
+        "(?m)^TARGET_VERSION\\s*:=\\s*\"(?<currentValue>[^\"]+)\""
       ],
       "datasourceTemplate": "github-tags",
-      "versioningTemplate": "semver"
+      "depNameTemplate": "open-telemetry/opentelemetry-collector-releases",
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^cmd/builder/v(?<version>.*)$"
     },
     {
       "description": "Update container images in integration_test.go",
@@ -33,101 +37,44 @@
         "(?m)^\\s*//\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s*\\r?\\n\\s*\\w+\\s*=\\s*\"(?:[^\":]+:)?(?<currentValue>[^\"]+)\""
       ],
       "versioningTemplate": "docker"
-    },
-    {
-      "description": "Update OTel builder target version in justfile",
-      "customType": "regex",
-      "managerFilePatterns": ["/justfile/"],
-      "matchStrings": ["(?m)^TARGET_VERSION\\s*:=\\s*\"(?<currentValue>[^\"]+)\""],
-      "datasourceTemplate": "github-tags",
-      "depNameTemplate": "open-telemetry/opentelemetry-collector-releases",
-      "versioningTemplate": "semver",
-      "extractVersionTemplate": "^cmd/builder/v(?<version>.*)$"
     }
   ],
 
   "packageRules": [
     {
-      "description": "Auto-merge updates when CI passes",
-      "matchManagers": ["terraform"],
-      "automerge": true,
-      "automergeType": "pr",
-      "automergeStrategy": "squash"
-    },
-    {
-      "description": "Group all Terraform provider updates",
       "matchManagers": ["terraform"],
       "groupName": "terraform providers"
     },
     {
-      "description": "Group OTel builder target, gomod and OCB updates",
       "matchManagers": ["gomod", "ocb"],
-      "groupName": "ocb+gomod+buildconfig"
+      "groupName": "otel",
+      "postUpdateOptions": ["gomodTidy"]
     },
     {
-      "description": "Ignore local module in OCB builder config",
-      "matchManagers": ["ocb"],
-      "matchDepNames": ["github.com/cvdtang/pkienginereceiver"],
-      "enabled": false
-    },
-    {
-      "description": "Disable digest pinning for OCB manager to avoid update failure",
       "matchManagers": ["ocb"],
       "pinDigests": false
     },
     {
-      "description": "Include justfile OTel builder target in shared OTel/gomod/OCB group",
       "matchManagers": ["custom.regex"],
       "matchDepNames": ["open-telemetry/opentelemetry-collector-releases"],
-      "groupName": "ocb+gomod+buildconfig"
+      "groupName": "otel"
     },
     {
-      "description": "Run go mod tidy for gomod and OCB updates",
-      "matchManagers": ["gomod", "ocb"],
-      "postUpdateOptions": ["gomodTidy"]
-    },
-    {
-      "description": "Group all GitHub Actions updates",
       "matchManagers": ["github-actions"],
       "groupName": "github actions",
       "minimumReleaseAge": "14 days"
     },
     {
-      "description": "Dedicated PR for Vault updates",
       "matchManagers": ["custom.regex"],
-      "matchDepNames": ["hashicorp/vault"],
-      "groupName": "vault",
+      "matchDepNames": [
+        "hashicorp/vault",
+        "openbao/openbao",
+        "rancher/k3s"
+      ],
       "commitMessagePrefix": "test(integration): ",
       "commitMessageAction": "",
-      "commitMessageTopic": "vault",
+      "commitMessageTopic": "{{depName}}",
       "commitMessageExtra": "{{prettyNewVersion}}"
-    },
-    {
-      "description": "Dedicated PR for OpenBao updates",
-      "matchManagers": ["custom.regex"],
-      "matchDepNames": ["openbao/openbao"],
-      "groupName": "openbao",
-      "commitMessagePrefix": "test(integration): ",
-      "commitMessageAction": "",
-      "commitMessageTopic": "openbao",
-      "commitMessageExtra": "{{prettyNewVersion}}"
-    },
-    {
-      "description": "Dedicated PR for k3s updates",
-      "matchManagers": ["custom.regex"],
-      "matchDepNames": ["rancher/k3s"],
-      "groupName": "k3s",
-      "commitMessagePrefix": "test(integration): ",
-      "commitMessageAction": "",
-      "commitMessageTopic": "k3s",
-      "commitMessageExtra": "{{prettyNewVersion}}"
-    },
-    {
-      "description": "Group README regex-managed dependency updates",
-      "matchManagers": ["custom.regex"],
-      "matchFileNames": ["README.md"],
-      "groupName": "readme dependencies",
-      "commitMessageSuffix": "[skip ci]"
     }
   ]
 }
