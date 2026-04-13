@@ -17,11 +17,22 @@
 
   "customManagers": [
     {
-      "description": "Update OTel builder versions",
+      "description": "Update OTel builder version in README.md",
       "customType": "regex",
-      "managerFilePatterns": ["/README\\.md/", "/justfile/"],
+      "managerFilePatterns": ["/README\\.md/"],
       "matchStrings": [
-        "gomod:\\s*github\\.com/[^\\s]+\\s+(?<currentValue>v[^\\s]+)",
+        "gomod:\\s*github\\.com/cvdtang/pkienginereceiver\\s+(?<currentValue>v[^\\s]+)"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "open-telemetry/opentelemetry-collector-releases",
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^cmd/builder/v(?<version>.*)$"
+    },
+    {
+      "description": "Update OTel builder version in justfile",
+      "customType": "regex",
+      "managerFilePatterns": ["/justfile/"],
+      "matchStrings": [
         "(?m)^TARGET_VERSION\\s*:=\\s*\"(?<currentValue>[^\"]+)\""
       ],
       "datasourceTemplate": "github-tags",
