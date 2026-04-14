@@ -17,16 +17,16 @@
 
   "customManagers": [
     {
-      "description": "Update OTel builder version in README.md",
+      "description": "Update gomod reference in README.md",
       "customType": "regex",
       "managerFilePatterns": ["/README\\.md/"],
       "matchStrings": [
-        "gomod:\\s*github\\.com/cvdtang/pkienginereceiver\\s+(?<currentValue>v[^\\s]+)"
+        "gomod:\\s*github\\.com/cvdtang/pkienginereceiver\\s+v(?<currentValue>[^\\s]+)"
       ],
       "datasourceTemplate": "github-tags",
-      "depNameTemplate": "open-telemetry/opentelemetry-collector-releases",
+      "depNameTemplate": "open-telemetry/opentelemetry-collector",
       "versioningTemplate": "semver",
-      "extractVersionTemplate": "^cmd/builder/v(?<version>.*)$"
+      "extractVersionTemplate": "^v(?<version>.*)$"
     },
     {
       "description": "Update OTel builder version in justfile",
@@ -36,9 +36,9 @@
         "(?m)^TARGET_VERSION\\s*:=\\s*\"(?<currentValue>[^\"]+)\""
       ],
       "datasourceTemplate": "github-tags",
-      "depNameTemplate": "open-telemetry/opentelemetry-collector-releases",
+      "depNameTemplate": "open-telemetry/opentelemetry-collector",
       "versioningTemplate": "semver",
-      "extractVersionTemplate": "^cmd/builder/v(?<version>.*)$"
+      "extractVersionTemplate": "^v(?<version>.*)$"
     },
     {
       "description": "Update container images in integration_test.go",
@@ -54,12 +54,14 @@
   "packageRules": [
     {
       "matchManagers": ["terraform"],
-      "groupName": "terraform providers"
+      "groupName": "terraform providers",
+      "commitMessage": "chore(deps): upgrade terraform providers"
     },
     {
       "matchManagers": ["gomod", "ocb"],
       "groupName": "otel",
-      "postUpdateOptions": ["gomodTidy"]
+      "postUpdateOptions": ["gomodTidy"],
+      "commitMessage": "chore(release): {{#each upgrades}}{{#if (equals depName 'go.opentelemetry.io/collector/scraper')}}{{newValue}}{{/if}}{{/each}}"
     },
     {
       "matchManagers": ["ocb"],
@@ -67,13 +69,15 @@
     },
     {
       "matchManagers": ["custom.regex"],
-      "matchDepNames": ["open-telemetry/opentelemetry-collector-releases"],
-      "groupName": "otel"
+      "matchDepNames": ["open-telemetry/opentelemetry-collector"],
+      "groupName": "otel",
+      "commitMessage": "chore(release): {{#each upgrades}}{{#if (equals depName 'go.opentelemetry.io/collector/scraper')}}{{newValue}}{{/if}}{{/each}}"
     },
     {
       "matchManagers": ["github-actions"],
       "groupName": "github actions",
-      "minimumReleaseAge": "14 days"
+      "minimumReleaseAge": "14 days",
+      "commitMessage": "chore(ci): bump github actions versions"
     },
     {
       "matchManagers": ["custom.regex"],
