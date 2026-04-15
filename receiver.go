@@ -217,12 +217,10 @@ func (s *metricsSink) withLock(emitFn func()) {
 // Creates mount-scoped state, schedules the mount task and fan-outs issuer
 // and CRL subtasks so scrape() can process mounts concurrently.
 func (s *pkiEngineScraper) enqueueMount(runner *taskRunner, sharedState *scrapeShared, mountPath string, errorTotals *scrapeErrorTotals) {
-	mountLogger := s.logger.With(zap.String("engine.mount_path", mountPath))
-
 	sink := newMetricsSink(sharedState)
 
 	mount := newMount(
-		mountLogger,
+		s.logger,
 		s.secretStore,
 		sharedState,
 		mountPath,
@@ -242,7 +240,7 @@ func (s *pkiEngineScraper) enqueueMount(runner *taskRunner, sharedState *scrapeS
 		// Fan out issuer work after mount-level data is available.
 		for _, issuerID := range result.issuerIDs {
 			issuer := newIssuer(
-				mountLogger,
+				mount.logger,
 				s.secretStore,
 				sharedState,
 				mountPath,
