@@ -61,18 +61,14 @@ type clusterConfig struct {
 
 // Get AIA templating values.
 func (m *mount) getClusterConfiguration(ctx context.Context) (*clusterConfig, error) {
-	var secret *api.Secret
-	var err error
-
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
-	secret, err = m.secretStore.readClusterConfiguration(ctx, m.path)
 
+	secret, err := m.secretStore.readClusterConfiguration(ctx, m.path)
 	if err != nil {
 		return nil, err
 	}
-
 	if secret == nil || secret.Data == nil {
 		return nil, fmt.Errorf("empty secret or data")
 	}
@@ -97,18 +93,15 @@ func (m *mount) getClusterConfiguration(ctx context.Context) (*clusterConfig, er
 
 // Lists issuer IDs for the current mount path.
 func (m *mount) listIssuers(ctx context.Context) ([]string, error) {
-	var secret *api.Secret
-	var err error
-
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
-	secret, err = m.secretStore.listIssuers(ctx, m.path)
 
+	secret, err := m.secretStore.listIssuers(ctx, m.path)
 	if err != nil {
 		return nil, fmt.Errorf("failed listing issuers: %w", err)
 	}
-
+	if secret == nil {
 	if secret == nil {
 		return []string{}, nil
 	}
