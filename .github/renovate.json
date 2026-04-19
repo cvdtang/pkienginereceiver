@@ -9,6 +9,7 @@
   "reviewers": ["cvdtang"],
   "gitAuthor": "Renovate Bot <bot@renovateapp.com>",
   "pinDigests": true,
+  "separateMajorMinor": false,
   "ignoreDeps": ["github.com/cvdtang/pkienginereceiver"],
 
   "ocb": {
@@ -55,13 +56,22 @@
     {
       "matchManagers": ["terraform"],
       "groupName": "terraform providers",
-      "commitMessage": "chore(deps): upgrade terraform providers"
+      "commitMessagePrefix": "chore(deps):",
+      "commitMessageAction": "upgrade",
+      "commitMessageTopic": "terraform providers",
+      "commitMessageExtra": ""
     },
     {
       "matchManagers": ["gomod", "ocb"],
       "groupName": "otel",
+      "group": {
+        "commitMessageTopic": ""
+      },
       "postUpdateOptions": ["gomodTidy"],
-      "commitMessage": "chore(release): {{#each upgrades}}{{#if (equals depName 'go.opentelemetry.io/collector/scraper')}}{{newValue}}{{/if}}{{/each}}"
+      "commitMessagePrefix": "chore(release):",
+      "commitMessageAction": "{{#each upgrades}}{{#if (equals depName 'go.opentelemetry.io/collector/scraper')}}{{newValue}}{{/if}}{{/each}}",
+      "commitMessageTopic": "",
+      "commitMessageExtra": ""
     },
     {
       "matchManagers": ["ocb"],
@@ -71,13 +81,22 @@
       "matchManagers": ["custom.regex"],
       "matchDepNames": ["open-telemetry/opentelemetry-collector"],
       "groupName": "otel",
-      "commitMessage": "chore(release): {{#each upgrades}}{{#if (equals depName 'go.opentelemetry.io/collector/scraper')}}{{newValue}}{{/if}}{{/each}}"
+      "group": {
+        "commitMessageTopic": ""
+      },
+      "commitMessagePrefix": "chore(release):",
+      "commitMessageAction": "{{#each upgrades}}{{#if (equals depName 'go.opentelemetry.io/collector/scraper')}}{{newValue}}{{/if}}{{/each}}",
+      "commitMessageTopic": "",
+      "commitMessageExtra": ""
     },
     {
       "matchManagers": ["github-actions"],
       "groupName": "github actions",
       "minimumReleaseAge": "14 days",
-      "commitMessage": "chore(ci): bump github actions versions"
+      "commitMessagePrefix": "chore(ci):",
+      "commitMessageAction": "bump",
+      "commitMessageTopic": "github actions",
+      "commitMessageExtra": ""
     },
     {
       "matchManagers": ["custom.regex"],
@@ -86,7 +105,7 @@
         "openbao/openbao",
         "rancher/k3s"
       ],
-      "commitMessagePrefix": "test(integration): ",
+      "commitMessagePrefix": "test(integration):",
       "commitMessageAction": "",
       "commitMessageTopic": "{{depName}}",
       "commitMessageExtra": "{{prettyNewVersion}}"
