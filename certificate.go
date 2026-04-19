@@ -3,9 +3,13 @@ package pkienginereceiver
 import (
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"math"
+	"math/big"
+	"strings"
 	"time"
 
+	"github.com/cvdtang/pkienginereceiver/internal/metadata"
 	"github.com/hashicorp/vault/sdk/helper/certutil"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 )
@@ -17,7 +21,6 @@ type certificateMetrics struct {
 }
 
 type certificate struct {
-	state    *scrapeShared
 	mount    string
 	issuerId string
 	raw      string
@@ -26,13 +29,16 @@ type certificate struct {
 }
 
 func newCertificate(
-	state *scrapeShared,
 	mount string,
+	certType metadata.AttributeCertType,
 	issuerId string,
 	certificateData string,
 ) certificate {
+	if certType == metadata.AttributeCertTypeLeaf {
+		issuerId = ""
+	}
+
 	return certificate{
-		state:    state,
 		mount:    mount,
 		issuerId: issuerId,
 		raw:      certificateData,
@@ -49,6 +55,38 @@ func (c *certificate) collect() error {
 	c.metrics = c.collectMetrics()
 
 	return nil
+}
+
+// Converts a certificate serial number to a colon-separated hexadecimal string (e.g. "aa:bb:cc").
+func serialToColonHex(serial *big.Int) string {
+	b := serial.Bytes()
+	hex := make([]string, len(b))
+	for i, v := range b {
+		hex[i] = fmt.Sprintf("%02x", v)
+	}
+
+	return strings.Join(hex, ":")
+}
+
+// Returns issuer type and ID when the serial belongs to a known issuer, otherwise it returns leaf type.
+func classifyCertificateType(normalizedSerial string, issuerBySerial map[string]string) (metadata.AttributeCertType, string) {
+	if issuerID, ok := issuerBySerial[normalizedSerial]; ok {
+		return metadata.AttributeCertTypeIssuer, issuerID
+	}
+
+	return metadata.AttributeCertTypeLeaf, ""
+}
+
+// Parses a serial string as hexadecimal and returns it in colon-separated lowercase form.
+func normalizeCertificateSerial(serial string) (string, bool) {
+	parsed := strings.TrimSpace(serial)
+	parsed = strings.ReplaceAll(parsed, ":", "")
+	serialInt, ok := big.NewInt(0).SetString(parsed, 16)
+	if !ok {
+		return "", false
+	}
+
+	return serialToColonHex(serialInt), true
 }
 
 // Parse certificate data, supports PEM and DER encoding.
@@ -90,8 +128,17 @@ func (c *certificate) collectMetrics() certificateMetrics {
 	return metrics
 }
 
-func (c *certificate) emit() {
-	c.state.mb.RecordPkiengineIssuerX509NotAfterDataPoint(
+func (c *certificate) serial() string {
+	if c.crt == nil || c.crt.SerialNumber == nil {
+		return ""
+	}
+
+	return serialToColonHex(c.crt.SerialNumber)
+}
+
+// Deprecated: retained for backward-compatible issuer metrics.
+func (c *certificate) emitIssuer(mb *metadata.MetricsBuilder) {
+	mb.RecordPkiengineIssuerX509NotAfterDataPoint(
 		c.metrics.ts,
 		c.metrics.notAfterMinutes,
 		c.issuerId,
@@ -100,12 +147,47 @@ func (c *certificate) emit() {
 		c.mount,
 	)
 
-	c.state.mb.RecordPkiengineIssuerX509NotBeforeDataPoint(
+	mb.RecordPkiengineIssuerX509NotBeforeDataPoint(
 		c.metrics.ts,
 		c.metrics.notBeforeMinutes,
 		c.issuerId,
 		c.crt.Subject.CommonName,
 		c.crt.Issuer.CommonName,
 		c.mount,
+	)
+}
+
+func (c *certificate) emitCert(mb *metadata.MetricsBuilder, certType metadata.AttributeCertType) {
+	subjectCountry := toAnySlice(c.crt.Subject.Country)
+	subjectOrganization := toAnySlice(c.crt.Subject.Organization)
+	subjectOrganizationalUnit := toAnySlice(c.crt.Subject.OrganizationalUnit)
+	serialNumber := c.serial()
+
+	mb.RecordPkiengineCertX509NotAfterDataPoint(
+		c.metrics.ts,
+		c.metrics.notAfterMinutes,
+		certType,
+		c.crt.Issuer.CommonName,
+		serialNumber,
+		c.crt.Subject.CommonName,
+		subjectCountry,
+		subjectOrganization,
+		subjectOrganizationalUnit,
+		c.mount,
+		c.issuerId,
+	)
+
+	mb.RecordPkiengineCertX509NotBeforeDataPoint(
+		c.metrics.ts,
+		c.metrics.notBeforeMinutes,
+		certType,
+		c.crt.Issuer.CommonName,
+		serialNumber,
+		c.crt.Subject.CommonName,
+		subjectCountry,
+		subjectOrganization,
+		subjectOrganizationalUnit,
+		c.mount,
+		c.issuerId,
 	)
 }

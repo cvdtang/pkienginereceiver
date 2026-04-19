@@ -308,8 +308,8 @@ func TestCRL_Collect_RetrySuccessOnRetryableError(t *testing.T) {
 	data, _ := createTestCrlData(t)
 	crl, state := createTestCRL(t)
 	ctx := t.Context()
-	state.crlFetchRetries = 1
-	state.crlFetchRetryInterval = 0
+	state.cfg.Crl.Retries = 1
+	state.cfg.Crl.RetryInterval = 0
 
 	mockCrlFetcher := newMockcrlFetcher(t)
 	mockCrlFetcher.On("fetch", ctx, crl.uri, time.Second, "", time.Time{}).Return(
@@ -333,8 +333,8 @@ func TestCRL_Collect_NoRetryOnPermanentError(t *testing.T) {
 
 	crl, state := createTestCRL(t)
 	ctx := t.Context()
-	state.crlFetchRetries = 3
-	state.crlFetchRetryInterval = 0
+	state.cfg.Crl.Retries = 3
+	state.cfg.Crl.RetryInterval = 0
 
 	mockCrlFetcher := newMockcrlFetcher(t)
 	mockCrlFetcher.On("fetch", ctx, crl.uri, time.Second, "", time.Time{}).Return(
@@ -353,8 +353,8 @@ func TestCRL_Collect_RetryIntervalHonorsContextCancellation(t *testing.T) {
 	t.Parallel()
 
 	crl, state := createTestCRL(t)
-	state.crlFetchRetries = 1
-	state.crlFetchRetryInterval = time.Second
+	state.cfg.Crl.Retries = 1
+	state.cfg.Crl.RetryInterval = time.Second
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()

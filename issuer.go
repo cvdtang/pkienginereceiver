@@ -49,12 +49,14 @@ type crlTask struct {
 }
 
 type issuerResult struct {
-	mountPath   string
-	id          string
-	logger      *zap.Logger
-	skipped     bool
-	certificate certificate
-	crlTasks    []crlTask
+	mountPath         string
+	id                string
+	logger            *zap.Logger
+	skipped           bool
+	isParent          bool // auto copied over by multi-tier setup
+	certificate       certificate
+	certificateSerial string
+	crlTasks          []crlTask
 }
 
 // Resolves supported AIA placeholders in an URI template.
@@ -98,23 +100,16 @@ func (ie *issuer) collect(ctx context.Context) (issuerResult, error) {
 		return issuerResult{}, errors.New("issuer exists but has no data")
 	}
 
-	if ie.shouldSkip(issuer) {
-		return issuerResult{
-			mountPath: ie.mountPath,
-			id:        ie.id,
-			logger:    ie.logger,
-			skipped:   true,
-		}, nil
+	if skip, isParent := ie.shouldSkip(issuer); skip {
+		return ie.newSkippedIssuerResult(issuer, isParent), nil
 	}
 
-	crtText, ok := issuer.Data["certificate"].(string)
-	if !ok || crtText == "" {
-		err := errors.New("certificate attribute is empty or invalid")
-
+	certSecret, err := parseCertificateSecret(issuer)
+	if err != nil {
 		return issuerResult{}, err
 	}
 
-	crt := newCertificate(ie.state, ie.mountPath, ie.id, crtText)
+	crt := newCertificate(ie.mountPath, metadata.AttributeCertTypeIssuer, ie.id, certSecret.certificateData)
 	if err := crt.collect(); err != nil {
 		return issuerResult{}, fmt.Errorf("failed processing certificate: %w", err)
 	}
@@ -127,29 +122,72 @@ func (ie *issuer) collect(ctx context.Context) (issuerResult, error) {
 	crlTasks := ie.buildCRLTasks(issuer, crt, issuerLogger)
 
 	return issuerResult{
-		mountPath:   ie.mountPath,
-		id:          ie.id,
-		logger:      issuerLogger,
-		certificate: crt,
-		crlTasks:    crlTasks,
+		mountPath:         ie.mountPath,
+		id:                ie.id,
+		logger:            issuerLogger,
+		certificate:       crt,
+		certificateSerial: crt.serial(),
+		crlTasks:          crlTasks,
 	}, nil
 }
 
-func (ie *issuer) shouldSkip(issuer *api.Secret) bool {
+func (ie *issuer) shouldSkip(issuer *api.Secret) (bool, bool) {
 	// Copied parent issuers in intermediate mounts are read-only and have no local key.
-	keyID, ok := issuer.Data["key_id"].(string)
-	if ok && keyID == "" {
+	keyID, exists := issuer.Data["key_id"]
+	if !exists {
+		return false, false
+	}
+	if keyID == nil {
+		ie.logger.Debug("skipping non-local issuer (nil key_id)")
+
+		return true, true
+	}
+	keyIDStr, ok := keyID.(string)
+	if ok && keyIDStr == "" {
 		ie.logger.Debug("skipping non-local issuer (empty key_id)")
 
-		return true
+		return true, true
 	}
 
-	return false
+	return false, false
+}
+
+// Extracts the certificate serial from a copied parent issuer secret.
+func (ie *issuer) parentSerialFromIssuerSecret(issuer *api.Secret) string {
+	certSecret, err := parseCertificateSecret(issuer)
+	if err != nil {
+		return ""
+	}
+
+	crt := newCertificate(ie.mountPath, metadata.AttributeCertTypeIssuer, ie.id, certSecret.certificateData)
+	if err := crt.collect(); err != nil {
+		ie.logger.Debug("failed parsing copied parent issuer certificate serial", zap.Error(err))
+
+		return ""
+	}
+
+	return crt.serial()
+}
+
+func (ie *issuer) newSkippedIssuerResult(issuer *api.Secret, isParent bool) issuerResult {
+	parentSerial := ""
+	if isParent {
+		parentSerial = ie.parentSerialFromIssuerSecret(issuer)
+	}
+
+	return issuerResult{
+		mountPath:         ie.mountPath,
+		id:                ie.id,
+		logger:            ie.logger,
+		skipped:           true,
+		isParent:          isParent,
+		certificateSerial: parentSerial,
+	}
 }
 
 // Creates CRL tasks from issuer and certificate distribution points.
 func (ie *issuer) buildCRLTasks(issuer *api.Secret, cert certificate, logger *zap.Logger) []crlTask {
-	if !ie.state.crlEnabled {
+	if !ie.state.cfg.Crl.Enabled {
 		return nil
 	}
 
@@ -161,7 +199,7 @@ func (ie *issuer) buildCRLTasks(issuer *api.Secret, cert certificate, logger *za
 	appendTasks(ie.listBaseCrlDistributionPoints(issuer), metadata.AttributeCrlRoleSubject, metadata.AttributeCrlKindBase)
 	appendTasks(ie.listDeltaCrlDistributionPoints(issuer), metadata.AttributeCrlRoleSubject, metadata.AttributeCrlKindDelta)
 
-	if !ie.state.crlScrapeParent {
+	if !ie.state.cfg.Crl.ScrapeParent {
 		return tasks
 	}
 
@@ -203,17 +241,9 @@ func (ie *issuer) buildCRLTasksForURIs(issuer *api.Secret, urls []string, role m
 }
 
 func (ie *issuer) listBaseCrlDistributionPoints(issuer *api.Secret) []string {
-	if issuer == nil || issuer.Data == nil {
-		return []string{}
-	}
-
 	return toStringSlice(issuer.Data["crl_distribution_points"])
 }
 
 func (ie *issuer) listDeltaCrlDistributionPoints(issuer *api.Secret) []string {
-	if issuer == nil || issuer.Data == nil {
-		return []string{}
-	}
-
 	return toStringSlice(issuer.Data["delta_crl_distribution_points"])
 }

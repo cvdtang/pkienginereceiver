@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hashicorp/vault/api"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.uber.org/zap"
 )
@@ -23,10 +22,11 @@ func newMountMetrics() mountMetrics {
 }
 
 type mountResult struct {
-	path          string
-	clusterConfig clusterConfig
-	issuerIDs     []string
-	metrics       mountMetrics
+	path               string
+	clusterConfig      clusterConfig
+	issuerIDs          []string
+	certificateSerials []string
+	metrics            mountMetrics
 }
 
 type mount struct {
@@ -102,6 +102,21 @@ func (m *mount) listIssuers(ctx context.Context) ([]string, error) {
 		return nil, fmt.Errorf("failed listing issuers: %w", err)
 	}
 	if secret == nil {
+		return []string{}, nil
+	}
+
+	return toStringSlice(secret.Data["keys"]), nil
+}
+
+func (m *mount) listCertificates(ctx context.Context) ([]string, error) {
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
+	secret, err := m.secretStore.listCertificates(ctx, m.path)
+	if err != nil {
+		return nil, err
+	}
 	if secret == nil {
 		return []string{}, nil
 	}
@@ -118,12 +133,18 @@ func (m *mount) collect(ctx context.Context) (mountResult, error) {
 		return mountResult{}, fmt.Errorf("failed reading cluster config: %w", err)
 	}
 
-	metrics, err := m.collectMetrics(ctx)
-	if err != nil {
-		m.logger.Error("failed collecting metrics", zap.Error(err))
+	// Bit of a sore thumb as it's used for mount metrics and fan-out.
+	var leafs []string
+	if m.state.shouldCollectCertificates() {
+		leafs, err = m.listCertificates(ctx)
+		if err != nil {
+			m.logger.Error("failed listing leaf certificates", zap.Error(err))
 
-		return mountResult{}, fmt.Errorf("failed collecting metrics: %w", err)
+			return mountResult{}, fmt.Errorf("failed listing leaf certificates: %w", err)
+		}
 	}
+
+	metrics := m.collectMetrics(int64(len(leafs)))
 
 	issuers, err := m.listIssuers(ctx)
 	if err != nil {
@@ -132,36 +153,21 @@ func (m *mount) collect(ctx context.Context) (mountResult, error) {
 	}
 
 	return mountResult{
-		path:          m.path,
-		clusterConfig: *clusterConfig,
-		issuerIDs:     issuers,
-		metrics:       *metrics,
+		path:               m.path,
+		clusterConfig:      *clusterConfig,
+		issuerIDs:          issuers,
+		certificateSerials: leafs,
+		metrics:            metrics,
 	}, nil
 }
 
 // Gathers mount-level metrics from the secret store.
-func (m *mount) collectMetrics(ctx context.Context) (*mountMetrics, error) {
+func (m *mount) collectMetrics(leafs int64) mountMetrics {
 	metrics := newMountMetrics()
 
-	if m.state.metricsCfg.PkiengineMountCertificatesStored.Enabled {
-		var secret *api.Secret
-		var err error
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
-		secret, err = m.secretStore.listCertificates(ctx, m.path)
-
-		if err != nil {
-			return nil, fmt.Errorf("failed listing certificates: %w", err)
-		}
-
-		if secret == nil {
-			return nil, errEmptySecret
-		}
-
-		storedCertificates := int64(len(toStringSlice(secret.Data["keys"])))
-		metrics.storedCertificates = &storedCertificates
+	if m.state.shouldCollectCertificates() {
+		metrics.storedCertificates = &leafs
 	}
 
-	return &metrics, nil
+	return metrics
 }

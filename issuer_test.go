@@ -192,6 +192,47 @@ func TestIssuerProcessSkipCopiedIssuer(t *testing.T) {
 	assert.True(t, result.skipped)
 }
 
+func TestIssuerProcessSkipCopiedIssuerNilKeyID(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	mockSecretStore := newMocksecretStore(t)
+	issuer := createTestIssuer(t, mockSecretStore)
+	_, certPEM := getTestCertData(t, "example.org CA")
+
+	mockSecretStore.On("readIssuer", ctx, issuer.mountPath, issuer.id).Return(&vaultapi.Secret{
+		Data: map[string]any{
+			"certificate": string(certPEM),
+			"key_id":      nil,
+		},
+	}, nil)
+
+	result, err := issuer.collect(ctx)
+	require.NoError(t, err)
+	assert.True(t, result.skipped)
+	assert.True(t, result.isParent)
+}
+
+func TestIssuerProcessMissingKeyIDNotSkipped(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	mockSecretStore := newMocksecretStore(t)
+	issuer := createTestIssuer(t, mockSecretStore)
+	_, certPEM := getTestCertData(t, "example.org CA")
+
+	mockSecretStore.On("readIssuer", ctx, issuer.mountPath, issuer.id).Return(&vaultapi.Secret{
+		Data: map[string]any{
+			"certificate": string(certPEM),
+		},
+	}, nil)
+
+	result, err := issuer.collect(ctx)
+	require.NoError(t, err)
+	assert.False(t, result.skipped)
+	assert.False(t, result.isParent)
+}
+
 func TestIssuerProcessCRLTasksRespectCRLEnabled(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
@@ -232,7 +273,7 @@ func TestIssuerProcessCRLTasksRespectCRLEnabled(t *testing.T) {
 
 			mockSecretStore := newMocksecretStore(t)
 			issuer := createTestIssuer(t, mockSecretStore)
-			issuer.state.crlEnabled = tt.crlEnabled
+			issuer.state.cfg.Crl.Enabled = tt.crlEnabled
 
 			mockSecretStore.On("readIssuer", ctx, issuer.mountPath, issuer.id).Return(&vaultapi.Secret{
 				Data: map[string]any{
@@ -310,7 +351,7 @@ func TestIssuerBuildCRLTasksScrapeParent(t *testing.T) {
 			t.Parallel()
 
 			state := createTestScrapeState(t)
-			state.crlScrapeParent = tt.scrapeParent
+			state.cfg.Crl.ScrapeParent = tt.scrapeParent
 
 			issuer := issuer{
 				state: state,
@@ -318,7 +359,7 @@ func TestIssuerBuildCRLTasksScrapeParent(t *testing.T) {
 			}
 
 			_, certPEM := getTestCertData(t, "example.org CA", parentCrlUri)
-			cert := newCertificate(state, "pki/", issuer.id, string(certPEM))
+			cert := newCertificate("pki/", metadata.AttributeCertTypeIssuer, issuer.id, string(certPEM))
 			require.NoError(t, cert.collect())
 
 			tasks := issuer.buildCRLTasks(issuerSecret, cert, zap.NewNop())

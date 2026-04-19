@@ -1,7 +1,6 @@
 package pkienginereceiver
 
 import (
-	"net/http"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -15,72 +14,97 @@ import (
 
 // Common, per-scrape shared state.
 type scrapeShared struct {
-	crlFetchSfg           *singleflight.Group
-	crlFetchTimeout       time.Duration
-	crlFetchRetries       int
-	crlFetchRetryInterval time.Duration
-	crlEnabled            bool
-	crlScrapeParent       bool
-	crlCache              crlCacheStore
-	httpClient            *http.Client
-	scrapeStartTime       time.Time
-	crlCacheHits          atomic.Int64
-	crlCacheMisses        atomic.Int64
-
-	metricsCfg metadata.MetricsConfig
+	cfg             *config
+	crlFetchSfg     *singleflight.Group
+	crlCache        crlCacheStore
+	scrapeStartTime time.Time
+	crlCacheHits    atomic.Int64
+	crlCacheMisses  atomic.Int64
 
 	mb      *metadata.MetricsBuilder
 	mbMutex *sync.Mutex
 
-	crlSeenMu sync.Mutex
-	crlSeen   map[string]struct{}
+	crlSeen sync.Map
 }
 
 // Creates per-scrape shared resources reused across mounts.
 func newScrapeShared(
-	crlFetchTimeout time.Duration,
-	crlFetchRetries int,
-	crlFetchRetryInterval time.Duration,
-	crlEnabled bool,
-	crlScrapeParent bool,
-	crlCache crlCacheStore,
-	metricsBuilderCfg metadata.MetricsBuilderConfig,
+	cfg *config,
 	settings receiver.Settings,
-	metricsCfg metadata.MetricsConfig,
+	crlCache crlCacheStore,
 ) *scrapeShared {
 	return &scrapeShared{
-		crlFetchSfg:           &singleflight.Group{},
-		crlFetchTimeout:       crlFetchTimeout,
-		crlFetchRetries:       crlFetchRetries,
-		crlFetchRetryInterval: crlFetchRetryInterval,
-		crlEnabled:            crlEnabled,
-		crlScrapeParent:       crlScrapeParent,
-		crlCache:              crlCache,
-		httpClient:            http.DefaultClient,
-		scrapeStartTime:       time.Now(),
-		metricsCfg:            metricsCfg,
+		cfg:             cfg,
+		crlFetchSfg:     &singleflight.Group{},
+		crlCache:        crlCache,
+		scrapeStartTime: time.Now(),
 		mb: metadata.NewMetricsBuilder(
-			metricsBuilderCfg,
+			cfg.MetricsBuilderConfig,
 			settings,
 		),
 		mbMutex: &sync.Mutex{},
-		crlSeen: make(map[string]struct{}),
 	}
 }
 
 // Checks whether this scrape should process the CRL keyed by uri|role|kind.
 func (s *scrapeShared) claimCRL(uri string, role metadata.AttributeCrlRole, kind metadata.AttributeCrlKind) bool {
 	key := crlDedupKey(uri, role, kind)
+	_, loaded := s.crlSeen.LoadOrStore(key, struct{}{})
 
-	s.crlSeenMu.Lock()
-	defer s.crlSeenMu.Unlock()
+	return !loaded
+}
 
-	if _, exists := s.crlSeen[key]; exists {
-		return false
+func (s *scrapeShared) shouldCollectCertificates() bool {
+	return s.cfg.Metrics.PkiengineMountCertificatesStored.Enabled || s.cfg.Leaf.Enabled
+}
+
+func (s *scrapeShared) emitIssuerCertMetrics() bool {
+	return metadata.ReceiverPkiengineEmitCertMetricsFromIssuersFeatureGate.IsEnabled()
+}
+
+func (s *scrapeShared) emitMount(result mountResult) {
+	if result.metrics.storedCertificates == nil {
+		return
 	}
-	s.crlSeen[key] = struct{}{}
+	s.withMetricsLock(func() {
+		s.mb.RecordPkiengineMountCertificatesStoredDataPoint(
+			result.metrics.ts,
+			*result.metrics.storedCertificates,
+			result.path,
+		)
+	})
+}
 
-	return true
+func (s *scrapeShared) emitIssuer(result issuerResult) {
+	if result.skipped {
+		return
+	}
+	s.withMetricsLock(func() {
+		if s.emitIssuerCertMetrics() {
+			result.certificate.emitCert(s.mb, metadata.AttributeCertTypeIssuer)
+
+			return
+		}
+		result.certificate.emitIssuer(s.mb)
+	})
+}
+
+func (s *scrapeShared) emitCert(cert certificate, certType metadata.AttributeCertType) {
+	s.withMetricsLock(func() {
+		cert.emitCert(s.mb, certType)
+	})
+}
+
+func (s *scrapeShared) emitCRL(crl *crl, metrics crlMetrics) {
+	s.withMetricsLock(func() {
+		crl.emit(s.mb, metrics)
+	})
+}
+
+func (s *scrapeShared) withMetricsLock(emitFn func()) {
+	s.mbMutex.Lock()
+	defer s.mbMutex.Unlock()
+	emitFn()
 }
 
 func crlDedupKey(uri string, role metadata.AttributeCrlRole, kind metadata.AttributeCrlKind) string {

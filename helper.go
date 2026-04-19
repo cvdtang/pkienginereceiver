@@ -14,3 +14,13 @@ func toStringSlice(i any) []string {
 
 	return res
 }
+
+// Converts a []string value into a []any.
+func toAnySlice(values []string) []any {
+	attrs := make([]any, 0, len(values))
+	for _, value := range values {
+		attrs = append(attrs, value)
+	}
+
+	return attrs
+}

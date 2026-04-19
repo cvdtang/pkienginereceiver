@@ -21,6 +21,7 @@ type config struct {
 	MatchRegex       string     `mapstructure:"match_regex"`
 	ConcurrencyLimit int        `mapstructure:"concurrency_limit"`
 	Crl              crlConfig  `mapstructure:"crl"`
+	Leaf             leafConfig `mapstructure:"leaf_certificates"`
 	Auth             authConfig `mapstructure:"auth"`
 
 	compiledRegex *regexp.Regexp
@@ -33,6 +34,10 @@ type crlConfig struct {
 	Timeout       time.Duration `mapstructure:"timeout"`
 	Retries       int           `mapstructure:"retries"`
 	RetryInterval time.Duration `mapstructure:"retry_interval"`
+}
+
+type leafConfig struct {
+	Enabled bool `mapstructure:"enabled"`
 }
 
 func (c *config) validate() error {

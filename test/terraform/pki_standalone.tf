@@ -30,12 +30,15 @@ resource "vault_pki_secret_backend_root_cert" "standalone" {
   count     = var.num_standalone
   namespace = local.namespace
 
-  backend     = vault_mount.pki_standalone.path
-  type        = "internal" # Vault generates the key
-  common_name = "ACME Standalone CA ${count.index}"
-  format      = "pem"
-  key_type    = "ec"
-  key_bits    = 224
+  backend      = vault_mount.pki_standalone.path
+  type         = "internal" # Vault generates the key
+  common_name  = "ACME Standalone CA ${count.index}"
+  country      = "US"
+  organization = "ACME org"
+  ou           = "Security"
+  format       = "pem"
+  key_type     = "ec"
+  key_bits     = 224
 
   not_before_duration = local.not_before
   not_after           = local.not_after
@@ -78,6 +81,9 @@ resource "vault_pki_secret_backend_role" "standalone" {
   key_bits         = 224
   allowed_domains  = ["example.org"]
   allow_subdomains = true
+  country          = ["US"]
+  organization     = ["ACME org"]
+  ou               = ["App"]
 }
 
 resource "vault_pki_secret_backend_cert" "standalone" {

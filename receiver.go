@@ -113,15 +113,9 @@ func (s *pkiEngineScraper) scrape(ctx context.Context) (pmetric.Metrics, error) 
 
 	// Shared state across all mount, issuer and CRL tasks.
 	sharedState := newScrapeShared(
-		s.cfg.Crl.Timeout,
-		s.cfg.Crl.Retries,
-		s.cfg.Crl.RetryInterval,
-		s.cfg.Crl.Enabled,
-		s.cfg.Crl.ScrapeParent,
-		s.crlCache,
-		s.cfg.MetricsBuilderConfig,
+		&s.cfg,
 		s.settings,
-		s.cfg.Metrics,
+		s.crlCache,
 	)
 
 	// Exit early when no mounts match current filters.
@@ -130,171 +124,15 @@ func (s *pkiEngineScraper) scrape(ctx context.Context) (pmetric.Metrics, error) 
 		return pmetric.NewMetrics(), err
 	}
 
-	// Enqueue one root task per mount; each root can fan out more tasks.
-	runner := newTaskRunner(ctx, s.cfg.ConcurrencyLimit)
-	errorTotals := &scrapeErrorTotals{}
-
-	for _, mountPath := range filteredMountPaths {
-		s.enqueueMount(runner, sharedState, mountPath, errorTotals)
-	}
-
-	// Wait until no tasks remain.
-	runner.wait()
+	run := newScrapeRun(ctx, s, sharedState)
+	run.processMounts(filteredMountPaths)
 
 	// Emit global counters after all task-side counters are final.
-	s.recordGlobalMetrics(sharedState.mb, sharedState, errorTotals, pcommon.NewTimestampFromTime(time.Now()))
+	s.recordGlobalMetrics(sharedState, &run.errorTotals, pcommon.NewTimestampFromTime(time.Now()))
 
 	rb := sharedState.mb.NewResourceBuilder()
 	rb.SetEngineAddress(s.cfg.Address)
 	rb.SetEngineNamespace(s.cfg.Namespace)
 
 	return sharedState.mb.Emit(metadata.WithResource(rb.Emit())), nil
-}
-
-func (s *pkiEngineScraper) recordGlobalMetrics(
-	mb *metadata.MetricsBuilder,
-	sharedState *scrapeShared,
-	errorTotals *scrapeErrorTotals,
-	ts pcommon.Timestamp,
-) {
-	// Capture all aggregate counters at one timestamp for this scrape.
-	mb.RecordPkiengineCrlCacheHitsDataPoint(ts, sharedState.crlCacheHits.Load())
-	mb.RecordPkiengineCrlCacheMissesDataPoint(ts, sharedState.crlCacheMisses.Load())
-	mb.RecordPkiengineCrlCacheEvictionsDataPoint(ts, s.crlEvictionsTotal.Load())
-	mb.RecordPkiengineMountErrorsDataPoint(ts, errorTotals.mountErrors.Load())
-	mb.RecordPkiengineIssuerErrorsDataPoint(ts, errorTotals.issuerErrors.Load())
-}
-
-type metricsSink struct {
-	mb *metadata.MetricsBuilder
-	mu *sync.Mutex
-}
-
-type scrapeErrorTotals struct {
-	mountErrors  atomic.Int64
-	issuerErrors atomic.Int64
-}
-
-// Creates a synchronized metrics sink backed by scrape-shared builder state.
-func newMetricsSink(shared *scrapeShared) *metricsSink {
-	return &metricsSink{
-		mb: shared.mb,
-		mu: shared.mbMutex,
-	}
-}
-
-func (s *metricsSink) EmitMount(result mountResult) {
-	if result.metrics.storedCertificates == nil {
-		return
-	}
-	s.withLock(func() {
-		s.mb.RecordPkiengineMountCertificatesStoredDataPoint(
-			result.metrics.ts,
-			*result.metrics.storedCertificates,
-			result.path,
-		)
-	})
-}
-
-func (s *metricsSink) EmitIssuer(result issuerResult) {
-	s.withLock(func() {
-		result.certificate.emit()
-	})
-}
-
-func (s *metricsSink) EmitCRL(crl *crl, metrics crlMetrics) {
-	s.withLock(func() {
-		crl.emit(s.mb, metrics)
-	})
-}
-
-func (s *metricsSink) withLock(emitFn func()) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	emitFn()
-}
-
-// Creates mount-scoped state, schedules the mount task and fan-outs issuer
-// and CRL subtasks so scrape() can process mounts concurrently.
-func (s *pkiEngineScraper) enqueueMount(runner *taskRunner, sharedState *scrapeShared, mountPath string, errorTotals *scrapeErrorTotals) {
-	sink := newMetricsSink(sharedState)
-
-	mount := newMount(
-		s.logger,
-		s.secretStore,
-		sharedState,
-		mountPath,
-	)
-
-	runner.enqueue(func(ctx context.Context) {
-		result, err := mount.collect(ctx)
-		if err != nil {
-			errorTotals.mountErrors.Add(1)
-			mount.logger.Warn("failed processing mount", zap.Error(err))
-
-			return
-		}
-
-		sink.EmitMount(result)
-
-		// Fan out issuer work after mount-level data is available.
-		for _, issuerID := range result.issuerIDs {
-			issuer := newIssuer(
-				mount.logger,
-				s.secretStore,
-				sharedState,
-				mountPath,
-				issuerID,
-				result.clusterConfig,
-			)
-
-			runner.enqueue(func(ctx context.Context) {
-				issuerResult, err := issuer.collect(ctx)
-				if err != nil {
-					errorTotals.issuerErrors.Add(1)
-					issuer.logger.Warn("failed processing issuer", zap.Error(err))
-
-					return
-				}
-				if issuerResult.skipped {
-					return
-				}
-
-				sink.EmitIssuer(issuerResult)
-
-				// Fan out CRL processing tasks derived from this issuer.
-				for _, task := range issuerResult.crlTasks {
-					if !sharedState.claimCRL(task.uri, task.role, task.kind) {
-						issuerResult.logger.Debug(
-							"skipping duplicate crl in scrape",
-							zap.String("crl.uri", task.uri),
-							zap.String("crl.role", task.role.String()),
-							zap.String("crl.kind", task.kind.String()),
-						)
-
-						continue
-					}
-
-					runner.enqueue(func(ctx context.Context) {
-						crl := newCRL(
-							issuerResult.logger,
-							sharedState,
-							task.uri,
-							task.role,
-							task.kind,
-						)
-
-						metrics, err := crl.collect(ctx)
-						if err != nil {
-							crl.logger.Warn("failed processing crl", zap.Error(err))
-
-							return
-						}
-
-						sink.EmitCRL(crl, metrics)
-					})
-				}
-			})
-		}
-	})
 }

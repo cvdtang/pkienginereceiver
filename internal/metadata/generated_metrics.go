@@ -12,6 +12,32 @@ import (
 	"go.opentelemetry.io/collector/receiver"
 )
 
+// AttributeCertType specifies the value cert.type attribute.
+type AttributeCertType int
+
+const (
+	_ AttributeCertType = iota
+	AttributeCertTypeIssuer
+	AttributeCertTypeLeaf
+)
+
+// String returns the string representation of the AttributeCertType.
+func (av AttributeCertType) String() string {
+	switch av {
+	case AttributeCertTypeIssuer:
+		return "issuer"
+	case AttributeCertTypeLeaf:
+		return "leaf"
+	}
+	return ""
+}
+
+// MapAttributeCertType is a helper map of string to AttributeCertType attribute value.
+var MapAttributeCertType = map[string]AttributeCertType{
+	"issuer": AttributeCertTypeIssuer,
+	"leaf":   AttributeCertTypeLeaf,
+}
+
 // AttributeCrlKind specifies the value crl.kind attribute.
 type AttributeCrlKind int
 
@@ -65,6 +91,12 @@ var MapAttributeCrlRole = map[string]AttributeCrlRole{
 }
 
 var MetricsInfo = metricsInfo{
+	PkiengineCertX509NotAfter: metricInfo{
+		Name: "pkiengine.cert.x509.not_after",
+	},
+	PkiengineCertX509NotBefore: metricInfo{
+		Name: "pkiengine.cert.x509.not_before",
+	},
 	PkiengineCrlCacheEvictions: metricInfo{
 		Name: "pkiengine.crl.cache.evictions",
 	},
@@ -104,6 +136,8 @@ var MetricsInfo = metricsInfo{
 }
 
 type metricsInfo struct {
+	PkiengineCertX509NotAfter           metricInfo
+	PkiengineCertX509NotBefore          metricInfo
 	PkiengineCrlCacheEvictions          metricInfo
 	PkiengineCrlCacheHits               metricInfo
 	PkiengineCrlCacheMisses             metricInfo
@@ -120,6 +154,126 @@ type metricsInfo struct {
 
 type metricInfo struct {
 	Name string
+}
+
+type metricPkiengineCertX509NotAfter struct {
+	data     pmetric.Metric // data buffer for generated metric.
+	config   MetricConfig   // metric config provided by user.
+	capacity int            // max observed number of data points added to the metric.
+}
+
+// init fills pkiengine.cert.x509.not_after metric with initial data.
+func (m *metricPkiengineCertX509NotAfter) init() {
+	m.data.SetName("pkiengine.cert.x509.not_after")
+	m.data.SetDescription("Time until certificate expiration as specified by the `notAfter` field.")
+	m.data.SetUnit("minutes")
+	m.data.SetEmptyGauge()
+	m.data.Gauge().DataPoints().EnsureCapacity(m.capacity)
+}
+
+func (m *metricPkiengineCertX509NotAfter) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64, certTypeAttributeValue string, certX509IssuerCommonNameAttributeValue string, certX509SerialNumberAttributeValue string, certX509SubjectCommonNameAttributeValue string, certX509SubjectCountryAttributeValue []any, certX509SubjectOrganizationAttributeValue []any, certX509SubjectOrganizationalUnitAttributeValue []any, engineMountAttributeValue string, issuerIDAttributeValue string) {
+	if !m.config.Enabled {
+		return
+	}
+	dp := m.data.Gauge().DataPoints().AppendEmpty()
+	dp.SetStartTimestamp(start)
+	dp.SetTimestamp(ts)
+	dp.SetIntValue(val)
+	dp.Attributes().PutStr("cert.type", certTypeAttributeValue)
+	dp.Attributes().PutStr("cert.x509.issuer.common_name", certX509IssuerCommonNameAttributeValue)
+	dp.Attributes().PutStr("cert.x509.serial_number", certX509SerialNumberAttributeValue)
+	dp.Attributes().PutStr("cert.x509.subject.common_name", certX509SubjectCommonNameAttributeValue)
+	dp.Attributes().PutEmptySlice("cert.x509.subject.country").FromRaw(certX509SubjectCountryAttributeValue)
+	dp.Attributes().PutEmptySlice("cert.x509.subject.organization").FromRaw(certX509SubjectOrganizationAttributeValue)
+	dp.Attributes().PutEmptySlice("cert.x509.subject.organizational_unit").FromRaw(certX509SubjectOrganizationalUnitAttributeValue)
+	dp.Attributes().PutStr("engine.mount", engineMountAttributeValue)
+	dp.Attributes().PutStr("issuer.id", issuerIDAttributeValue)
+}
+
+// updateCapacity saves max length of data point slices that will be used for the slice capacity.
+func (m *metricPkiengineCertX509NotAfter) updateCapacity() {
+	if m.data.Gauge().DataPoints().Len() > m.capacity {
+		m.capacity = m.data.Gauge().DataPoints().Len()
+	}
+}
+
+// emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
+func (m *metricPkiengineCertX509NotAfter) emit(metrics pmetric.MetricSlice) {
+	if m.config.Enabled && m.data.Gauge().DataPoints().Len() > 0 {
+		m.updateCapacity()
+		m.data.MoveTo(metrics.AppendEmpty())
+		m.init()
+	}
+}
+
+func newMetricPkiengineCertX509NotAfter(cfg MetricConfig) metricPkiengineCertX509NotAfter {
+	m := metricPkiengineCertX509NotAfter{config: cfg}
+
+	if cfg.Enabled {
+		m.data = pmetric.NewMetric()
+		m.init()
+	}
+	return m
+}
+
+type metricPkiengineCertX509NotBefore struct {
+	data     pmetric.Metric // data buffer for generated metric.
+	config   MetricConfig   // metric config provided by user.
+	capacity int            // max observed number of data points added to the metric.
+}
+
+// init fills pkiengine.cert.x509.not_before metric with initial data.
+func (m *metricPkiengineCertX509NotBefore) init() {
+	m.data.SetName("pkiengine.cert.x509.not_before")
+	m.data.SetDescription("Time util certificate validity start as specified by the `notBefore` field.")
+	m.data.SetUnit("minutes")
+	m.data.SetEmptyGauge()
+	m.data.Gauge().DataPoints().EnsureCapacity(m.capacity)
+}
+
+func (m *metricPkiengineCertX509NotBefore) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64, certTypeAttributeValue string, certX509IssuerCommonNameAttributeValue string, certX509SerialNumberAttributeValue string, certX509SubjectCommonNameAttributeValue string, certX509SubjectCountryAttributeValue []any, certX509SubjectOrganizationAttributeValue []any, certX509SubjectOrganizationalUnitAttributeValue []any, engineMountAttributeValue string, issuerIDAttributeValue string) {
+	if !m.config.Enabled {
+		return
+	}
+	dp := m.data.Gauge().DataPoints().AppendEmpty()
+	dp.SetStartTimestamp(start)
+	dp.SetTimestamp(ts)
+	dp.SetIntValue(val)
+	dp.Attributes().PutStr("cert.type", certTypeAttributeValue)
+	dp.Attributes().PutStr("cert.x509.issuer.common_name", certX509IssuerCommonNameAttributeValue)
+	dp.Attributes().PutStr("cert.x509.serial_number", certX509SerialNumberAttributeValue)
+	dp.Attributes().PutStr("cert.x509.subject.common_name", certX509SubjectCommonNameAttributeValue)
+	dp.Attributes().PutEmptySlice("cert.x509.subject.country").FromRaw(certX509SubjectCountryAttributeValue)
+	dp.Attributes().PutEmptySlice("cert.x509.subject.organization").FromRaw(certX509SubjectOrganizationAttributeValue)
+	dp.Attributes().PutEmptySlice("cert.x509.subject.organizational_unit").FromRaw(certX509SubjectOrganizationalUnitAttributeValue)
+	dp.Attributes().PutStr("engine.mount", engineMountAttributeValue)
+	dp.Attributes().PutStr("issuer.id", issuerIDAttributeValue)
+}
+
+// updateCapacity saves max length of data point slices that will be used for the slice capacity.
+func (m *metricPkiengineCertX509NotBefore) updateCapacity() {
+	if m.data.Gauge().DataPoints().Len() > m.capacity {
+		m.capacity = m.data.Gauge().DataPoints().Len()
+	}
+}
+
+// emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
+func (m *metricPkiengineCertX509NotBefore) emit(metrics pmetric.MetricSlice) {
+	if m.config.Enabled && m.data.Gauge().DataPoints().Len() > 0 {
+		m.updateCapacity()
+		m.data.MoveTo(metrics.AppendEmpty())
+		m.init()
+	}
+}
+
+func newMetricPkiengineCertX509NotBefore(cfg MetricConfig) metricPkiengineCertX509NotBefore {
+	m := metricPkiengineCertX509NotBefore{config: cfg}
+
+	if cfg.Enabled {
+		m.data = pmetric.NewMetric()
+		m.init()
+	}
+	return m
 }
 
 type metricPkiengineCrlCacheEvictions struct {
@@ -767,6 +921,8 @@ type MetricsBuilder struct {
 	buildInfo                                 component.BuildInfo  // contains version information.
 	resourceAttributeIncludeFilter            map[string]filter.Filter
 	resourceAttributeExcludeFilter            map[string]filter.Filter
+	metricPkiengineCertX509NotAfter           metricPkiengineCertX509NotAfter
+	metricPkiengineCertX509NotBefore          metricPkiengineCertX509NotBefore
 	metricPkiengineCrlCacheEvictions          metricPkiengineCrlCacheEvictions
 	metricPkiengineCrlCacheHits               metricPkiengineCrlCacheHits
 	metricPkiengineCrlCacheMisses             metricPkiengineCrlCacheMisses
@@ -799,11 +955,22 @@ func WithStartTime(startTime pcommon.Timestamp) MetricBuilderOption {
 	})
 }
 func NewMetricsBuilder(mbc MetricsBuilderConfig, settings receiver.Settings, options ...MetricBuilderOption) *MetricsBuilder {
+	if mbc.Metrics.PkiengineIssuerErrors.Enabled {
+		settings.Logger.Warn("[WARNING] `pkiengine.issuer.errors` should not be enabled: This metric namespace is deprecated; use `pkiengine.cert.x509.*` metrics where applicable.")
+	}
+	if mbc.Metrics.PkiengineIssuerX509NotAfter.Enabled {
+		settings.Logger.Warn("[WARNING] `pkiengine.issuer.x509.not_after` should not be enabled: This metric is deprecated; use `pkiengine.cert.x509.not_after` instead.")
+	}
+	if mbc.Metrics.PkiengineIssuerX509NotBefore.Enabled {
+		settings.Logger.Warn("[WARNING] `pkiengine.issuer.x509.not_before` should not be enabled: This metric is deprecated; use `pkiengine.cert.x509.not_before` instead.")
+	}
 	mb := &MetricsBuilder{
 		config:                                    mbc,
 		startTime:                                 pcommon.NewTimestampFromTime(time.Now()),
 		metricsBuffer:                             pmetric.NewMetrics(),
 		buildInfo:                                 settings.BuildInfo,
+		metricPkiengineCertX509NotAfter:           newMetricPkiengineCertX509NotAfter(mbc.Metrics.PkiengineCertX509NotAfter),
+		metricPkiengineCertX509NotBefore:          newMetricPkiengineCertX509NotBefore(mbc.Metrics.PkiengineCertX509NotBefore),
 		metricPkiengineCrlCacheEvictions:          newMetricPkiengineCrlCacheEvictions(mbc.Metrics.PkiengineCrlCacheEvictions),
 		metricPkiengineCrlCacheHits:               newMetricPkiengineCrlCacheHits(mbc.Metrics.PkiengineCrlCacheHits),
 		metricPkiengineCrlCacheMisses:             newMetricPkiengineCrlCacheMisses(mbc.Metrics.PkiengineCrlCacheMisses),
@@ -900,6 +1067,8 @@ func (mb *MetricsBuilder) EmitForResource(options ...ResourceMetricsOption) {
 	ils.Scope().SetName(ScopeName)
 	ils.Scope().SetVersion(mb.buildInfo.Version)
 	ils.Metrics().EnsureCapacity(mb.metricsCapacity)
+	mb.metricPkiengineCertX509NotAfter.emit(ils.Metrics())
+	mb.metricPkiengineCertX509NotBefore.emit(ils.Metrics())
 	mb.metricPkiengineCrlCacheEvictions.emit(ils.Metrics())
 	mb.metricPkiengineCrlCacheHits.emit(ils.Metrics())
 	mb.metricPkiengineCrlCacheMisses.emit(ils.Metrics())
@@ -941,6 +1110,16 @@ func (mb *MetricsBuilder) Emit(options ...ResourceMetricsOption) pmetric.Metrics
 	metrics := mb.metricsBuffer
 	mb.metricsBuffer = pmetric.NewMetrics()
 	return metrics
+}
+
+// RecordPkiengineCertX509NotAfterDataPoint adds a data point to pkiengine.cert.x509.not_after metric.
+func (mb *MetricsBuilder) RecordPkiengineCertX509NotAfterDataPoint(ts pcommon.Timestamp, val int64, certTypeAttributeValue AttributeCertType, certX509IssuerCommonNameAttributeValue string, certX509SerialNumberAttributeValue string, certX509SubjectCommonNameAttributeValue string, certX509SubjectCountryAttributeValue []any, certX509SubjectOrganizationAttributeValue []any, certX509SubjectOrganizationalUnitAttributeValue []any, engineMountAttributeValue string, issuerIDAttributeValue string) {
+	mb.metricPkiengineCertX509NotAfter.recordDataPoint(mb.startTime, ts, val, certTypeAttributeValue.String(), certX509IssuerCommonNameAttributeValue, certX509SerialNumberAttributeValue, certX509SubjectCommonNameAttributeValue, certX509SubjectCountryAttributeValue, certX509SubjectOrganizationAttributeValue, certX509SubjectOrganizationalUnitAttributeValue, engineMountAttributeValue, issuerIDAttributeValue)
+}
+
+// RecordPkiengineCertX509NotBeforeDataPoint adds a data point to pkiengine.cert.x509.not_before metric.
+func (mb *MetricsBuilder) RecordPkiengineCertX509NotBeforeDataPoint(ts pcommon.Timestamp, val int64, certTypeAttributeValue AttributeCertType, certX509IssuerCommonNameAttributeValue string, certX509SerialNumberAttributeValue string, certX509SubjectCommonNameAttributeValue string, certX509SubjectCountryAttributeValue []any, certX509SubjectOrganizationAttributeValue []any, certX509SubjectOrganizationalUnitAttributeValue []any, engineMountAttributeValue string, issuerIDAttributeValue string) {
+	mb.metricPkiengineCertX509NotBefore.recordDataPoint(mb.startTime, ts, val, certTypeAttributeValue.String(), certX509IssuerCommonNameAttributeValue, certX509SerialNumberAttributeValue, certX509SubjectCommonNameAttributeValue, certX509SubjectCountryAttributeValue, certX509SubjectOrganizationAttributeValue, certX509SubjectOrganizationalUnitAttributeValue, engineMountAttributeValue, issuerIDAttributeValue)
 }
 
 // RecordPkiengineCrlCacheEvictionsDataPoint adds a data point to pkiengine.crl.cache.evictions metric.

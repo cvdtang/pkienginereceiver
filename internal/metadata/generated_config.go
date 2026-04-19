@@ -29,6 +29,8 @@ func (ms *MetricConfig) Unmarshal(parser *confmap.Conf) error {
 
 // MetricsConfig provides config for pkiengine metrics.
 type MetricsConfig struct {
+	PkiengineCertX509NotAfter           MetricConfig `mapstructure:"pkiengine.cert.x509.not_after"`
+	PkiengineCertX509NotBefore          MetricConfig `mapstructure:"pkiengine.cert.x509.not_before"`
 	PkiengineCrlCacheEvictions          MetricConfig `mapstructure:"pkiengine.crl.cache.evictions"`
 	PkiengineCrlCacheHits               MetricConfig `mapstructure:"pkiengine.crl.cache.hits"`
 	PkiengineCrlCacheMisses             MetricConfig `mapstructure:"pkiengine.crl.cache.misses"`
@@ -45,6 +47,12 @@ type MetricsConfig struct {
 
 func DefaultMetricsConfig() MetricsConfig {
 	return MetricsConfig{
+		PkiengineCertX509NotAfter: MetricConfig{
+			Enabled: true,
+		},
+		PkiengineCertX509NotBefore: MetricConfig{
+			Enabled: true,
+		},
 		PkiengineCrlCacheEvictions: MetricConfig{
 			Enabled: true,
 		},

@@ -16,17 +16,15 @@ func createTestScrapeState(t *testing.T) *scrapeShared {
 	t.Helper()
 	cache, err := newLruCrlCache(10, nil)
 	require.NoError(t, err)
+	cfg := NewFactory().CreateDefaultConfig().(*config)
+	cfg.Crl.Timeout = time.Second
+	cfg.Crl.RetryInterval = 0
+	cfg.Leaf.Enabled = true
 
 	shared := newScrapeShared(
-		time.Second,
-		0,
-		0,
-		true,
-		true,
-		cache,
-		metadata.DefaultMetricsBuilderConfig(),
+		cfg,
 		receivertest.NewNopSettings(metadata.Type),
-		metadata.DefaultMetricsBuilderConfig().Metrics,
+		cache,
 	)
 
 	return shared
