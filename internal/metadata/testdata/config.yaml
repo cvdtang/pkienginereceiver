@@ -1,6 +1,10 @@
 default:
 all_set:
   metrics:
+    pkiengine.cert.x509.not_after:
+      enabled: true
+    pkiengine.cert.x509.not_before:
+      enabled: true
     pkiengine.crl.cache.evictions:
       enabled: true
     pkiengine.crl.cache.hits:
@@ -32,6 +36,10 @@ all_set:
       enabled: true
 none_set:
   metrics:
+    pkiengine.cert.x509.not_after:
+      enabled: false
+    pkiengine.cert.x509.not_before:
+      enabled: false
     pkiengine.crl.cache.evictions:
       enabled: false
     pkiengine.crl.cache.hits:

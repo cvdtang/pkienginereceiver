@@ -37,10 +37,13 @@ resource "vault_pki_secret_backend_root_cert" "root" {
   count      = local.create_root
   namespace  = local.namespace
 
-  backend     = vault_mount.pki_root[0].path
-  type        = "internal"
-  common_name = "ACME root v1"
-  issuer_name = "root-v1"
+  backend      = vault_mount.pki_root[0].path
+  type         = "internal"
+  common_name  = "ACME root v1"
+  country      = "US"
+  organization = "ACME org"
+  ou           = "Security"
+  issuer_name  = "root-v1"
 
   not_before_duration = local.not_before
   not_after           = local.not_after
@@ -104,9 +107,12 @@ resource "vault_pki_secret_backend_intermediate_cert_request" "ica" {
   namespace  = local.namespace
   depends_on = [vault_pki_secret_backend_config_urls.ica]
 
-  backend     = vault_mount.pki_ica[count.index].path
-  type        = "internal"
-  common_name = "ACME intermediate ${count.index}"
+  backend      = vault_mount.pki_ica[count.index].path
+  type         = "internal"
+  common_name  = "ACME intermediate ${count.index}"
+  country      = "US"
+  organization = "ACME org"
+  ou           = "Platform"
 }
 
 resource "vault_pki_secret_backend_root_sign_intermediate" "ica" {
@@ -167,6 +173,9 @@ resource "vault_pki_secret_backend_role" "ica" {
   key_bits         = 224
   allowed_domains  = ["example.org"]
   allow_subdomains = true
+  country          = ["US"]
+  organization     = ["ACME org"]
+  ou               = ["App"]
 }
 
 resource "vault_pki_secret_backend_cert" "ica" {

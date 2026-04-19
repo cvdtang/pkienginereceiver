@@ -295,6 +295,8 @@ var scrapeMetricsCompareOptions = []pmetrictest.CompareMetricsOption{
 	pmetrictest.IgnoreMetricValues(
 		"pkiengine.issuer.x509.not_after",
 		"pkiengine.issuer.x509.not_before",
+		"pkiengine.cert.x509.not_after",
+		"pkiengine.cert.x509.not_before",
 		"pkiengine.crl.x509.next_update",
 		"pkiengine.crl.x509.this_update",
 	),
@@ -563,6 +565,7 @@ func startScraperReceiver(t *testing.T, ctx context.Context, suite *IntegrationS
 	cfg.MatchRegex = tc.cfgMatchRegex
 	cfg.InitialDelay = 0
 	cfg.CollectionInterval = testCollectionInterval
+	cfg.Leaf.Enabled = true
 
 	if tc.tfVars.namespaced {
 		cfg.Namespace = "tenant-a"
@@ -914,6 +917,7 @@ func normalizeMetrics(metrics pmetric.Metrics) {
 	const fixedID = "00000000-0000-0000-0000-000000000000"
 	const address = "http://localhost:8200"
 	const normalizedNotAfter = int64(123456)
+	const normalizedCertSerial = "00:00:00:00:00:00:00:00"
 
 	rms := metrics.ResourceMetrics()
 	for i := range rms.Len() {
@@ -931,7 +935,7 @@ func normalizeMetrics(metrics pmetric.Metrics) {
 			ms := sm.Metrics()
 			for k := range ms.Len() {
 				m := ms.At(k)
-				normalizeNotAfter := m.Name() == "pkiengine.issuer.x509.not_after"
+				normalizeNotAfter := m.Name() == "pkiengine.issuer.x509.not_after" || m.Name() == "pkiengine.cert.x509.not_after"
 				var dps pmetric.NumberDataPointSlice
 				switch m.Type() {
 				case pmetric.MetricTypeGauge:
@@ -956,6 +960,11 @@ func normalizeMetrics(metrics pmetric.Metrics) {
 						strVal := v.Str()
 						if reNormalizeID.MatchString(strVal) {
 							v.SetStr(fixedID)
+						}
+					}
+					if v, ok := attrs.Get("cert.x509.serial_number"); ok {
+						if v.Str() != "" {
+							v.SetStr(normalizedCertSerial)
 						}
 					}
 				}

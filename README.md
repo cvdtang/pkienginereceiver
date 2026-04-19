@@ -50,7 +50,7 @@ flowchart LR
 For collected metrics and attributes, see [documentation.md](documentation.md).
 
 ## Considerations
-- This receiver doesn't cover leaf certificates. It's recommended to monitor leaf certificates where they are actively used via e.g. [tlscheckreceiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/tlscheckreceiver). When using cert-manager on Kubernetes consider collecting `Certificate` resources via the [k8sobjectsreceiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/k8sobjectsreceiver).
+- Collection of leaf certificates is disabled by default. It's recommended to monitor leaf certificates where they are actively used via e.g. [tlscheckreceiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/tlscheckreceiver). When using cert-manager on Kubernetes consider collecting `Certificate` resources via the [k8sobjectsreceiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/k8sobjectsreceiver).
 
 - Tidy metrics which includes counters for issued and revoked certificates can be collected via the exposed telemetry endpoints by the secret store and scraped via e.g. Prometheus jobs. See `secrets.pki.tidy.*` metrics ([OpenBao](https://openbao.org/docs/internals/telemetry/metrics/all/) | [Vault](https://developer.hashicorp.com/vault/docs/internals/telemetry/metrics/all)). For extra large deployments consider disabling metric `pkiengine.mount.certificates_stored` and rely on Tidy metrics as secret stores efficiently track changes to maintain internal counters.
 
@@ -88,6 +88,9 @@ receivers:
 - `namespace` *(string)*: (default = `""`) Secret store namespace path.
 - `match_regex` *(string)*: (default = `".*"`) Regular expression in [RE2 syntax](https://github.com/google/re2/wiki/Syntax) of allowed mount paths, e.g. `pki/v1/ica/v\d`.
 - `concurrency_limit` *(uint)*: Maximum number of concurrent worker tasks (mount/issuer/CRL). Defaults to the number of CPU cores determined by GOMAXPROCS.
+
+### Leaf Certificates
+- `leaf.enabled` *(bool)*: (default = `false`) Enable collection of stored leaf certificates (`no_store=false`). Use with care in large deployments due to high cardinality and higher API load.
 
 ### CRL
 - `crl.enabled` *(bool)*: (default = `true`) Enable CRL processing.

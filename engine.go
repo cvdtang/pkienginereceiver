@@ -2,7 +2,6 @@ package pkienginereceiver
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"path"
 	"sync"
@@ -13,17 +12,14 @@ import (
 var _ secretStore = (*vault)(nil)
 
 type secretStore interface {
+	startTokenRenewal(ctx context.Context, wg *sync.WaitGroup)
 	readClusterConfiguration(ctx context.Context, mount string) (*vaultapi.Secret, error)
 	listMountPathsTypePki(ctx context.Context) ([]string, error)
 	listIssuers(ctx context.Context, mount string) (*vaultapi.Secret, error)
 	readIssuer(ctx context.Context, mount string, id string) (*vaultapi.Secret, error)
 	listCertificates(ctx context.Context, mount string) (*vaultapi.Secret, error)
-	startTokenRenewal(ctx context.Context, wg *sync.WaitGroup)
+	readCertificate(ctx context.Context, mount string, serial string) (*vaultapi.Secret, error)
 }
-
-var (
-	errEmptySecret = errors.New("empty secret")
-)
 
 // API: https://developer.hashicorp.com/vault/api-docs/secret/pki#read-cluster-configuration
 func (v *vault) readClusterConfiguration(ctx context.Context, mount string) (*vaultapi.Secret, error) {
@@ -79,4 +75,12 @@ func (v *vault) listCertificates(ctx context.Context, mount string) (*vaultapi.S
 	secret, err := v.client.Logical().ListWithContext(ctx, path)
 
 	return secret, err
+}
+
+// API: https://developer.hashicorp.com/vault/api-docs/secret/pki#read-certificate
+func (v *vault) readCertificate(ctx context.Context, mount string, serial string) (*vaultapi.Secret, error) {
+	path := path.Join(mount, "cert", serial)
+	issuer, err := v.client.Logical().ReadWithContext(ctx, path)
+
+	return issuer, err
 }

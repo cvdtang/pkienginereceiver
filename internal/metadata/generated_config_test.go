@@ -27,6 +27,12 @@ func TestMetricsBuilderConfig(t *testing.T) {
 			name: "all_set",
 			want: MetricsBuilderConfig{
 				Metrics: MetricsConfig{
+					PkiengineCertX509NotAfter: MetricConfig{
+						Enabled: true,
+					},
+					PkiengineCertX509NotBefore: MetricConfig{
+						Enabled: true,
+					},
 					PkiengineCrlCacheEvictions: MetricConfig{
 						Enabled: true,
 					},
@@ -74,6 +80,12 @@ func TestMetricsBuilderConfig(t *testing.T) {
 			name: "none_set",
 			want: MetricsBuilderConfig{
 				Metrics: MetricsConfig{
+					PkiengineCertX509NotAfter: MetricConfig{
+						Enabled: false,
+					},
+					PkiengineCertX509NotBefore: MetricConfig{
+						Enabled: false,
+					},
 					PkiengineCrlCacheEvictions: MetricConfig{
 						Enabled: false,
 					},

@@ -20,6 +20,12 @@ import (
 func getTestCertData(t *testing.T, cn string, crlURIs ...string) ([]byte, []byte) {
 	t.Helper()
 
+	return getTestCertDataWithOU(t, cn, "Platform", crlURIs...)
+}
+
+func getTestCertDataWithOU(t *testing.T, cn, ou string, crlURIs ...string) ([]byte, []byte) {
+	t.Helper()
+
 	// Generate a temporary Private Key for signing
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
@@ -36,8 +42,10 @@ func getTestCertData(t *testing.T, cn string, crlURIs ...string) ([]byte, []byte
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
-			Organization: []string{"ACME org"},
-			CommonName:   cn,
+			Country:            []string{"US"},
+			Organization:       []string{"ACME org"},
+			OrganizationalUnit: []string{ou},
+			CommonName:         cn,
 		},
 		NotBefore:             time.Now().Add(-1 * time.Hour),
 		NotAfter:              time.Now().Add(1 * time.Hour),
@@ -72,11 +80,9 @@ func createTestCertificate(t *testing.T) certificate {
 	issuerId := "58390ed4-aaab-488f-8cc1-cc006df63e37"
 
 	commonName := "ACME org"
-	derCert, _ := getTestCertData(t, commonName)
+	derCert, _ := getTestCertDataWithOU(t, commonName, "Security")
 
-	state := createTestScrapeState(t)
-
-	return newCertificate(state, "pki/", issuerId, string(derCert))
+	return newCertificate("pki/", metadata.AttributeCertTypeIssuer, issuerId, string(derCert))
 }
 
 func TestCertificate_Parse(t *testing.T) {
@@ -173,11 +179,13 @@ func TestCertificate_Emit(t *testing.T) {
 	err := crt.collect()
 	require.NoError(t, err)
 
-	rb := crt.state.mb.NewResourceBuilder()
-	crt.emit()
+	state := createTestScrapeState(t)
+	rb := state.mb.NewResourceBuilder()
+	crt.emitIssuer(state.mb)
+	crt.emitCert(state.mb, metadata.AttributeCertTypeIssuer)
 
 	res := rb.Emit()
-	md := crt.state.mb.Emit(metadata.WithResource(res))
+	md := state.mb.Emit(metadata.WithResource(res))
 	assert.Equal(t, 1, md.ResourceMetrics().Len())
 	metrics := md.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics()
 
@@ -187,6 +195,14 @@ func TestCertificate_Emit(t *testing.T) {
 			assert.Positive(t, v)
 		},
 		"pkiengine.issuer.x509.not_before": func(t *testing.T, v int64) {
+			t.Helper()
+			assert.Negative(t, v)
+		},
+		"pkiengine.cert.x509.not_after": func(t *testing.T, v int64) {
+			t.Helper()
+			assert.Positive(t, v)
+		},
+		"pkiengine.cert.x509.not_before": func(t *testing.T, v int64) {
 			t.Helper()
 			assert.Negative(t, v)
 		},
@@ -204,7 +220,80 @@ func TestCertificate_Emit(t *testing.T) {
 
 		assert.GreaterOrEqual(t, dp.Timestamp().AsTime(), startTime)
 		validator(t, dp.IntValue())
+
+		if name == "pkiengine.cert.x509.not_after" || name == "pkiengine.cert.x509.not_before" {
+			serial, ok := dp.Attributes().Get("cert.x509.serial_number")
+			require.True(t, ok)
+			require.Equal(t, "30:39", serial.Str())
+
+			subjectCountry, ok := dp.Attributes().Get("cert.x509.subject.country")
+			require.True(t, ok)
+			require.Equal(t, []any{"US"}, subjectCountry.Slice().AsRaw())
+
+			subjectOrganization, ok := dp.Attributes().Get("cert.x509.subject.organization")
+			require.True(t, ok)
+			require.Equal(t, []any{"ACME org"}, subjectOrganization.Slice().AsRaw())
+
+			subjectOrganizationalUnit, ok := dp.Attributes().Get("cert.x509.subject.organizational_unit")
+			require.True(t, ok)
+			require.Equal(t, []any{"Security"}, subjectOrganizationalUnit.Slice().AsRaw())
+		}
 	}
 
 	assert.Equal(t, len(expectedMetrics), metrics.Len())
+}
+
+func TestNormalizeCertificateSerial(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		serial string
+		want   string
+		ok     bool
+	}{
+		{
+			name:   "normalizes mixed case and separators",
+			serial: " 0A:bC:dE ",
+			want:   "0a:bc:de",
+			ok:     true,
+		},
+		{
+			name:   "normalizes non-separated serial",
+			serial: "01FF",
+			want:   "01:ff",
+			ok:     true,
+		},
+		{
+			name:   "rejects invalid input",
+			serial: "invalid",
+			ok:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, ok := normalizeCertificateSerial(tt.serial)
+			assert.Equal(t, tt.ok, ok)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestClassifyCertificateType(t *testing.T) {
+	t.Parallel()
+
+	certType, issuerID := classifyCertificateType("aa:bb", map[string]string{
+		"aa:bb": "issuer-1",
+	})
+	assert.Equal(t, metadata.AttributeCertTypeIssuer, certType)
+	assert.Equal(t, "issuer-1", issuerID)
+
+	certType, issuerID = classifyCertificateType("cc:dd", map[string]string{
+		"aa:bb": "issuer-1",
+	})
+	assert.Equal(t, metadata.AttributeCertTypeLeaf, certType)
+	assert.Empty(t, issuerID)
 }

@@ -173,7 +173,7 @@ func newCRL(
 		role:   role,
 		kind:   kind,
 		fetcher: &realCrlFetcher{
-			client: shared.httpClient,
+			client: http.DefaultClient,
 		},
 	}
 }
@@ -302,14 +302,14 @@ func (c *crl) collectWithSingleflight(ctx context.Context, scheme string, cacheK
 
 // Fetches CRL data with protocol-agnostic retry behavior.
 func (c *crl) fetchWithRetries(ctx context.Context, previousETag string, previousLastModified time.Time) (fetchResult, error) {
-	maxAttempts := c.shared.crlFetchRetries + 1
+	maxAttempts := c.shared.cfg.Crl.Retries + 1
 
 	for attempt := range maxAttempts {
 		if ctx.Err() != nil {
 			return fetchResult{}, ctx.Err()
 		}
 
-		res, err := c.fetcher.fetch(ctx, c.uri, c.shared.crlFetchTimeout, previousETag, previousLastModified)
+		res, err := c.fetcher.fetch(ctx, c.uri, c.shared.cfg.Crl.Timeout, previousETag, previousLastModified)
 		if err == nil || errors.Is(err, errNotModified) {
 			return res, err
 		}
@@ -319,15 +319,15 @@ func (c *crl) fetchWithRetries(ctx context.Context, previousETag string, previou
 			return res, err
 		}
 
-		if c.shared.crlFetchRetryInterval > 0 {
+		if c.shared.cfg.Crl.RetryInterval > 0 {
 			c.logger.Debug("crl fetch retrying",
 				zap.Int("attempt", attempt+1),
 				zap.Int("max_attempts", maxAttempts),
-				zap.Duration("retry_interval", c.shared.crlFetchRetryInterval),
+				zap.Duration("retry_interval", c.shared.cfg.Crl.RetryInterval),
 				zap.Error(err),
 			)
 
-			timer := time.NewTimer(c.shared.crlFetchRetryInterval)
+			timer := time.NewTimer(c.shared.cfg.Crl.RetryInterval)
 			select {
 			case <-ctx.Done():
 				timer.Stop()

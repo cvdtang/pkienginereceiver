@@ -383,8 +383,8 @@ func (_c *mockcrlFetcher_fetch_Call) Run(run func(ctx context.Context, uri strin
 	return _c
 }
 
-func (_c *mockcrlFetcher_fetch_Call) Return(res fetchResult, err error) *mockcrlFetcher_fetch_Call {
-	_c.Call.Return(res, err)
+func (_c *mockcrlFetcher_fetch_Call) Return(fetchResultMoqParam fetchResult, err error) *mockcrlFetcher_fetch_Call {
+	_c.Call.Return(fetchResultMoqParam, err)
 	return _c
 }
 
@@ -467,8 +467,8 @@ func (_c *mockcrlFetcher_fetchHTTP_Call) Run(run func(ctx context.Context, uri s
 	return _c
 }
 
-func (_c *mockcrlFetcher_fetchHTTP_Call) Return(res fetchResult, err error) *mockcrlFetcher_fetchHTTP_Call {
-	_c.Call.Return(res, err)
+func (_c *mockcrlFetcher_fetchHTTP_Call) Return(fetchResultMoqParam fetchResult, err error) *mockcrlFetcher_fetchHTTP_Call {
+	_c.Call.Return(fetchResultMoqParam, err)
 	return _c
 }
 
@@ -553,8 +553,8 @@ func (_c *mockcrlFetcher_fetchLDAP_Call) Run(run func(ctx context.Context, diale
 	return _c
 }
 
-func (_c *mockcrlFetcher_fetchLDAP_Call) Return(fetchable int64, data []byte, err error) *mockcrlFetcher_fetchLDAP_Call {
-	_c.Call.Return(fetchable, data, err)
+func (_c *mockcrlFetcher_fetchLDAP_Call) Return(n int64, bytes []byte, err error) *mockcrlFetcher_fetchLDAP_Call {
+	_c.Call.Return(n, bytes, err)
 	return _c
 }
 
@@ -778,12 +778,86 @@ func (_c *mocksecretStore_listMountPathsTypePki_Call) Run(run func(ctx context.C
 	return _c
 }
 
-func (_c *mocksecretStore_listMountPathsTypePki_Call) Return(pkiMountPaths []string, err error) *mocksecretStore_listMountPathsTypePki_Call {
-	_c.Call.Return(pkiMountPaths, err)
+func (_c *mocksecretStore_listMountPathsTypePki_Call) Return(strings []string, err error) *mocksecretStore_listMountPathsTypePki_Call {
+	_c.Call.Return(strings, err)
 	return _c
 }
 
 func (_c *mocksecretStore_listMountPathsTypePki_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *mocksecretStore_listMountPathsTypePki_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// readCertificate provides a mock function for the type mocksecretStore
+func (_mock *mocksecretStore) readCertificate(ctx context.Context, mount string, serial string) (*api.Secret, error) {
+	ret := _mock.Called(ctx, mount, serial)
+
+	if len(ret) == 0 {
+		panic("no return value specified for readCertificate")
+	}
+
+	var r0 *api.Secret
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*api.Secret, error)); ok {
+		return returnFunc(ctx, mount, serial)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *api.Secret); ok {
+		r0 = returnFunc(ctx, mount, serial)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*api.Secret)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, mount, serial)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// mocksecretStore_readCertificate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'readCertificate'
+type mocksecretStore_readCertificate_Call struct {
+	*mock.Call
+}
+
+// readCertificate is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mount string
+//   - serial string
+func (_e *mocksecretStore_Expecter) readCertificate(ctx interface{}, mount interface{}, serial interface{}) *mocksecretStore_readCertificate_Call {
+	return &mocksecretStore_readCertificate_Call{Call: _e.mock.On("readCertificate", ctx, mount, serial)}
+}
+
+func (_c *mocksecretStore_readCertificate_Call) Run(run func(ctx context.Context, mount string, serial string)) *mocksecretStore_readCertificate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *mocksecretStore_readCertificate_Call) Return(secret *api.Secret, err error) *mocksecretStore_readCertificate_Call {
+	_c.Call.Return(secret, err)
+	return _c
+}
+
+func (_c *mocksecretStore_readCertificate_Call) RunAndReturn(run func(ctx context.Context, mount string, serial string) (*api.Secret, error)) *mocksecretStore_readCertificate_Call {
 	_c.Call.Return(run)
 	return _c
 }

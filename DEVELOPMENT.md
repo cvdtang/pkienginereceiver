@@ -42,6 +42,23 @@ CRL fetch requests are protected by a [singleflight](https://pkg.go.dev/golang.o
 The metric builder is not concurrency-safe and requires a lock during operation. Resource attributes are scrape-scoped (`engine.address`, `engine.namespace`) while `engine.mount` is carried as a metric attribute on mount-scoped metrics to support scrape-global error metrics.
 The Terraform variables `num_two_tier`, `num_standalone` and `num_leaf` can be adjusted to test different deployment sizes. It's recommended to use a mount per issuer ([reference](https://developer.hashicorp.com/vault/docs/secrets/pki/considerations#one-ca-certificate-one-secrets-engine)), however this is not enforced.
 
+## Issuer/Certificate API/classification flow
+The `<mount>/certs` endpoint returns stored certificate serials without a certificate-type flag. The list can include both issuer and leaf certificates, so issuer serials are used for classification when leaf scraping is enabled.
+
+To avoid unnecessary API calls and duplicate metric emission:
+
+1. Call `LIST <mount>/certs` only when needed:
+   - `leaf.enabled=true`, or
+   - `pkiengine.mount.certificates_stored` metric is enabled.
+2. Call `LIST <mount>/issuers`.
+3. For each issuer ID, call `GET <mount>/issuer/<id>`.
+   - The issuer certificate value is read from the `certificate` field in the response and parsed to obtain the issuer serial.
+   - If `key_id` is empty, treat it as a multi-tier copied parent issuer; do not emit metrics for it.
+4. If `leaf.enabled=true`, call `GET <mount>/cert/<serial>` for each stored serial:
+   - parse the certificate,
+   - classify it as `issuer` if its serial matches an issuer serial; otherwise, classify it as `leaf`,
+   - skip serials that match copied parent issuer serials.
+
 # CRL
 ## Caching
 Optionally, a shared in-memory LRU cache is reused across scrape runs to avoid repeated downloads and parsing of CRLs. Within a single scrape run, each unique CRL URI is normally checked over the network at most once, additional fetches can occur on cache-eviction recovery paths.
@@ -75,3 +92,4 @@ The LDAP package used ([go-ldap/ldap/v3](https://pkg.go.dev/github.com/go-ldap/l
 - The secret stores support rate-limiting, however there is no client side implementation based on the [optionally](https://developer.hashicorp.com/vault/api-docs/system/quotas-config#enable_rate_limit_response_headers) returned headers in the SDK besides passing a [`*rate.Limiter`](https://pkg.go.dev/github.com/hashicorp/vault-client-go#WithRateLimiter).
 - OpenBao supports Delta CRLs but is not yet fully configurable (tested with v2.5.0). Vault supports configuring Delta CRLs ([PR](https://github.com/hashicorp/vault/pull/30319)).
 - Tracking CRL fetch duration could be interesting but can be misleading with the current caching and retrying logic.
+- The `/pki/cert/:serial` endpoint returns the `issuer_id` attribute, however, this is only set when the certificate is revoked.

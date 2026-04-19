@@ -4,6 +4,20 @@ $defs:
     description: MetricsConfig provides config for pkiengine metrics.
     type: object
     properties:
+      pkiengine.cert.x509.not_after:
+        description: "PkiengineCertX509NotAfterMetricConfig provides config for the pkiengine.cert.x509.not_after metric."
+        type: object
+        properties:
+          enabled:
+            type: boolean
+            default: true
+      pkiengine.cert.x509.not_before:
+        description: "PkiengineCertX509NotBeforeMetricConfig provides config for the pkiengine.cert.x509.not_before metric."
+        type: object
+        properties:
+          enabled:
+            type: boolean
+            default: true
       pkiengine.crl.cache.evictions:
         description: "PkiengineCrlCacheEvictionsMetricConfig provides config for the pkiengine.crl.cache.evictions metric."
         type: object

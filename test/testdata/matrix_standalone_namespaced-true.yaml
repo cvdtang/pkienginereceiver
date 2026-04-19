@@ -9,6 +9,90 @@ resourceMetrics:
             stringValue: tenant-a
     scopeMetrics:
       - metrics:
+          - description: Time until certificate expiration as specified by the `notAfter` field.
+            gauge:
+              dataPoints:
+                - asInt: "123456"
+                  attributes:
+                    - key: cert.type
+                      value:
+                        stringValue: leaf
+                    - key: cert.x509.issuer.common_name
+                      value:
+                        stringValue: ACME Standalone CA 0
+                    - key: cert.x509.serial_number
+                      value:
+                        stringValue: "00:00:00:00:00:00:00:00"
+                    - key: cert.x509.subject.common_name
+                      value:
+                        stringValue: leaf-0.role-0.example.org
+                    - key: cert.x509.subject.country
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: US
+                    - key: cert.x509.subject.organization
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: ACME org
+                    - key: cert.x509.subject.organizational_unit
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: App
+                    - key: engine.mount
+                      value:
+                        stringValue: pki/standalone/
+                    - key: issuer.id
+                      value:
+                        stringValue: ""
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.cert.x509.not_after
+            unit: minutes
+          - description: Time util certificate validity start as specified by the `notBefore` field.
+            gauge:
+              dataPoints:
+                - asInt: "-1"
+                  attributes:
+                    - key: cert.type
+                      value:
+                        stringValue: leaf
+                    - key: cert.x509.issuer.common_name
+                      value:
+                        stringValue: ACME Standalone CA 0
+                    - key: cert.x509.serial_number
+                      value:
+                        stringValue: "00:00:00:00:00:00:00:00"
+                    - key: cert.x509.subject.common_name
+                      value:
+                        stringValue: leaf-0.role-0.example.org
+                    - key: cert.x509.subject.country
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: US
+                    - key: cert.x509.subject.organization
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: ACME org
+                    - key: cert.x509.subject.organizational_unit
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: App
+                    - key: engine.mount
+                      value:
+                        stringValue: pki/standalone/
+                    - key: issuer.id
+                      value:
+                        stringValue: ""
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.cert.x509.not_before
+            unit: minutes
           - description: Number of CRL cache evictions.
             gauge:
               dataPoints:
