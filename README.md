@@ -1,35 +1,36 @@
 
 # OpenTelemetry Collector PKI engine receiver
-This OpenTelemetry Collector Receiver scrapes metrics for [OpenBao](https://openbao.org/) and [Vault](https://www.hashicorp.com/en/products/vault)  PKI engines by auto-discovering mounts, issuers and certificate revocation lists (CRLs). It supports setups where the CRLs are hosted outside of the secret store, e.g., in multi-tier PKI setups with an offline root.
+This OpenTelemetry Collector Receiver scrapes metrics for [OpenBao](https://openbao.org/) and [Vault](https://www.hashicorp.com/en/products/vault) PKI engines by auto-discovering mounts, issuers, certificate revocation lists (CRLs) and leaf certificates. It supports setups where the CRLs are hosted outside of the secret store, e.g., in multi-tier PKI setups with an offline root.
 
 ```mermaid
 flowchart LR
 
   OTEL[OTEL Collector]
 
-  subgraph Vault [OpenBao/Vault]
+  subgraph Store [OpenBao/Vault]
     direction TB
 
     subgraph PKI1 [PKI engine]
       direction LR
-      I1[Issuer]
-      C1[CRL]
+      I1[Issuers]
+      C1[CRLs]
+      C2[Leafs]
     end
   end
 
   subgraph External [External]
     direction TB
     style External stroke-dasharray: 5 5
-    CRL_Ext[CRL]
+    CRL_Ext[CRLs]
   end
 
-  OTEL -- "1. Scrape" --> Vault
+  OTEL -- "1. Scrape" --> Store
   I1 -- "2. Reference" --> CRL_Ext
   OTEL -- "3. Scrape" --> CRL_Ext
 ```
 
 ## Features
-- Auto discover engines of type `pki`, issuers and CRLs (base & delta).
+- Auto discover engines of type `pki`, issuers, CRLs (base & delta) and leaf certificates.
 - Collect referenced CRLs hosted outside of the secret store.
 - Tested against OpenBao and Vault.
 - Support for [namespaces](https://openbao.org/docs/concepts/namespaces/).
@@ -40,7 +41,7 @@ flowchart LR
 - Efficient CRL fetching:
   - Prevents thundering hurds.
   - Respects `ETag` and `Last-Modified` HTTP headers.
-- Authenticate via:
+- Implemented auth methods:
   - Token
   - AppRole
   - Kubernetes
@@ -60,7 +61,7 @@ Adding components to an OTeL Collector requires building a custom collector via 
 When building a custom collector you can add this receiver to the manifest file like the following:
 ```yaml
 receivers:
-  - gomod: github.com/cvdtang/pkienginereceiver v0.150.0
+  - gomod: github.com/cvdtang/pkienginereceiver v0.151.0
 ```
 
 # Configuration
@@ -89,7 +90,7 @@ receivers:
 - `match_regex` *(string)*: (default = `".*"`) Regular expression in [RE2 syntax](https://github.com/google/re2/wiki/Syntax) of allowed mount paths, e.g. `pki/v1/ica/v\d`.
 - `concurrency_limit` *(uint)*: Maximum number of concurrent worker tasks (mount/issuer/CRL). Defaults to the number of CPU cores determined by GOMAXPROCS.
 
-### Leaf Certificates
+### Leaf certificates
 - `leaf.enabled` *(bool)*: (default = `false`) Enable collection of stored leaf certificates (`no_store=false`). Use with care in large deployments due to high cardinality and higher API load.
 
 ### CRL

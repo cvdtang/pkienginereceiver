@@ -28,7 +28,7 @@ func createDefaultConfig() component.Config {
 
 	return &config{
 		ControllerConfig:     scraperConfig,
-		MetricsBuilderConfig: metadata.DefaultMetricsBuilderConfig(),
+		MetricsBuilderConfig: metadata.NewDefaultMetricsBuilderConfig(),
 		Address:              "http://127.0.0.1:8200",
 		Namespace:            "",
 		MatchRegex:           ".*",
