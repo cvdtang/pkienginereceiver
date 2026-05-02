@@ -19,7 +19,6 @@ linters:
     - exptostd
     - funcorder
     - gocheckcompilerdirectives
-    - goconst
     - godot
     - godox
     - gosec
