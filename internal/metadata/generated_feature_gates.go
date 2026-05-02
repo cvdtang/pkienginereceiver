@@ -8,7 +8,7 @@ import (
 
 var ReceiverPkiengineEmitCertMetricsFromIssuersFeatureGate = featuregate.GlobalRegistry().MustRegister(
 	"receiver.pkiengine.emitCertMetricsFromIssuers",
-	featuregate.StageAlpha,
+	featuregate.StageBeta,
 	featuregate.WithRegisterDescription("Switches issuer certificate emission from `pkiengine.issuer.x509.*` to `pkiengine.cert.x509.*`."),
 	featuregate.WithRegisterReferenceURL("https://github.com/cvdtang/pkienginereceiver/releases/tag/v0.151.0"),
 	featuregate.WithRegisterFromVersion("v0.151.0"),

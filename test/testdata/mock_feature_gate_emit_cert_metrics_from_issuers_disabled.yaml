@@ -1,0 +1,108 @@
+resourceMetrics:
+  - resource:
+      attributes:
+        - key: engine.address
+          value:
+            stringValue: http://127.0.0.1:8200
+        - key: engine.namespace
+          value:
+            stringValue: ""
+    scopeMetrics:
+      - metrics:
+          - description: Number of CRL cache evictions.
+            gauge:
+              dataPoints:
+                - asInt: "0"
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.crl.cache.evictions
+            unit: '{evictions}'
+          - description: Number of CRL cache hits.
+            gauge:
+              dataPoints:
+                - asInt: "0"
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.crl.cache.hits
+            unit: '{hits}'
+          - description: Number of CRL cache misses.
+            gauge:
+              dataPoints:
+                - asInt: "0"
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.crl.cache.misses
+            unit: '{misses}'
+          - description: Number of errors that occurred while processing issuers.
+            name: pkiengine.issuer.errors
+            sum:
+              dataPoints:
+                - asInt: "0"
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            unit: '{errors}'
+          - description: Time until certificate expiration as specified by the `notAfter` field.
+            gauge:
+              dataPoints:
+                - asInt: "59"
+                  attributes:
+                    - key: cert.x509.issuer.common_name
+                      value:
+                        stringValue: example.org CA
+                    - key: cert.x509.subject.common_name
+                      value:
+                        stringValue: example.org CA
+                    - key: engine.mount
+                      value:
+                        stringValue: pki/
+                    - key: issuer.id
+                      value:
+                        stringValue: 1ae8ce9d-2f70-0761-a465-8c9840a247a2
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.issuer.x509.not_after
+            unit: minutes
+          - description: Time util certificate validity start as specified by the `notBefore` field.
+            gauge:
+              dataPoints:
+                - asInt: "-61"
+                  attributes:
+                    - key: cert.x509.issuer.common_name
+                      value:
+                        stringValue: example.org CA
+                    - key: cert.x509.subject.common_name
+                      value:
+                        stringValue: example.org CA
+                    - key: engine.mount
+                      value:
+                        stringValue: pki/
+                    - key: issuer.id
+                      value:
+                        stringValue: 1ae8ce9d-2f70-0761-a465-8c9840a247a2
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.issuer.x509.not_before
+            unit: minutes
+          - description: Number of certificates stored in the mount.
+            gauge:
+              dataPoints:
+                - asInt: "1"
+                  attributes:
+                    - key: engine.mount
+                      value:
+                        stringValue: pki/
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.mount.certificates_stored
+            unit: '{certificates_stored}'
+          - description: Number of errors that occurred while processing mounts.
+            name: pkiengine.mount.errors
+            sum:
+              dataPoints:
+                - asInt: "0"
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            unit: '{errors}'
+        scope:
+          name: github.com/cvdtang/pkienginereceiver
+          version: latest

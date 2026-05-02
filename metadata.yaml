@@ -18,7 +18,7 @@ status:
 feature_gates:
   - id: receiver.pkiengine.emitCertMetricsFromIssuers
     description: Switches issuer certificate emission from `pkiengine.issuer.x509.*` to `pkiengine.cert.x509.*`.
-    stage: alpha
+    stage: beta
     from_version: v0.151.0
     reference_url: https://github.com/cvdtang/pkienginereceiver/releases/tag/v0.151.0
 

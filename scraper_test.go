@@ -191,6 +191,102 @@ func TestScrape(t *testing.T) {
 	assertEquivalentScrapeMetrics(t, expectedMetrics, actualMetrics)
 }
 
+//nolint:paralleltest // Mutates a global feature gate and relies on serialized access.
+func TestScrapeFeatureGateEmitCertMetricsFromIssuersDisabled(t *testing.T) {
+	ctx := t.Context()
+
+	expectedFile := filepath.Join("test", "testdata", "mock_feature_gate_emit_cert_metrics_from_issuers_disabled.yaml")
+	requireIssuerGateState(t, false)
+
+	scraper, mockSecretStore := createTestScraper(t)
+	_, certPEM := getTestCertDataWithOU(t, testIssuerCommonName, "Security")
+
+	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
+	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(&vaultapi.Secret{
+		Data: map[string]any{"path": "", "aia_path": ""},
+	}, nil)
+	mockSecretStore.On("listCertificates", ctx, testMountPath).Return(&vaultapi.Secret{
+		Data: map[string]any{"keys": []any{testCertificateSerialKey}},
+	}, nil)
+	mockSecretStore.On("listIssuers", ctx, testMountPath).Return(&vaultapi.Secret{
+		Data: map[string]any{"keys": []any{testIssuerID}},
+	}, nil)
+	mockSecretStore.On("readIssuer", ctx, testMountPath, testIssuerID).Return(&vaultapi.Secret{
+		Data: map[string]any{
+			"certificate": string(certPEM),
+			"key_id":      "key-local",
+		},
+	}, nil)
+
+	err := scraper.start(ctx, newMdatagenNopHost())
+	require.NoError(t, err)
+
+	actualMetrics, err := scraper.scrape(ctx)
+	require.NoError(t, err)
+
+	if *update {
+		err = golden.WriteMetrics(t, expectedFile, actualMetrics)
+		require.NoError(t, err)
+	}
+
+	expectedMetrics, err := golden.ReadMetrics(expectedFile)
+	require.NoError(t, err)
+
+	assertEquivalentScrapeMetrics(t, expectedMetrics, actualMetrics)
+}
+
+//nolint:paralleltest // Mutates a global feature gate and relies on serialized access.
+func TestScrapeFeatureGateEmitCertMetricsFromIssuersAndLeafDisabled(t *testing.T) {
+	ctx := t.Context()
+
+	expectedFile := filepath.Join("test", "testdata", "mock_feature_gate_emit_cert_metrics_from_issuers_and_leaf_disabled.yaml")
+	requireIssuerGateState(t, false)
+
+	scraper, mockSecretStore := createTestScraperWithConfig(t, func(cfg *config) {
+		cfg.Leaf.Enabled = true
+	})
+	_, issuerCertPEM := getTestCertDataWithOU(t, testIssuerCommonName, "Security")
+	_, leafCertPEM := getTestCertDataWithOU(t, testLeafCommonName, "App")
+
+	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
+	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(&vaultapi.Secret{
+		Data: map[string]any{"path": "", "aia_path": ""},
+	}, nil)
+	mockSecretStore.On("listCertificates", ctx, testMountPath).Return(&vaultapi.Secret{
+		Data: map[string]any{"keys": []any{testCertificateSerialKey}},
+	}, nil)
+	mockSecretStore.On("listIssuers", ctx, testMountPath).Return(&vaultapi.Secret{
+		Data: map[string]any{"keys": []any{testIssuerID}},
+	}, nil)
+	mockSecretStore.On("readIssuer", ctx, testMountPath, testIssuerID).Return(&vaultapi.Secret{
+		Data: map[string]any{
+			"certificate": string(issuerCertPEM),
+			"key_id":      "key-local",
+		},
+	}, nil)
+	mockSecretStore.On("readCertificate", ctx, testMountPath, testCertificateSerialKey).Return(&vaultapi.Secret{
+		Data: map[string]any{
+			"certificate": string(leafCertPEM),
+		},
+	}, nil)
+
+	err := scraper.start(ctx, newMdatagenNopHost())
+	require.NoError(t, err)
+
+	actualMetrics, err := scraper.scrape(ctx)
+	require.NoError(t, err)
+
+	if *update {
+		err = golden.WriteMetrics(t, expectedFile, actualMetrics)
+		require.NoError(t, err)
+	}
+
+	expectedMetrics, err := golden.ReadMetrics(expectedFile)
+	require.NoError(t, err)
+
+	assertEquivalentScrapeMetrics(t, expectedMetrics, actualMetrics)
+}
+
 func TestScrapeMountErrorMetric(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
@@ -509,102 +605,8 @@ func TestScrapeSkipsCertificateListWhenDisabled(t *testing.T) {
 	mockSecretStore.AssertNotCalled(t, "listCertificates", ctx, testMountPath)
 }
 
-//nolint:paralleltest // Mutates a global feature gate and relies on serialized access.
-func TestScrapeFeatureGateEmitCertMetricsFromIssuers(t *testing.T) {
-	ctx := t.Context()
-
-	expectedFile := filepath.Join("test", "testdata", "mock_feature_gate_emit_cert_metrics_from_issuers.yaml")
-	requireIssuerGateState(t, true)
-
-	scraper, mockSecretStore := createTestScraper(t)
-	_, certPEM := getTestCertDataWithOU(t, testIssuerCommonName, "Security")
-
-	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
-	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"path": "", "aia_path": ""},
-	}, nil)
-	mockSecretStore.On("listCertificates", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"keys": []any{testCertificateSerialKey}},
-	}, nil)
-	mockSecretStore.On("listIssuers", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"keys": []any{testIssuerID}},
-	}, nil)
-	mockSecretStore.On("readIssuer", ctx, testMountPath, testIssuerID).Return(&vaultapi.Secret{
-		Data: map[string]any{
-			"certificate": string(certPEM),
-			"key_id":      "key-local",
-		},
-	}, nil)
-
-	err := scraper.start(ctx, newMdatagenNopHost())
-	require.NoError(t, err)
-
-	actualMetrics, err := scraper.scrape(ctx)
-	require.NoError(t, err)
-
-	if *update {
-		err = golden.WriteMetrics(t, expectedFile, actualMetrics)
-		require.NoError(t, err)
-	}
-
-	expectedMetrics, err := golden.ReadMetrics(expectedFile)
-	require.NoError(t, err)
-
-	assertEquivalentScrapeMetrics(t, expectedMetrics, actualMetrics)
-}
-
-//nolint:paralleltest // Mutates a global feature gate and relies on serialized access.
-func TestScrapeFeatureGateEmitCertMetricsFromIssuersAndLeaf(t *testing.T) {
-	ctx := t.Context()
-
-	expectedFile := filepath.Join("test", "testdata", "mock_feature_gate_emit_cert_metrics_from_issuers_and_leaf.yaml")
-	requireIssuerGateState(t, true)
-
-	scraper, mockSecretStore := createTestScraperWithConfig(t, func(cfg *config) {
-		cfg.Leaf.Enabled = true
-	})
-	_, issuerCertPEM := getTestCertDataWithOU(t, testIssuerCommonName, "Security")
-	_, leafCertPEM := getTestCertDataWithOU(t, testLeafCommonName, "App")
-
-	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
-	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"path": "", "aia_path": ""},
-	}, nil)
-	mockSecretStore.On("listCertificates", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"keys": []any{testCertificateSerialKey}},
-	}, nil)
-	mockSecretStore.On("listIssuers", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"keys": []any{testIssuerID}},
-	}, nil)
-	mockSecretStore.On("readIssuer", ctx, testMountPath, testIssuerID).Return(&vaultapi.Secret{
-		Data: map[string]any{
-			"certificate": string(issuerCertPEM),
-			"key_id":      "key-local",
-		},
-	}, nil)
-	mockSecretStore.On("readCertificate", ctx, testMountPath, testCertificateSerialKey).Return(&vaultapi.Secret{
-		Data: map[string]any{
-			"certificate": string(leafCertPEM),
-		},
-	}, nil)
-
-	err := scraper.start(ctx, newMdatagenNopHost())
-	require.NoError(t, err)
-
-	actualMetrics, err := scraper.scrape(ctx)
-	require.NoError(t, err)
-
-	if *update {
-		err = golden.WriteMetrics(t, expectedFile, actualMetrics)
-		require.NoError(t, err)
-	}
-
-	expectedMetrics, err := golden.ReadMetrics(expectedFile)
-	require.NoError(t, err)
-
-	assertEquivalentScrapeMetrics(t, expectedMetrics, actualMetrics)
-}
-
+// Verifies that when issuer certificate serials appear in the certificate list,
+// scrape does not treat them as leaf certificates or call readCertificate for them.
 func TestScrapeSkipsIssuerCertificatesFromCertificateList(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
