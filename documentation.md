@@ -227,6 +227,6 @@ This component has the following feature gates:
 
 | Feature Gate | Stage | Description | From Version | To Version | Reference |
 | ------------ | ----- | ----------- | ------------ | ---------- | --------- |
-| `receiver.pkiengine.emitCertMetricsFromIssuers` | alpha | Switches issuer certificate emission from `pkiengine.issuer.x509.*` to `pkiengine.cert.x509.*`. | v0.151.0 | N/A | [Link](https://github.com/cvdtang/pkienginereceiver/releases/tag/v0.151.0) |
+| `receiver.pkiengine.emitCertMetricsFromIssuers` | beta | Switches issuer certificate emission from `pkiengine.issuer.x509.*` to `pkiengine.cert.x509.*`. | v0.151.0 | N/A | [Link](https://github.com/cvdtang/pkienginereceiver/releases/tag/v0.151.0) |
 
 For more information about feature gates, see the [Feature Gates](https://github.com/open-telemetry/opentelemetry-collector/blob/main/featuregate/README.md) documentation.

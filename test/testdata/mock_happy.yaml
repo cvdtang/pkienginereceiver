@@ -16,6 +16,43 @@ resourceMetrics:
                   attributes:
                     - key: cert.type
                       value:
+                        stringValue: issuer
+                    - key: cert.x509.issuer.common_name
+                      value:
+                        stringValue: example.org CA
+                    - key: cert.x509.serial_number
+                      value:
+                        stringValue: "30:39"
+                    - key: cert.x509.subject.common_name
+                      value:
+                        stringValue: example.org CA
+                    - key: cert.x509.subject.country
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: US
+                    - key: cert.x509.subject.organization
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: ACME org
+                    - key: cert.x509.subject.organizational_unit
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: Security
+                    - key: engine.mount
+                      value:
+                        stringValue: pki/
+                    - key: issuer.id
+                      value:
+                        stringValue: 1ae8ce9d-2f70-0761-a465-8c9840a247a2
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "59"
+                  attributes:
+                    - key: cert.type
+                      value:
                         stringValue: leaf
                     - key: cert.x509.issuer.common_name
                       value:
@@ -54,6 +91,43 @@ resourceMetrics:
           - description: Time util certificate validity start as specified by the `notBefore` field.
             gauge:
               dataPoints:
+                - asInt: "-61"
+                  attributes:
+                    - key: cert.type
+                      value:
+                        stringValue: issuer
+                    - key: cert.x509.issuer.common_name
+                      value:
+                        stringValue: example.org CA
+                    - key: cert.x509.serial_number
+                      value:
+                        stringValue: "30:39"
+                    - key: cert.x509.subject.common_name
+                      value:
+                        stringValue: example.org CA
+                    - key: cert.x509.subject.country
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: US
+                    - key: cert.x509.subject.organization
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: ACME org
+                    - key: cert.x509.subject.organizational_unit
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: Security
+                    - key: engine.mount
+                      value:
+                        stringValue: pki/
+                    - key: issuer.id
+                      value:
+                        stringValue: 1ae8ce9d-2f70-0761-a465-8c9840a247a2
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
                 - asInt: "-61"
                   attributes:
                     - key: cert.type
@@ -125,48 +199,6 @@ resourceMetrics:
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
             unit: '{errors}'
-          - description: Time until certificate expiration as specified by the `notAfter` field.
-            gauge:
-              dataPoints:
-                - asInt: "59"
-                  attributes:
-                    - key: cert.x509.issuer.common_name
-                      value:
-                        stringValue: example.org CA
-                    - key: cert.x509.subject.common_name
-                      value:
-                        stringValue: example.org CA
-                    - key: engine.mount
-                      value:
-                        stringValue: pki/
-                    - key: issuer.id
-                      value:
-                        stringValue: 1ae8ce9d-2f70-0761-a465-8c9840a247a2
-                  startTimeUnixNano: "1000000"
-                  timeUnixNano: "2000000"
-            name: pkiengine.issuer.x509.not_after
-            unit: minutes
-          - description: Time util certificate validity start as specified by the `notBefore` field.
-            gauge:
-              dataPoints:
-                - asInt: "-61"
-                  attributes:
-                    - key: cert.x509.issuer.common_name
-                      value:
-                        stringValue: example.org CA
-                    - key: cert.x509.subject.common_name
-                      value:
-                        stringValue: example.org CA
-                    - key: engine.mount
-                      value:
-                        stringValue: pki/
-                    - key: issuer.id
-                      value:
-                        stringValue: 1ae8ce9d-2f70-0761-a465-8c9840a247a2
-                  startTimeUnixNano: "1000000"
-                  timeUnixNano: "2000000"
-            name: pkiengine.issuer.x509.not_before
-            unit: minutes
           - description: Number of certificates stored in the mount.
             gauge:
               dataPoints:
