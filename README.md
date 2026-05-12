@@ -88,17 +88,17 @@ receivers:
 - `timeout` *(string)*: Optional value used to set scraper's context deadline.
 - `namespace` *(string)*: (default = `""`) Secret store namespace path.
 - `match_regex` *(string)*: (default = `".*"`) Regular expression in [RE2 syntax](https://github.com/google/re2/wiki/Syntax) of allowed mount paths, e.g. `pki/v1/ica/v\d`.
-- `concurrency_limit` *(uint)*: Maximum number of concurrent worker tasks (mount/issuer/CRL). Defaults to the number of CPU cores determined by GOMAXPROCS.
+- `concurrency_limit` *(int)*: Maximum number of concurrent worker tasks (mount/issuer/CRL). Defaults to the number of CPU cores determined by GOMAXPROCS.
 
 ### Leaf certificates
-- `leaf.enabled` *(bool)*: (default = `false`) Enable collection of stored leaf certificates (`no_store=false`). Use with care in large deployments due to high cardinality and higher API load.
+- `leaf_certificates.enabled` *(bool)*: (default = `false`) Enable collection of stored leaf certificates (`no_store=false`). Use with care in large deployments due to high cardinality and higher API load.
 
 ### CRL
 - `crl.enabled` *(bool)*: (default = `true`) Enable CRL processing.
 - `crl.scrape_parent` *(bool)*: (default = `true`) Enable scraping issuer-role (parent) CRLs referenced in issuer certificates. When `false`, only subject-role CRLs from issuer API fields are scraped.
-- `crl.cache_size` *(uint)*: (default = `50`) Maximum number of entries in the LRU cache for processed CRLs. Set to `0` to disable CRL caching.
+- `crl.cache_size` *(int)*: (default = `50`) Maximum number of entries in the LRU cache for processed CRLs. Set to `0` to disable CRL caching.
 - `crl.timeout` *(string)*: (default = `5s`) Maximum time to wait for a CRL fetch response.
-- `crl.retries` *(uint)*: (default = `0`) Number of retry attempts for CRL fetching after the initial attempt.
+- `crl.retries` *(int)*: (default = `0`) Number of retry attempts for CRL fetching after the initial attempt.
 - `crl.retry_interval` *(string)*: (default = `3s`) Wait interval between CRL fetch retry attempts.
 
 ### Authentication
