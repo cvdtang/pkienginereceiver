@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-exec/tfexec"
+	"github.com/moby/moby/api/types/container"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/golden"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatatest/pmetrictest"
 	"github.com/stretchr/testify/assert"
@@ -68,7 +69,7 @@ const (
 	// renovate: datasource=docker depName=rancher/k3s
 	k3sImage = "rancher/k3s:v1.36.0-k3s1"
 	// renovate: datasource=docker depName=hashicorp/vault
-	vaultVersion = "2.0.0"
+	vaultVersion = "2.0.1"
 	// renovate: datasource=docker depName=openbao/openbao
 	openBaoVersion        = "2.5.3"
 	kubernetesAPIAudience = "https://kubernetes.default.svc"
@@ -121,7 +122,6 @@ var integrationMatrixImages = []integrationImage{
 		subtestImageName: "vault",
 		repo:             "hashicorp/vault",
 		envVars: map[string]string{
-			"SKIP_SETCAP":             "true",
 			"VAULT_DEV_ROOT_TOKEN_ID": devRootToken,
 			"VAULT_LOG_LEVEL":         "debug",
 		},
@@ -141,7 +141,6 @@ var integrationMatrixImages = []integrationImage{
 		subtestImageName: "openbao",
 		repo:             "openbao/openbao",
 		envVars: map[string]string{
-			"SKIP_SETCAP":           "true",
 			"BAO_DEV_ROOT_TOKEN_ID": devRootToken,
 			"BAO_LOG_LEVEL":         "debug",
 		},
@@ -381,11 +380,18 @@ func (suite *IntegrationSuite) runImageVersion(t *testing.T, img integrationImag
 
 	imageURI := fmt.Sprintf("%s:%s", img.repo, tag)
 	req := testcontainers.ContainerRequest{
-		WaitingFor:   wait.ForListeningPort(enginePort),
-		Image:        imageURI,
-		Env:          img.envVars,
-		ExposedPorts: []string{enginePort},
-		Networks:     []string{suite.nw.Name},
+		WaitingFor: wait.ForListeningPort(enginePort),
+		Image:      imageURI,
+		Env:        img.envVars,
+		ExposedPorts: []string{
+			enginePort,
+		},
+		Networks: []string{
+			suite.nw.Name,
+		},
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.CapAdd = []string{"IPC_LOCK"}
+		},
 	}
 	secretStoreContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
