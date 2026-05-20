@@ -71,7 +71,7 @@ const (
 	// renovate: datasource=docker depName=hashicorp/vault
 	vaultVersion = "2.0.1"
 	// renovate: datasource=docker depName=openbao/openbao
-	openBaoVersion        = "2.5.3"
+	openBaoVersion        = "2.5.4"
 	kubernetesAPIAudience = "https://kubernetes.default.svc"
 
 	testScrapeTimeout      = 15 * time.Second
