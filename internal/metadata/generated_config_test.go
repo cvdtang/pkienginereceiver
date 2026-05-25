@@ -56,12 +56,6 @@ func TestMetricsBuilderConfig(t *testing.T) {
 					PkiengineIssuerErrors: MetricConfig{
 						Enabled: true,
 					},
-					PkiengineIssuerX509NotAfter: MetricConfig{
-						Enabled: true,
-					},
-					PkiengineIssuerX509NotBefore: MetricConfig{
-						Enabled: true,
-					},
 					PkiengineMountCertificatesStored: MetricConfig{
 						Enabled: true,
 					},
@@ -107,12 +101,6 @@ func TestMetricsBuilderConfig(t *testing.T) {
 						Enabled: false,
 					},
 					PkiengineIssuerErrors: MetricConfig{
-						Enabled: false,
-					},
-					PkiengineIssuerX509NotAfter: MetricConfig{
-						Enabled: false,
-					},
-					PkiengineIssuerX509NotBefore: MetricConfig{
 						Enabled: false,
 					},
 					PkiengineMountCertificatesStored: MetricConfig{

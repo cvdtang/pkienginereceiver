@@ -58,10 +58,6 @@ func (s *scrapeShared) shouldCollectCertificates() bool {
 	return s.cfg.Metrics.PkiengineMountCertificatesStored.Enabled || s.cfg.Leaf.Enabled
 }
 
-func (s *scrapeShared) emitIssuerCertMetrics() bool {
-	return metadata.ReceiverPkiengineEmitCertMetricsFromIssuersFeatureGate.IsEnabled()
-}
-
 func (s *scrapeShared) emitMount(result mountResult) {
 	if result.metrics.storedCertificates == nil {
 		return
@@ -80,12 +76,7 @@ func (s *scrapeShared) emitIssuer(result issuerResult) {
 		return
 	}
 	s.withMetricsLock(func() {
-		if s.emitIssuerCertMetrics() {
-			result.certificate.emitCert(s.mb, metadata.AttributeCertTypeIssuer)
-
-			return
-		}
-		result.certificate.emitIssuer(s.mb)
+		result.certificate.emitCert(s.mb, metadata.AttributeCertTypeIssuer)
 	})
 }
 

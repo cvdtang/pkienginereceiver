@@ -292,8 +292,6 @@ var scrapeMetricsCompareOptions = []pmetrictest.CompareMetricsOption{
 	pmetrictest.IgnoreResourceMetricsOrder(),
 	pmetrictest.IgnoreMetricDataPointsOrder(),
 	pmetrictest.IgnoreMetricValues(
-		"pkiengine.issuer.x509.not_after",
-		"pkiengine.issuer.x509.not_before",
 		"pkiengine.cert.x509.not_after",
 		"pkiengine.cert.x509.not_before",
 		"pkiengine.crl.x509.next_update",
@@ -941,7 +939,7 @@ func normalizeMetrics(metrics pmetric.Metrics) {
 			ms := sm.Metrics()
 			for k := range ms.Len() {
 				m := ms.At(k)
-				normalizeNotAfter := m.Name() == "pkiengine.issuer.x509.not_after" || m.Name() == "pkiengine.cert.x509.not_after"
+				normalizeNotAfter := m.Name() == "pkiengine.cert.x509.not_after"
 				var dps pmetric.NumberDataPointSlice
 				switch m.Type() {
 				case pmetric.MetricTypeGauge:

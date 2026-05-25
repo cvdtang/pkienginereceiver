@@ -74,20 +74,6 @@ $defs:
           enabled:
             type: boolean
             default: true
-      pkiengine.issuer.x509.not_after:
-        description: "PkiengineIssuerX509NotAfterMetricConfig provides config for the pkiengine.issuer.x509.not_after metric."
-        type: object
-        properties:
-          enabled:
-            type: boolean
-            default: true
-      pkiengine.issuer.x509.not_before:
-        description: "PkiengineIssuerX509NotBeforeMetricConfig provides config for the pkiengine.issuer.x509.not_before metric."
-        type: object
-        properties:
-          enabled:
-            type: boolean
-            default: true
       pkiengine.mount.certificates_stored:
         description: "PkiengineMountCertificatesStoredMetricConfig provides config for the pkiengine.mount.certificates_stored metric."
         type: object

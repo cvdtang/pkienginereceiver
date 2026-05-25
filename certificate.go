@@ -136,27 +136,6 @@ func (c *certificate) serial() string {
 	return serialToColonHex(c.crt.SerialNumber)
 }
 
-// Deprecated: retained for backward-compatible issuer metrics.
-func (c *certificate) emitIssuer(mb *metadata.MetricsBuilder) {
-	mb.RecordPkiengineIssuerX509NotAfterDataPoint(
-		c.metrics.ts,
-		c.metrics.notAfterMinutes,
-		c.issuerId,
-		c.crt.Subject.CommonName,
-		c.crt.Issuer.CommonName,
-		c.mount,
-	)
-
-	mb.RecordPkiengineIssuerX509NotBeforeDataPoint(
-		c.metrics.ts,
-		c.metrics.notBeforeMinutes,
-		c.issuerId,
-		c.crt.Subject.CommonName,
-		c.crt.Issuer.CommonName,
-		c.mount,
-	)
-}
-
 func (c *certificate) emitCert(mb *metadata.MetricsBuilder, certType metadata.AttributeCertType) {
 	subjectCountry := toAnySlice(c.crt.Subject.Country)
 	subjectOrganization := toAnySlice(c.crt.Subject.Organization)
