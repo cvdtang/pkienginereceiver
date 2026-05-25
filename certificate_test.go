@@ -181,7 +181,6 @@ func TestCertificate_Emit(t *testing.T) {
 
 	state := createTestScrapeState(t)
 	rb := state.mb.NewResourceBuilder()
-	crt.emitIssuer(state.mb)
 	crt.emitCert(state.mb, metadata.AttributeCertTypeIssuer)
 
 	res := rb.Emit()
@@ -190,14 +189,6 @@ func TestCertificate_Emit(t *testing.T) {
 	metrics := md.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics()
 
 	expectedMetrics := map[string]func(*testing.T, int64){
-		"pkiengine.issuer.x509.not_after": func(t *testing.T, v int64) {
-			t.Helper()
-			assert.Positive(t, v)
-		},
-		"pkiengine.issuer.x509.not_before": func(t *testing.T, v int64) {
-			t.Helper()
-			assert.Negative(t, v)
-		},
 		"pkiengine.cert.x509.not_after": func(t *testing.T, v int64) {
 			t.Helper()
 			assert.Positive(t, v)

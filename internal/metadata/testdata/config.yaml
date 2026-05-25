@@ -21,10 +21,6 @@ all_set:
       enabled: true
     pkiengine.issuer.errors:
       enabled: true
-    pkiengine.issuer.x509.not_after:
-      enabled: true
-    pkiengine.issuer.x509.not_before:
-      enabled: true
     pkiengine.mount.certificates_stored:
       enabled: true
     pkiengine.mount.errors:
@@ -55,10 +51,6 @@ none_set:
     pkiengine.crl.x509.this_update:
       enabled: false
     pkiengine.issuer.errors:
-      enabled: false
-    pkiengine.issuer.x509.not_after:
-      enabled: false
-    pkiengine.issuer.x509.not_before:
       enabled: false
     pkiengine.mount.certificates_stored:
       enabled: false

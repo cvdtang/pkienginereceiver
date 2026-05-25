@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
-	"sync"
 	"testing"
 
 	vaultapi "github.com/hashicorp/vault/api"
@@ -13,7 +12,6 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatatest/pmetrictest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/collector/featuregate"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/receiver/receivertest"
 	"go.uber.org/zap"
@@ -31,20 +29,6 @@ const (
 )
 
 var errTest = errors.New(testError)
-var issuerGateMu sync.Mutex
-
-func requireIssuerGateState(t *testing.T, enabled bool) {
-	t.Helper()
-
-	issuerGateMu.Lock()
-	gateID := metadata.ReceiverPkiengineEmitCertMetricsFromIssuersFeatureGate.ID()
-	originalEnabled := metadata.ReceiverPkiengineEmitCertMetricsFromIssuersFeatureGate.IsEnabled()
-	require.NoError(t, featuregate.GlobalRegistry().Set(gateID, enabled))
-	t.Cleanup(func() {
-		require.NoError(t, featuregate.GlobalRegistry().Set(gateID, originalEnabled))
-		issuerGateMu.Unlock()
-	})
-}
 
 func createTestScraper(t *testing.T) (*pkiEngineScraper, *mocksecretStore) {
 	t.Helper()
@@ -180,102 +164,6 @@ func TestScrape(t *testing.T) {
 	require.NoError(t, err)
 
 	// Comparison
-	if *update {
-		err = golden.WriteMetrics(t, expectedFile, actualMetrics)
-		require.NoError(t, err)
-	}
-
-	expectedMetrics, err := golden.ReadMetrics(expectedFile)
-	require.NoError(t, err)
-
-	assertEquivalentScrapeMetrics(t, expectedMetrics, actualMetrics)
-}
-
-//nolint:paralleltest // Mutates a global feature gate and relies on serialized access.
-func TestScrapeFeatureGateEmitCertMetricsFromIssuersDisabled(t *testing.T) {
-	ctx := t.Context()
-
-	expectedFile := filepath.Join("test", "testdata", "mock_feature_gate_emit_cert_metrics_from_issuers_disabled.yaml")
-	requireIssuerGateState(t, false)
-
-	scraper, mockSecretStore := createTestScraper(t)
-	_, certPEM := getTestCertDataWithOU(t, testIssuerCommonName, "Security")
-
-	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
-	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"path": "", "aia_path": ""},
-	}, nil)
-	mockSecretStore.On("listCertificates", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"keys": []any{testCertificateSerialKey}},
-	}, nil)
-	mockSecretStore.On("listIssuers", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"keys": []any{testIssuerID}},
-	}, nil)
-	mockSecretStore.On("readIssuer", ctx, testMountPath, testIssuerID).Return(&vaultapi.Secret{
-		Data: map[string]any{
-			"certificate": string(certPEM),
-			"key_id":      "key-local",
-		},
-	}, nil)
-
-	err := scraper.start(ctx, newMdatagenNopHost())
-	require.NoError(t, err)
-
-	actualMetrics, err := scraper.scrape(ctx)
-	require.NoError(t, err)
-
-	if *update {
-		err = golden.WriteMetrics(t, expectedFile, actualMetrics)
-		require.NoError(t, err)
-	}
-
-	expectedMetrics, err := golden.ReadMetrics(expectedFile)
-	require.NoError(t, err)
-
-	assertEquivalentScrapeMetrics(t, expectedMetrics, actualMetrics)
-}
-
-//nolint:paralleltest // Mutates a global feature gate and relies on serialized access.
-func TestScrapeFeatureGateEmitCertMetricsFromIssuersAndLeafDisabled(t *testing.T) {
-	ctx := t.Context()
-
-	expectedFile := filepath.Join("test", "testdata", "mock_feature_gate_emit_cert_metrics_from_issuers_and_leaf_disabled.yaml")
-	requireIssuerGateState(t, false)
-
-	scraper, mockSecretStore := createTestScraperWithConfig(t, func(cfg *config) {
-		cfg.Leaf.Enabled = true
-	})
-	_, issuerCertPEM := getTestCertDataWithOU(t, testIssuerCommonName, "Security")
-	_, leafCertPEM := getTestCertDataWithOU(t, testLeafCommonName, "App")
-
-	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
-	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"path": "", "aia_path": ""},
-	}, nil)
-	mockSecretStore.On("listCertificates", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"keys": []any{testCertificateSerialKey}},
-	}, nil)
-	mockSecretStore.On("listIssuers", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"keys": []any{testIssuerID}},
-	}, nil)
-	mockSecretStore.On("readIssuer", ctx, testMountPath, testIssuerID).Return(&vaultapi.Secret{
-		Data: map[string]any{
-			"certificate": string(issuerCertPEM),
-			"key_id":      "key-local",
-		},
-	}, nil)
-	mockSecretStore.On("readCertificate", ctx, testMountPath, testCertificateSerialKey).Return(&vaultapi.Secret{
-		Data: map[string]any{
-			"certificate": string(leafCertPEM),
-		},
-	}, nil)
-
-	err := scraper.start(ctx, newMdatagenNopHost())
-	require.NoError(t, err)
-
-	actualMetrics, err := scraper.scrape(ctx)
-	require.NoError(t, err)
-
 	if *update {
 		err = golden.WriteMetrics(t, expectedFile, actualMetrics)
 		require.NoError(t, err)

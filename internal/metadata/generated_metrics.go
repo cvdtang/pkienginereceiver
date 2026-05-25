@@ -121,12 +121,6 @@ var MetricsInfo = metricsInfo{
 	PkiengineIssuerErrors: metricInfo{
 		Name: "pkiengine.issuer.errors",
 	},
-	PkiengineIssuerX509NotAfter: metricInfo{
-		Name: "pkiengine.issuer.x509.not_after",
-	},
-	PkiengineIssuerX509NotBefore: metricInfo{
-		Name: "pkiengine.issuer.x509.not_before",
-	},
 	PkiengineMountCertificatesStored: metricInfo{
 		Name: "pkiengine.mount.certificates_stored",
 	},
@@ -146,8 +140,6 @@ type metricsInfo struct {
 	PkiengineCrlX509RevokedCertificates metricInfo
 	PkiengineCrlX509ThisUpdate          metricInfo
 	PkiengineIssuerErrors               metricInfo
-	PkiengineIssuerX509NotAfter         metricInfo
-	PkiengineIssuerX509NotBefore        metricInfo
 	PkiengineMountCertificatesStored    metricInfo
 	PkiengineMountErrors                metricInfo
 }
@@ -697,116 +689,6 @@ func newMetricPkiengineIssuerErrors(cfg MetricConfig) metricPkiengineIssuerError
 	return m
 }
 
-type metricPkiengineIssuerX509NotAfter struct {
-	data     pmetric.Metric // data buffer for generated metric.
-	config   MetricConfig   // metric config provided by user.
-	capacity int            // max observed number of data points added to the metric.
-}
-
-// init fills pkiengine.issuer.x509.not_after metric with initial data.
-func (m *metricPkiengineIssuerX509NotAfter) init() {
-	m.data.SetName("pkiengine.issuer.x509.not_after")
-	m.data.SetDescription("Time until certificate expiration as specified by the `notAfter` field.")
-	m.data.SetUnit("minutes")
-	m.data.SetEmptyGauge()
-	m.data.Gauge().DataPoints().EnsureCapacity(m.capacity)
-}
-
-func (m *metricPkiengineIssuerX509NotAfter) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64, issuerIDAttributeValue string, certX509SubjectCommonNameAttributeValue string, certX509IssuerCommonNameAttributeValue string, engineMountAttributeValue string) {
-	if !m.config.Enabled {
-		return
-	}
-	dp := m.data.Gauge().DataPoints().AppendEmpty()
-	dp.SetStartTimestamp(start)
-	dp.SetTimestamp(ts)
-	dp.SetIntValue(val)
-	dp.Attributes().PutStr("issuer.id", issuerIDAttributeValue)
-	dp.Attributes().PutStr("cert.x509.subject.common_name", certX509SubjectCommonNameAttributeValue)
-	dp.Attributes().PutStr("cert.x509.issuer.common_name", certX509IssuerCommonNameAttributeValue)
-	dp.Attributes().PutStr("engine.mount", engineMountAttributeValue)
-}
-
-// updateCapacity saves max length of data point slices that will be used for the slice capacity.
-func (m *metricPkiengineIssuerX509NotAfter) updateCapacity() {
-	if m.data.Gauge().DataPoints().Len() > m.capacity {
-		m.capacity = m.data.Gauge().DataPoints().Len()
-	}
-}
-
-// emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
-func (m *metricPkiengineIssuerX509NotAfter) emit(metrics pmetric.MetricSlice) {
-	if m.config.Enabled && m.data.Gauge().DataPoints().Len() > 0 {
-		m.updateCapacity()
-		m.data.MoveTo(metrics.AppendEmpty())
-		m.init()
-	}
-}
-
-func newMetricPkiengineIssuerX509NotAfter(cfg MetricConfig) metricPkiengineIssuerX509NotAfter {
-	m := metricPkiengineIssuerX509NotAfter{config: cfg}
-
-	if cfg.Enabled {
-		m.data = pmetric.NewMetric()
-		m.init()
-	}
-	return m
-}
-
-type metricPkiengineIssuerX509NotBefore struct {
-	data     pmetric.Metric // data buffer for generated metric.
-	config   MetricConfig   // metric config provided by user.
-	capacity int            // max observed number of data points added to the metric.
-}
-
-// init fills pkiengine.issuer.x509.not_before metric with initial data.
-func (m *metricPkiengineIssuerX509NotBefore) init() {
-	m.data.SetName("pkiengine.issuer.x509.not_before")
-	m.data.SetDescription("Time util certificate validity start as specified by the `notBefore` field.")
-	m.data.SetUnit("minutes")
-	m.data.SetEmptyGauge()
-	m.data.Gauge().DataPoints().EnsureCapacity(m.capacity)
-}
-
-func (m *metricPkiengineIssuerX509NotBefore) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64, issuerIDAttributeValue string, certX509SubjectCommonNameAttributeValue string, certX509IssuerCommonNameAttributeValue string, engineMountAttributeValue string) {
-	if !m.config.Enabled {
-		return
-	}
-	dp := m.data.Gauge().DataPoints().AppendEmpty()
-	dp.SetStartTimestamp(start)
-	dp.SetTimestamp(ts)
-	dp.SetIntValue(val)
-	dp.Attributes().PutStr("issuer.id", issuerIDAttributeValue)
-	dp.Attributes().PutStr("cert.x509.subject.common_name", certX509SubjectCommonNameAttributeValue)
-	dp.Attributes().PutStr("cert.x509.issuer.common_name", certX509IssuerCommonNameAttributeValue)
-	dp.Attributes().PutStr("engine.mount", engineMountAttributeValue)
-}
-
-// updateCapacity saves max length of data point slices that will be used for the slice capacity.
-func (m *metricPkiengineIssuerX509NotBefore) updateCapacity() {
-	if m.data.Gauge().DataPoints().Len() > m.capacity {
-		m.capacity = m.data.Gauge().DataPoints().Len()
-	}
-}
-
-// emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
-func (m *metricPkiengineIssuerX509NotBefore) emit(metrics pmetric.MetricSlice) {
-	if m.config.Enabled && m.data.Gauge().DataPoints().Len() > 0 {
-		m.updateCapacity()
-		m.data.MoveTo(metrics.AppendEmpty())
-		m.init()
-	}
-}
-
-func newMetricPkiengineIssuerX509NotBefore(cfg MetricConfig) metricPkiengineIssuerX509NotBefore {
-	m := metricPkiengineIssuerX509NotBefore{config: cfg}
-
-	if cfg.Enabled {
-		m.data = pmetric.NewMetric()
-		m.init()
-	}
-	return m
-}
-
 type metricPkiengineMountCertificatesStored struct {
 	data     pmetric.Metric // data buffer for generated metric.
 	config   MetricConfig   // metric config provided by user.
@@ -931,8 +813,6 @@ type MetricsBuilder struct {
 	metricPkiengineCrlX509RevokedCertificates metricPkiengineCrlX509RevokedCertificates
 	metricPkiengineCrlX509ThisUpdate          metricPkiengineCrlX509ThisUpdate
 	metricPkiengineIssuerErrors               metricPkiengineIssuerErrors
-	metricPkiengineIssuerX509NotAfter         metricPkiengineIssuerX509NotAfter
-	metricPkiengineIssuerX509NotBefore        metricPkiengineIssuerX509NotBefore
 	metricPkiengineMountCertificatesStored    metricPkiengineMountCertificatesStored
 	metricPkiengineMountErrors                metricPkiengineMountErrors
 }
@@ -955,15 +835,6 @@ func WithStartTime(startTime pcommon.Timestamp) MetricBuilderOption {
 	})
 }
 func NewMetricsBuilder(mbc MetricsBuilderConfig, settings receiver.Settings, options ...MetricBuilderOption) *MetricsBuilder {
-	if mbc.Metrics.PkiengineIssuerErrors.Enabled {
-		settings.Logger.Warn("[WARNING] `pkiengine.issuer.errors` should not be enabled: This metric namespace is deprecated; use `pkiengine.cert.x509.*` metrics where applicable.")
-	}
-	if mbc.Metrics.PkiengineIssuerX509NotAfter.Enabled {
-		settings.Logger.Warn("[WARNING] `pkiengine.issuer.x509.not_after` should not be enabled: This metric is deprecated; use `pkiengine.cert.x509.not_after` instead.")
-	}
-	if mbc.Metrics.PkiengineIssuerX509NotBefore.Enabled {
-		settings.Logger.Warn("[WARNING] `pkiengine.issuer.x509.not_before` should not be enabled: This metric is deprecated; use `pkiengine.cert.x509.not_before` instead.")
-	}
 	mb := &MetricsBuilder{
 		config:                                    mbc,
 		startTime:                                 pcommon.NewTimestampFromTime(time.Now()),
@@ -979,8 +850,6 @@ func NewMetricsBuilder(mbc MetricsBuilderConfig, settings receiver.Settings, opt
 		metricPkiengineCrlX509RevokedCertificates: newMetricPkiengineCrlX509RevokedCertificates(mbc.Metrics.PkiengineCrlX509RevokedCertificates),
 		metricPkiengineCrlX509ThisUpdate:          newMetricPkiengineCrlX509ThisUpdate(mbc.Metrics.PkiengineCrlX509ThisUpdate),
 		metricPkiengineIssuerErrors:               newMetricPkiengineIssuerErrors(mbc.Metrics.PkiengineIssuerErrors),
-		metricPkiengineIssuerX509NotAfter:         newMetricPkiengineIssuerX509NotAfter(mbc.Metrics.PkiengineIssuerX509NotAfter),
-		metricPkiengineIssuerX509NotBefore:        newMetricPkiengineIssuerX509NotBefore(mbc.Metrics.PkiengineIssuerX509NotBefore),
 		metricPkiengineMountCertificatesStored:    newMetricPkiengineMountCertificatesStored(mbc.Metrics.PkiengineMountCertificatesStored),
 		metricPkiengineMountErrors:                newMetricPkiengineMountErrors(mbc.Metrics.PkiengineMountErrors),
 		resourceAttributeIncludeFilter:            make(map[string]filter.Filter),
@@ -1077,8 +946,6 @@ func (mb *MetricsBuilder) EmitForResource(options ...ResourceMetricsOption) {
 	mb.metricPkiengineCrlX509RevokedCertificates.emit(ils.Metrics())
 	mb.metricPkiengineCrlX509ThisUpdate.emit(ils.Metrics())
 	mb.metricPkiengineIssuerErrors.emit(ils.Metrics())
-	mb.metricPkiengineIssuerX509NotAfter.emit(ils.Metrics())
-	mb.metricPkiengineIssuerX509NotBefore.emit(ils.Metrics())
 	mb.metricPkiengineMountCertificatesStored.emit(ils.Metrics())
 	mb.metricPkiengineMountErrors.emit(ils.Metrics())
 
@@ -1160,16 +1027,6 @@ func (mb *MetricsBuilder) RecordPkiengineCrlX509ThisUpdateDataPoint(ts pcommon.T
 // RecordPkiengineIssuerErrorsDataPoint adds a data point to pkiengine.issuer.errors metric.
 func (mb *MetricsBuilder) RecordPkiengineIssuerErrorsDataPoint(ts pcommon.Timestamp, val int64) {
 	mb.metricPkiengineIssuerErrors.recordDataPoint(mb.startTime, ts, val)
-}
-
-// RecordPkiengineIssuerX509NotAfterDataPoint adds a data point to pkiengine.issuer.x509.not_after metric.
-func (mb *MetricsBuilder) RecordPkiengineIssuerX509NotAfterDataPoint(ts pcommon.Timestamp, val int64, issuerIDAttributeValue string, certX509SubjectCommonNameAttributeValue string, certX509IssuerCommonNameAttributeValue string, engineMountAttributeValue string) {
-	mb.metricPkiengineIssuerX509NotAfter.recordDataPoint(mb.startTime, ts, val, issuerIDAttributeValue, certX509SubjectCommonNameAttributeValue, certX509IssuerCommonNameAttributeValue, engineMountAttributeValue)
-}
-
-// RecordPkiengineIssuerX509NotBeforeDataPoint adds a data point to pkiengine.issuer.x509.not_before metric.
-func (mb *MetricsBuilder) RecordPkiengineIssuerX509NotBeforeDataPoint(ts pcommon.Timestamp, val int64, issuerIDAttributeValue string, certX509SubjectCommonNameAttributeValue string, certX509IssuerCommonNameAttributeValue string, engineMountAttributeValue string) {
-	mb.metricPkiengineIssuerX509NotBefore.recordDataPoint(mb.startTime, ts, val, issuerIDAttributeValue, certX509SubjectCommonNameAttributeValue, certX509IssuerCommonNameAttributeValue, engineMountAttributeValue)
 }
 
 // RecordPkiengineMountCertificatesStoredDataPoint adds a data point to pkiengine.mount.certificates_stored metric.

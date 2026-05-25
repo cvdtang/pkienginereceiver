@@ -39,8 +39,6 @@ type MetricsConfig struct {
 	PkiengineCrlX509RevokedCertificates MetricConfig `mapstructure:"pkiengine.crl.x509.revoked_certificates"`
 	PkiengineCrlX509ThisUpdate          MetricConfig `mapstructure:"pkiengine.crl.x509.this_update"`
 	PkiengineIssuerErrors               MetricConfig `mapstructure:"pkiengine.issuer.errors"`
-	PkiengineIssuerX509NotAfter         MetricConfig `mapstructure:"pkiengine.issuer.x509.not_after"`
-	PkiengineIssuerX509NotBefore        MetricConfig `mapstructure:"pkiengine.issuer.x509.not_before"`
 	PkiengineMountCertificatesStored    MetricConfig `mapstructure:"pkiengine.mount.certificates_stored"`
 	PkiengineMountErrors                MetricConfig `mapstructure:"pkiengine.mount.errors"`
 }
@@ -75,12 +73,6 @@ func DefaultMetricsConfig() MetricsConfig {
 			Enabled: true,
 		},
 		PkiengineIssuerErrors: MetricConfig{
-			Enabled: true,
-		},
-		PkiengineIssuerX509NotAfter: MetricConfig{
-			Enabled: true,
-		},
-		PkiengineIssuerX509NotBefore: MetricConfig{
 			Enabled: true,
 		},
 		PkiengineMountCertificatesStored: MetricConfig{
