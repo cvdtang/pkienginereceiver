@@ -3,8 +3,10 @@ all_set:
   metrics:
     pkiengine.cert.x509.not_after:
       enabled: true
+      attributes: ["cert.type","cert.x509.issuer.common_name","cert.x509.serial_number","cert.x509.subject.common_name","cert.x509.subject.country","cert.x509.subject.organization","cert.x509.subject.organizational_unit","engine.mount","issuer.id"]
     pkiengine.cert.x509.not_before:
       enabled: true
+      attributes: ["cert.type","cert.x509.issuer.common_name","cert.x509.serial_number","cert.x509.subject.common_name","cert.x509.subject.country","cert.x509.subject.organization","cert.x509.subject.organizational_unit","engine.mount","issuer.id"]
     pkiengine.crl.cache.evictions:
       enabled: true
     pkiengine.crl.cache.hits:
@@ -13,16 +15,59 @@ all_set:
       enabled: true
     pkiengine.crl.processing_status:
       enabled: true
+      attributes: ["crl.role","crl.kind","crl.uri"]
     pkiengine.crl.x509.next_update:
       enabled: true
+      attributes: ["crl.uri","crl.role","crl.kind","crl.x509.issuer.common_name"]
     pkiengine.crl.x509.revoked_certificates:
       enabled: true
+      attributes: ["crl.uri","crl.role","crl.kind","crl.x509.issuer.common_name"]
     pkiengine.crl.x509.this_update:
       enabled: true
+      attributes: ["crl.uri","crl.role","crl.kind","crl.x509.issuer.common_name"]
     pkiengine.issuer.errors:
       enabled: true
     pkiengine.mount.certificates_stored:
       enabled: true
+      attributes: ["engine.mount"]
+    pkiengine.mount.errors:
+      enabled: true
+  resource_attributes:
+    engine.address:
+      enabled: true
+    engine.namespace:
+      enabled: true
+reaggregate_set:
+  metrics:
+    pkiengine.cert.x509.not_after:
+      enabled: true
+      attributes: []
+    pkiengine.cert.x509.not_before:
+      enabled: true
+      attributes: []
+    pkiengine.crl.cache.evictions:
+      enabled: true
+    pkiengine.crl.cache.hits:
+      enabled: true
+    pkiengine.crl.cache.misses:
+      enabled: true
+    pkiengine.crl.processing_status:
+      enabled: true
+      attributes: []
+    pkiengine.crl.x509.next_update:
+      enabled: true
+      attributes: []
+    pkiengine.crl.x509.revoked_certificates:
+      enabled: true
+      attributes: []
+    pkiengine.crl.x509.this_update:
+      enabled: true
+      attributes: []
+    pkiengine.issuer.errors:
+      enabled: true
+    pkiengine.mount.certificates_stored:
+      enabled: true
+      attributes: []
     pkiengine.mount.errors:
       enabled: true
   resource_attributes:
@@ -34,8 +79,10 @@ none_set:
   metrics:
     pkiengine.cert.x509.not_after:
       enabled: false
+      attributes: ["cert.type","cert.x509.issuer.common_name","cert.x509.serial_number","cert.x509.subject.common_name","cert.x509.subject.country","cert.x509.subject.organization","cert.x509.subject.organizational_unit","engine.mount","issuer.id"]
     pkiengine.cert.x509.not_before:
       enabled: false
+      attributes: ["cert.type","cert.x509.issuer.common_name","cert.x509.serial_number","cert.x509.subject.common_name","cert.x509.subject.country","cert.x509.subject.organization","cert.x509.subject.organizational_unit","engine.mount","issuer.id"]
     pkiengine.crl.cache.evictions:
       enabled: false
     pkiengine.crl.cache.hits:
@@ -44,16 +91,21 @@ none_set:
       enabled: false
     pkiengine.crl.processing_status:
       enabled: false
+      attributes: ["crl.role","crl.kind","crl.uri"]
     pkiengine.crl.x509.next_update:
       enabled: false
+      attributes: ["crl.uri","crl.role","crl.kind","crl.x509.issuer.common_name"]
     pkiengine.crl.x509.revoked_certificates:
       enabled: false
+      attributes: ["crl.uri","crl.role","crl.kind","crl.x509.issuer.common_name"]
     pkiengine.crl.x509.this_update:
       enabled: false
+      attributes: ["crl.uri","crl.role","crl.kind","crl.x509.issuer.common_name"]
     pkiengine.issuer.errors:
       enabled: false
     pkiengine.mount.certificates_stored:
       enabled: false
+      attributes: ["engine.mount"]
     pkiengine.mount.errors:
       enabled: false
   resource_attributes:

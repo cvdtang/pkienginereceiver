@@ -3,6 +3,7 @@
 package metadata
 
 import (
+	"slices"
 	"time"
 
 	"go.opentelemetry.io/collector/component"
@@ -10,6 +11,13 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/receiver"
+)
+
+const (
+	AggregationStrategySum = "sum"
+	AggregationStrategyAvg = "avg"
+	AggregationStrategyMin = "min"
+	AggregationStrategyMax = "max"
 )
 
 // AttributeCertType specifies the value cert.type attribute.
@@ -149,9 +157,10 @@ type metricInfo struct {
 }
 
 type metricPkiengineCertX509NotAfter struct {
-	data     pmetric.Metric // data buffer for generated metric.
-	config   MetricConfig   // metric config provided by user.
-	capacity int            // max observed number of data points added to the metric.
+	data          pmetric.Metric                        // data buffer for generated metric.
+	config        PkiengineCertX509NotAfterMetricConfig // metric config provided by user.
+	capacity      int                                   // max observed number of data points added to the metric.
+	aggDataPoints []int64                               // slice containing number of aggregated datapoints at each index
 }
 
 // init fills pkiengine.cert.x509.not_after metric with initial data.
@@ -161,25 +170,72 @@ func (m *metricPkiengineCertX509NotAfter) init() {
 	m.data.SetUnit("minutes")
 	m.data.SetEmptyGauge()
 	m.data.Gauge().DataPoints().EnsureCapacity(m.capacity)
+	m.aggDataPoints = m.aggDataPoints[:0]
 }
 
 func (m *metricPkiengineCertX509NotAfter) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64, certTypeAttributeValue string, certX509IssuerCommonNameAttributeValue string, certX509SerialNumberAttributeValue string, certX509SubjectCommonNameAttributeValue string, certX509SubjectCountryAttributeValue []any, certX509SubjectOrganizationAttributeValue []any, certX509SubjectOrganizationalUnitAttributeValue []any, engineMountAttributeValue string, issuerIDAttributeValue string) {
 	if !m.config.Enabled {
 		return
 	}
-	dp := m.data.Gauge().DataPoints().AppendEmpty()
+
+	dp := pmetric.NewNumberDataPoint()
 	dp.SetStartTimestamp(start)
 	dp.SetTimestamp(ts)
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotAfterMetricAttributeKeyCertType) {
+		dp.Attributes().PutStr("cert.type", certTypeAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotAfterMetricAttributeKeyCertX509IssuerCommonName) {
+		dp.Attributes().PutStr("cert.x509.issuer.common_name", certX509IssuerCommonNameAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SerialNumber) {
+		dp.Attributes().PutStr("cert.x509.serial_number", certX509SerialNumberAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCommonName) {
+		dp.Attributes().PutStr("cert.x509.subject.common_name", certX509SubjectCommonNameAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCountry) {
+		dp.Attributes().PutEmptySlice("cert.x509.subject.country").FromRaw(certX509SubjectCountryAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganization) {
+		dp.Attributes().PutEmptySlice("cert.x509.subject.organization").FromRaw(certX509SubjectOrganizationAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganizationalUnit) {
+		dp.Attributes().PutEmptySlice("cert.x509.subject.organizational_unit").FromRaw(certX509SubjectOrganizationalUnitAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotAfterMetricAttributeKeyEngineMount) {
+		dp.Attributes().PutStr("engine.mount", engineMountAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotAfterMetricAttributeKeyIssuerID) {
+		dp.Attributes().PutStr("issuer.id", issuerIDAttributeValue)
+	}
+
+	var s string
+	dps := m.data.Gauge().DataPoints()
+	for i := 0; i < dps.Len(); i++ {
+		dpi := dps.At(i)
+		if dp.Attributes().Equal(dpi.Attributes()) && dp.StartTimestamp() == dpi.StartTimestamp() && dp.Timestamp() == dpi.Timestamp() {
+			switch s = m.config.AggregationStrategy; s {
+			case AggregationStrategySum, AggregationStrategyAvg:
+				dpi.SetIntValue(dpi.IntValue() + val)
+				m.aggDataPoints[i] += 1
+				return
+			case AggregationStrategyMin:
+				if dpi.IntValue() > val {
+					dpi.SetIntValue(val)
+				}
+				return
+			case AggregationStrategyMax:
+				if dpi.IntValue() < val {
+					dpi.SetIntValue(val)
+				}
+				return
+			}
+		}
+	}
+
 	dp.SetIntValue(val)
-	dp.Attributes().PutStr("cert.type", certTypeAttributeValue)
-	dp.Attributes().PutStr("cert.x509.issuer.common_name", certX509IssuerCommonNameAttributeValue)
-	dp.Attributes().PutStr("cert.x509.serial_number", certX509SerialNumberAttributeValue)
-	dp.Attributes().PutStr("cert.x509.subject.common_name", certX509SubjectCommonNameAttributeValue)
-	dp.Attributes().PutEmptySlice("cert.x509.subject.country").FromRaw(certX509SubjectCountryAttributeValue)
-	dp.Attributes().PutEmptySlice("cert.x509.subject.organization").FromRaw(certX509SubjectOrganizationAttributeValue)
-	dp.Attributes().PutEmptySlice("cert.x509.subject.organizational_unit").FromRaw(certX509SubjectOrganizationalUnitAttributeValue)
-	dp.Attributes().PutStr("engine.mount", engineMountAttributeValue)
-	dp.Attributes().PutStr("issuer.id", issuerIDAttributeValue)
+	m.aggDataPoints = append(m.aggDataPoints, 1)
+	dp.MoveTo(dps.AppendEmpty())
 }
 
 // updateCapacity saves max length of data point slices that will be used for the slice capacity.
@@ -192,13 +248,18 @@ func (m *metricPkiengineCertX509NotAfter) updateCapacity() {
 // emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
 func (m *metricPkiengineCertX509NotAfter) emit(metrics pmetric.MetricSlice) {
 	if m.config.Enabled && m.data.Gauge().DataPoints().Len() > 0 {
+		if m.config.AggregationStrategy == AggregationStrategyAvg {
+			for i, aggCount := range m.aggDataPoints {
+				m.data.Gauge().DataPoints().At(i).SetIntValue(m.data.Gauge().DataPoints().At(i).IntValue() / aggCount)
+			}
+		}
 		m.updateCapacity()
 		m.data.MoveTo(metrics.AppendEmpty())
 		m.init()
 	}
 }
 
-func newMetricPkiengineCertX509NotAfter(cfg MetricConfig) metricPkiengineCertX509NotAfter {
+func newMetricPkiengineCertX509NotAfter(cfg PkiengineCertX509NotAfterMetricConfig) metricPkiengineCertX509NotAfter {
 	m := metricPkiengineCertX509NotAfter{config: cfg}
 
 	if cfg.Enabled {
@@ -209,9 +270,10 @@ func newMetricPkiengineCertX509NotAfter(cfg MetricConfig) metricPkiengineCertX50
 }
 
 type metricPkiengineCertX509NotBefore struct {
-	data     pmetric.Metric // data buffer for generated metric.
-	config   MetricConfig   // metric config provided by user.
-	capacity int            // max observed number of data points added to the metric.
+	data          pmetric.Metric                         // data buffer for generated metric.
+	config        PkiengineCertX509NotBeforeMetricConfig // metric config provided by user.
+	capacity      int                                    // max observed number of data points added to the metric.
+	aggDataPoints []int64                                // slice containing number of aggregated datapoints at each index
 }
 
 // init fills pkiengine.cert.x509.not_before metric with initial data.
@@ -221,25 +283,72 @@ func (m *metricPkiengineCertX509NotBefore) init() {
 	m.data.SetUnit("minutes")
 	m.data.SetEmptyGauge()
 	m.data.Gauge().DataPoints().EnsureCapacity(m.capacity)
+	m.aggDataPoints = m.aggDataPoints[:0]
 }
 
 func (m *metricPkiengineCertX509NotBefore) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64, certTypeAttributeValue string, certX509IssuerCommonNameAttributeValue string, certX509SerialNumberAttributeValue string, certX509SubjectCommonNameAttributeValue string, certX509SubjectCountryAttributeValue []any, certX509SubjectOrganizationAttributeValue []any, certX509SubjectOrganizationalUnitAttributeValue []any, engineMountAttributeValue string, issuerIDAttributeValue string) {
 	if !m.config.Enabled {
 		return
 	}
-	dp := m.data.Gauge().DataPoints().AppendEmpty()
+
+	dp := pmetric.NewNumberDataPoint()
 	dp.SetStartTimestamp(start)
 	dp.SetTimestamp(ts)
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotBeforeMetricAttributeKeyCertType) {
+		dp.Attributes().PutStr("cert.type", certTypeAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509IssuerCommonName) {
+		dp.Attributes().PutStr("cert.x509.issuer.common_name", certX509IssuerCommonNameAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SerialNumber) {
+		dp.Attributes().PutStr("cert.x509.serial_number", certX509SerialNumberAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCommonName) {
+		dp.Attributes().PutStr("cert.x509.subject.common_name", certX509SubjectCommonNameAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCountry) {
+		dp.Attributes().PutEmptySlice("cert.x509.subject.country").FromRaw(certX509SubjectCountryAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganization) {
+		dp.Attributes().PutEmptySlice("cert.x509.subject.organization").FromRaw(certX509SubjectOrganizationAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganizationalUnit) {
+		dp.Attributes().PutEmptySlice("cert.x509.subject.organizational_unit").FromRaw(certX509SubjectOrganizationalUnitAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotBeforeMetricAttributeKeyEngineMount) {
+		dp.Attributes().PutStr("engine.mount", engineMountAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotBeforeMetricAttributeKeyIssuerID) {
+		dp.Attributes().PutStr("issuer.id", issuerIDAttributeValue)
+	}
+
+	var s string
+	dps := m.data.Gauge().DataPoints()
+	for i := 0; i < dps.Len(); i++ {
+		dpi := dps.At(i)
+		if dp.Attributes().Equal(dpi.Attributes()) && dp.StartTimestamp() == dpi.StartTimestamp() && dp.Timestamp() == dpi.Timestamp() {
+			switch s = m.config.AggregationStrategy; s {
+			case AggregationStrategySum, AggregationStrategyAvg:
+				dpi.SetIntValue(dpi.IntValue() + val)
+				m.aggDataPoints[i] += 1
+				return
+			case AggregationStrategyMin:
+				if dpi.IntValue() > val {
+					dpi.SetIntValue(val)
+				}
+				return
+			case AggregationStrategyMax:
+				if dpi.IntValue() < val {
+					dpi.SetIntValue(val)
+				}
+				return
+			}
+		}
+	}
+
 	dp.SetIntValue(val)
-	dp.Attributes().PutStr("cert.type", certTypeAttributeValue)
-	dp.Attributes().PutStr("cert.x509.issuer.common_name", certX509IssuerCommonNameAttributeValue)
-	dp.Attributes().PutStr("cert.x509.serial_number", certX509SerialNumberAttributeValue)
-	dp.Attributes().PutStr("cert.x509.subject.common_name", certX509SubjectCommonNameAttributeValue)
-	dp.Attributes().PutEmptySlice("cert.x509.subject.country").FromRaw(certX509SubjectCountryAttributeValue)
-	dp.Attributes().PutEmptySlice("cert.x509.subject.organization").FromRaw(certX509SubjectOrganizationAttributeValue)
-	dp.Attributes().PutEmptySlice("cert.x509.subject.organizational_unit").FromRaw(certX509SubjectOrganizationalUnitAttributeValue)
-	dp.Attributes().PutStr("engine.mount", engineMountAttributeValue)
-	dp.Attributes().PutStr("issuer.id", issuerIDAttributeValue)
+	m.aggDataPoints = append(m.aggDataPoints, 1)
+	dp.MoveTo(dps.AppendEmpty())
 }
 
 // updateCapacity saves max length of data point slices that will be used for the slice capacity.
@@ -252,13 +361,18 @@ func (m *metricPkiengineCertX509NotBefore) updateCapacity() {
 // emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
 func (m *metricPkiengineCertX509NotBefore) emit(metrics pmetric.MetricSlice) {
 	if m.config.Enabled && m.data.Gauge().DataPoints().Len() > 0 {
+		if m.config.AggregationStrategy == AggregationStrategyAvg {
+			for i, aggCount := range m.aggDataPoints {
+				m.data.Gauge().DataPoints().At(i).SetIntValue(m.data.Gauge().DataPoints().At(i).IntValue() / aggCount)
+			}
+		}
 		m.updateCapacity()
 		m.data.MoveTo(metrics.AppendEmpty())
 		m.init()
 	}
 }
 
-func newMetricPkiengineCertX509NotBefore(cfg MetricConfig) metricPkiengineCertX509NotBefore {
+func newMetricPkiengineCertX509NotBefore(cfg PkiengineCertX509NotBeforeMetricConfig) metricPkiengineCertX509NotBefore {
 	m := metricPkiengineCertX509NotBefore{config: cfg}
 
 	if cfg.Enabled {
@@ -269,9 +383,9 @@ func newMetricPkiengineCertX509NotBefore(cfg MetricConfig) metricPkiengineCertX5
 }
 
 type metricPkiengineCrlCacheEvictions struct {
-	data     pmetric.Metric // data buffer for generated metric.
-	config   MetricConfig   // metric config provided by user.
-	capacity int            // max observed number of data points added to the metric.
+	data     pmetric.Metric                         // data buffer for generated metric.
+	config   PkiengineCrlCacheEvictionsMetricConfig // metric config provided by user.
+	capacity int                                    // max observed number of data points added to the metric.
 }
 
 // init fills pkiengine.crl.cache.evictions metric with initial data.
@@ -308,7 +422,7 @@ func (m *metricPkiengineCrlCacheEvictions) emit(metrics pmetric.MetricSlice) {
 	}
 }
 
-func newMetricPkiengineCrlCacheEvictions(cfg MetricConfig) metricPkiengineCrlCacheEvictions {
+func newMetricPkiengineCrlCacheEvictions(cfg PkiengineCrlCacheEvictionsMetricConfig) metricPkiengineCrlCacheEvictions {
 	m := metricPkiengineCrlCacheEvictions{config: cfg}
 
 	if cfg.Enabled {
@@ -319,9 +433,9 @@ func newMetricPkiengineCrlCacheEvictions(cfg MetricConfig) metricPkiengineCrlCac
 }
 
 type metricPkiengineCrlCacheHits struct {
-	data     pmetric.Metric // data buffer for generated metric.
-	config   MetricConfig   // metric config provided by user.
-	capacity int            // max observed number of data points added to the metric.
+	data     pmetric.Metric                    // data buffer for generated metric.
+	config   PkiengineCrlCacheHitsMetricConfig // metric config provided by user.
+	capacity int                               // max observed number of data points added to the metric.
 }
 
 // init fills pkiengine.crl.cache.hits metric with initial data.
@@ -358,7 +472,7 @@ func (m *metricPkiengineCrlCacheHits) emit(metrics pmetric.MetricSlice) {
 	}
 }
 
-func newMetricPkiengineCrlCacheHits(cfg MetricConfig) metricPkiengineCrlCacheHits {
+func newMetricPkiengineCrlCacheHits(cfg PkiengineCrlCacheHitsMetricConfig) metricPkiengineCrlCacheHits {
 	m := metricPkiengineCrlCacheHits{config: cfg}
 
 	if cfg.Enabled {
@@ -369,9 +483,9 @@ func newMetricPkiengineCrlCacheHits(cfg MetricConfig) metricPkiengineCrlCacheHit
 }
 
 type metricPkiengineCrlCacheMisses struct {
-	data     pmetric.Metric // data buffer for generated metric.
-	config   MetricConfig   // metric config provided by user.
-	capacity int            // max observed number of data points added to the metric.
+	data     pmetric.Metric                      // data buffer for generated metric.
+	config   PkiengineCrlCacheMissesMetricConfig // metric config provided by user.
+	capacity int                                 // max observed number of data points added to the metric.
 }
 
 // init fills pkiengine.crl.cache.misses metric with initial data.
@@ -408,7 +522,7 @@ func (m *metricPkiengineCrlCacheMisses) emit(metrics pmetric.MetricSlice) {
 	}
 }
 
-func newMetricPkiengineCrlCacheMisses(cfg MetricConfig) metricPkiengineCrlCacheMisses {
+func newMetricPkiengineCrlCacheMisses(cfg PkiengineCrlCacheMissesMetricConfig) metricPkiengineCrlCacheMisses {
 	m := metricPkiengineCrlCacheMisses{config: cfg}
 
 	if cfg.Enabled {
@@ -419,9 +533,10 @@ func newMetricPkiengineCrlCacheMisses(cfg MetricConfig) metricPkiengineCrlCacheM
 }
 
 type metricPkiengineCrlProcessingStatus struct {
-	data     pmetric.Metric // data buffer for generated metric.
-	config   MetricConfig   // metric config provided by user.
-	capacity int            // max observed number of data points added to the metric.
+	data          pmetric.Metric                           // data buffer for generated metric.
+	config        PkiengineCrlProcessingStatusMetricConfig // metric config provided by user.
+	capacity      int                                      // max observed number of data points added to the metric.
+	aggDataPoints []int64                                  // slice containing number of aggregated datapoints at each index
 }
 
 // init fills pkiengine.crl.processing_status metric with initial data.
@@ -431,19 +546,54 @@ func (m *metricPkiengineCrlProcessingStatus) init() {
 	m.data.SetUnit("{status}")
 	m.data.SetEmptyGauge()
 	m.data.Gauge().DataPoints().EnsureCapacity(m.capacity)
+	m.aggDataPoints = m.aggDataPoints[:0]
 }
 
 func (m *metricPkiengineCrlProcessingStatus) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64, crlRoleAttributeValue string, crlKindAttributeValue string, crlURIAttributeValue string) {
 	if !m.config.Enabled {
 		return
 	}
-	dp := m.data.Gauge().DataPoints().AppendEmpty()
+
+	dp := pmetric.NewNumberDataPoint()
 	dp.SetStartTimestamp(start)
 	dp.SetTimestamp(ts)
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCrlProcessingStatusMetricAttributeKeyCrlRole) {
+		dp.Attributes().PutStr("crl.role", crlRoleAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCrlProcessingStatusMetricAttributeKeyCrlKind) {
+		dp.Attributes().PutStr("crl.kind", crlKindAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCrlProcessingStatusMetricAttributeKeyCrlURI) {
+		dp.Attributes().PutStr("crl.uri", crlURIAttributeValue)
+	}
+
+	var s string
+	dps := m.data.Gauge().DataPoints()
+	for i := 0; i < dps.Len(); i++ {
+		dpi := dps.At(i)
+		if dp.Attributes().Equal(dpi.Attributes()) && dp.StartTimestamp() == dpi.StartTimestamp() && dp.Timestamp() == dpi.Timestamp() {
+			switch s = m.config.AggregationStrategy; s {
+			case AggregationStrategySum, AggregationStrategyAvg:
+				dpi.SetIntValue(dpi.IntValue() + val)
+				m.aggDataPoints[i] += 1
+				return
+			case AggregationStrategyMin:
+				if dpi.IntValue() > val {
+					dpi.SetIntValue(val)
+				}
+				return
+			case AggregationStrategyMax:
+				if dpi.IntValue() < val {
+					dpi.SetIntValue(val)
+				}
+				return
+			}
+		}
+	}
+
 	dp.SetIntValue(val)
-	dp.Attributes().PutStr("crl.role", crlRoleAttributeValue)
-	dp.Attributes().PutStr("crl.kind", crlKindAttributeValue)
-	dp.Attributes().PutStr("crl.uri", crlURIAttributeValue)
+	m.aggDataPoints = append(m.aggDataPoints, 1)
+	dp.MoveTo(dps.AppendEmpty())
 }
 
 // updateCapacity saves max length of data point slices that will be used for the slice capacity.
@@ -456,13 +606,18 @@ func (m *metricPkiengineCrlProcessingStatus) updateCapacity() {
 // emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
 func (m *metricPkiengineCrlProcessingStatus) emit(metrics pmetric.MetricSlice) {
 	if m.config.Enabled && m.data.Gauge().DataPoints().Len() > 0 {
+		if m.config.AggregationStrategy == AggregationStrategyAvg {
+			for i, aggCount := range m.aggDataPoints {
+				m.data.Gauge().DataPoints().At(i).SetIntValue(m.data.Gauge().DataPoints().At(i).IntValue() / aggCount)
+			}
+		}
 		m.updateCapacity()
 		m.data.MoveTo(metrics.AppendEmpty())
 		m.init()
 	}
 }
 
-func newMetricPkiengineCrlProcessingStatus(cfg MetricConfig) metricPkiengineCrlProcessingStatus {
+func newMetricPkiengineCrlProcessingStatus(cfg PkiengineCrlProcessingStatusMetricConfig) metricPkiengineCrlProcessingStatus {
 	m := metricPkiengineCrlProcessingStatus{config: cfg}
 
 	if cfg.Enabled {
@@ -473,9 +628,10 @@ func newMetricPkiengineCrlProcessingStatus(cfg MetricConfig) metricPkiengineCrlP
 }
 
 type metricPkiengineCrlX509NextUpdate struct {
-	data     pmetric.Metric // data buffer for generated metric.
-	config   MetricConfig   // metric config provided by user.
-	capacity int            // max observed number of data points added to the metric.
+	data          pmetric.Metric                         // data buffer for generated metric.
+	config        PkiengineCrlX509NextUpdateMetricConfig // metric config provided by user.
+	capacity      int                                    // max observed number of data points added to the metric.
+	aggDataPoints []int64                                // slice containing number of aggregated datapoints at each index
 }
 
 // init fills pkiengine.crl.x509.next_update metric with initial data.
@@ -485,20 +641,57 @@ func (m *metricPkiengineCrlX509NextUpdate) init() {
 	m.data.SetUnit("minutes")
 	m.data.SetEmptyGauge()
 	m.data.Gauge().DataPoints().EnsureCapacity(m.capacity)
+	m.aggDataPoints = m.aggDataPoints[:0]
 }
 
 func (m *metricPkiengineCrlX509NextUpdate) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64, crlURIAttributeValue string, crlRoleAttributeValue string, crlKindAttributeValue string, crlX509IssuerCommonNameAttributeValue string) {
 	if !m.config.Enabled {
 		return
 	}
-	dp := m.data.Gauge().DataPoints().AppendEmpty()
+
+	dp := pmetric.NewNumberDataPoint()
 	dp.SetStartTimestamp(start)
 	dp.SetTimestamp(ts)
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCrlX509NextUpdateMetricAttributeKeyCrlURI) {
+		dp.Attributes().PutStr("crl.uri", crlURIAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCrlX509NextUpdateMetricAttributeKeyCrlRole) {
+		dp.Attributes().PutStr("crl.role", crlRoleAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCrlX509NextUpdateMetricAttributeKeyCrlKind) {
+		dp.Attributes().PutStr("crl.kind", crlKindAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCrlX509NextUpdateMetricAttributeKeyCrlX509IssuerCommonName) {
+		dp.Attributes().PutStr("crl.x509.issuer.common_name", crlX509IssuerCommonNameAttributeValue)
+	}
+
+	var s string
+	dps := m.data.Gauge().DataPoints()
+	for i := 0; i < dps.Len(); i++ {
+		dpi := dps.At(i)
+		if dp.Attributes().Equal(dpi.Attributes()) && dp.StartTimestamp() == dpi.StartTimestamp() && dp.Timestamp() == dpi.Timestamp() {
+			switch s = m.config.AggregationStrategy; s {
+			case AggregationStrategySum, AggregationStrategyAvg:
+				dpi.SetIntValue(dpi.IntValue() + val)
+				m.aggDataPoints[i] += 1
+				return
+			case AggregationStrategyMin:
+				if dpi.IntValue() > val {
+					dpi.SetIntValue(val)
+				}
+				return
+			case AggregationStrategyMax:
+				if dpi.IntValue() < val {
+					dpi.SetIntValue(val)
+				}
+				return
+			}
+		}
+	}
+
 	dp.SetIntValue(val)
-	dp.Attributes().PutStr("crl.uri", crlURIAttributeValue)
-	dp.Attributes().PutStr("crl.role", crlRoleAttributeValue)
-	dp.Attributes().PutStr("crl.kind", crlKindAttributeValue)
-	dp.Attributes().PutStr("crl.x509.issuer.common_name", crlX509IssuerCommonNameAttributeValue)
+	m.aggDataPoints = append(m.aggDataPoints, 1)
+	dp.MoveTo(dps.AppendEmpty())
 }
 
 // updateCapacity saves max length of data point slices that will be used for the slice capacity.
@@ -511,13 +704,18 @@ func (m *metricPkiengineCrlX509NextUpdate) updateCapacity() {
 // emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
 func (m *metricPkiengineCrlX509NextUpdate) emit(metrics pmetric.MetricSlice) {
 	if m.config.Enabled && m.data.Gauge().DataPoints().Len() > 0 {
+		if m.config.AggregationStrategy == AggregationStrategyAvg {
+			for i, aggCount := range m.aggDataPoints {
+				m.data.Gauge().DataPoints().At(i).SetIntValue(m.data.Gauge().DataPoints().At(i).IntValue() / aggCount)
+			}
+		}
 		m.updateCapacity()
 		m.data.MoveTo(metrics.AppendEmpty())
 		m.init()
 	}
 }
 
-func newMetricPkiengineCrlX509NextUpdate(cfg MetricConfig) metricPkiengineCrlX509NextUpdate {
+func newMetricPkiengineCrlX509NextUpdate(cfg PkiengineCrlX509NextUpdateMetricConfig) metricPkiengineCrlX509NextUpdate {
 	m := metricPkiengineCrlX509NextUpdate{config: cfg}
 
 	if cfg.Enabled {
@@ -528,9 +726,10 @@ func newMetricPkiengineCrlX509NextUpdate(cfg MetricConfig) metricPkiengineCrlX50
 }
 
 type metricPkiengineCrlX509RevokedCertificates struct {
-	data     pmetric.Metric // data buffer for generated metric.
-	config   MetricConfig   // metric config provided by user.
-	capacity int            // max observed number of data points added to the metric.
+	data          pmetric.Metric                                  // data buffer for generated metric.
+	config        PkiengineCrlX509RevokedCertificatesMetricConfig // metric config provided by user.
+	capacity      int                                             // max observed number of data points added to the metric.
+	aggDataPoints []int64                                         // slice containing number of aggregated datapoints at each index
 }
 
 // init fills pkiengine.crl.x509.revoked_certificates metric with initial data.
@@ -540,20 +739,57 @@ func (m *metricPkiengineCrlX509RevokedCertificates) init() {
 	m.data.SetUnit("count")
 	m.data.SetEmptyGauge()
 	m.data.Gauge().DataPoints().EnsureCapacity(m.capacity)
+	m.aggDataPoints = m.aggDataPoints[:0]
 }
 
 func (m *metricPkiengineCrlX509RevokedCertificates) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64, crlURIAttributeValue string, crlRoleAttributeValue string, crlKindAttributeValue string, crlX509IssuerCommonNameAttributeValue string) {
 	if !m.config.Enabled {
 		return
 	}
-	dp := m.data.Gauge().DataPoints().AppendEmpty()
+
+	dp := pmetric.NewNumberDataPoint()
 	dp.SetStartTimestamp(start)
 	dp.SetTimestamp(ts)
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlURI) {
+		dp.Attributes().PutStr("crl.uri", crlURIAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlRole) {
+		dp.Attributes().PutStr("crl.role", crlRoleAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlKind) {
+		dp.Attributes().PutStr("crl.kind", crlKindAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlX509IssuerCommonName) {
+		dp.Attributes().PutStr("crl.x509.issuer.common_name", crlX509IssuerCommonNameAttributeValue)
+	}
+
+	var s string
+	dps := m.data.Gauge().DataPoints()
+	for i := 0; i < dps.Len(); i++ {
+		dpi := dps.At(i)
+		if dp.Attributes().Equal(dpi.Attributes()) && dp.StartTimestamp() == dpi.StartTimestamp() && dp.Timestamp() == dpi.Timestamp() {
+			switch s = m.config.AggregationStrategy; s {
+			case AggregationStrategySum, AggregationStrategyAvg:
+				dpi.SetIntValue(dpi.IntValue() + val)
+				m.aggDataPoints[i] += 1
+				return
+			case AggregationStrategyMin:
+				if dpi.IntValue() > val {
+					dpi.SetIntValue(val)
+				}
+				return
+			case AggregationStrategyMax:
+				if dpi.IntValue() < val {
+					dpi.SetIntValue(val)
+				}
+				return
+			}
+		}
+	}
+
 	dp.SetIntValue(val)
-	dp.Attributes().PutStr("crl.uri", crlURIAttributeValue)
-	dp.Attributes().PutStr("crl.role", crlRoleAttributeValue)
-	dp.Attributes().PutStr("crl.kind", crlKindAttributeValue)
-	dp.Attributes().PutStr("crl.x509.issuer.common_name", crlX509IssuerCommonNameAttributeValue)
+	m.aggDataPoints = append(m.aggDataPoints, 1)
+	dp.MoveTo(dps.AppendEmpty())
 }
 
 // updateCapacity saves max length of data point slices that will be used for the slice capacity.
@@ -566,13 +802,18 @@ func (m *metricPkiengineCrlX509RevokedCertificates) updateCapacity() {
 // emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
 func (m *metricPkiengineCrlX509RevokedCertificates) emit(metrics pmetric.MetricSlice) {
 	if m.config.Enabled && m.data.Gauge().DataPoints().Len() > 0 {
+		if m.config.AggregationStrategy == AggregationStrategyAvg {
+			for i, aggCount := range m.aggDataPoints {
+				m.data.Gauge().DataPoints().At(i).SetIntValue(m.data.Gauge().DataPoints().At(i).IntValue() / aggCount)
+			}
+		}
 		m.updateCapacity()
 		m.data.MoveTo(metrics.AppendEmpty())
 		m.init()
 	}
 }
 
-func newMetricPkiengineCrlX509RevokedCertificates(cfg MetricConfig) metricPkiengineCrlX509RevokedCertificates {
+func newMetricPkiengineCrlX509RevokedCertificates(cfg PkiengineCrlX509RevokedCertificatesMetricConfig) metricPkiengineCrlX509RevokedCertificates {
 	m := metricPkiengineCrlX509RevokedCertificates{config: cfg}
 
 	if cfg.Enabled {
@@ -583,9 +824,10 @@ func newMetricPkiengineCrlX509RevokedCertificates(cfg MetricConfig) metricPkieng
 }
 
 type metricPkiengineCrlX509ThisUpdate struct {
-	data     pmetric.Metric // data buffer for generated metric.
-	config   MetricConfig   // metric config provided by user.
-	capacity int            // max observed number of data points added to the metric.
+	data          pmetric.Metric                         // data buffer for generated metric.
+	config        PkiengineCrlX509ThisUpdateMetricConfig // metric config provided by user.
+	capacity      int                                    // max observed number of data points added to the metric.
+	aggDataPoints []int64                                // slice containing number of aggregated datapoints at each index
 }
 
 // init fills pkiengine.crl.x509.this_update metric with initial data.
@@ -595,20 +837,57 @@ func (m *metricPkiengineCrlX509ThisUpdate) init() {
 	m.data.SetUnit("minutes")
 	m.data.SetEmptyGauge()
 	m.data.Gauge().DataPoints().EnsureCapacity(m.capacity)
+	m.aggDataPoints = m.aggDataPoints[:0]
 }
 
 func (m *metricPkiengineCrlX509ThisUpdate) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64, crlURIAttributeValue string, crlRoleAttributeValue string, crlKindAttributeValue string, crlX509IssuerCommonNameAttributeValue string) {
 	if !m.config.Enabled {
 		return
 	}
-	dp := m.data.Gauge().DataPoints().AppendEmpty()
+
+	dp := pmetric.NewNumberDataPoint()
 	dp.SetStartTimestamp(start)
 	dp.SetTimestamp(ts)
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCrlX509ThisUpdateMetricAttributeKeyCrlURI) {
+		dp.Attributes().PutStr("crl.uri", crlURIAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCrlX509ThisUpdateMetricAttributeKeyCrlRole) {
+		dp.Attributes().PutStr("crl.role", crlRoleAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCrlX509ThisUpdateMetricAttributeKeyCrlKind) {
+		dp.Attributes().PutStr("crl.kind", crlKindAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCrlX509ThisUpdateMetricAttributeKeyCrlX509IssuerCommonName) {
+		dp.Attributes().PutStr("crl.x509.issuer.common_name", crlX509IssuerCommonNameAttributeValue)
+	}
+
+	var s string
+	dps := m.data.Gauge().DataPoints()
+	for i := 0; i < dps.Len(); i++ {
+		dpi := dps.At(i)
+		if dp.Attributes().Equal(dpi.Attributes()) && dp.StartTimestamp() == dpi.StartTimestamp() && dp.Timestamp() == dpi.Timestamp() {
+			switch s = m.config.AggregationStrategy; s {
+			case AggregationStrategySum, AggregationStrategyAvg:
+				dpi.SetIntValue(dpi.IntValue() + val)
+				m.aggDataPoints[i] += 1
+				return
+			case AggregationStrategyMin:
+				if dpi.IntValue() > val {
+					dpi.SetIntValue(val)
+				}
+				return
+			case AggregationStrategyMax:
+				if dpi.IntValue() < val {
+					dpi.SetIntValue(val)
+				}
+				return
+			}
+		}
+	}
+
 	dp.SetIntValue(val)
-	dp.Attributes().PutStr("crl.uri", crlURIAttributeValue)
-	dp.Attributes().PutStr("crl.role", crlRoleAttributeValue)
-	dp.Attributes().PutStr("crl.kind", crlKindAttributeValue)
-	dp.Attributes().PutStr("crl.x509.issuer.common_name", crlX509IssuerCommonNameAttributeValue)
+	m.aggDataPoints = append(m.aggDataPoints, 1)
+	dp.MoveTo(dps.AppendEmpty())
 }
 
 // updateCapacity saves max length of data point slices that will be used for the slice capacity.
@@ -621,13 +900,18 @@ func (m *metricPkiengineCrlX509ThisUpdate) updateCapacity() {
 // emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
 func (m *metricPkiengineCrlX509ThisUpdate) emit(metrics pmetric.MetricSlice) {
 	if m.config.Enabled && m.data.Gauge().DataPoints().Len() > 0 {
+		if m.config.AggregationStrategy == AggregationStrategyAvg {
+			for i, aggCount := range m.aggDataPoints {
+				m.data.Gauge().DataPoints().At(i).SetIntValue(m.data.Gauge().DataPoints().At(i).IntValue() / aggCount)
+			}
+		}
 		m.updateCapacity()
 		m.data.MoveTo(metrics.AppendEmpty())
 		m.init()
 	}
 }
 
-func newMetricPkiengineCrlX509ThisUpdate(cfg MetricConfig) metricPkiengineCrlX509ThisUpdate {
+func newMetricPkiengineCrlX509ThisUpdate(cfg PkiengineCrlX509ThisUpdateMetricConfig) metricPkiengineCrlX509ThisUpdate {
 	m := metricPkiengineCrlX509ThisUpdate{config: cfg}
 
 	if cfg.Enabled {
@@ -638,9 +922,9 @@ func newMetricPkiengineCrlX509ThisUpdate(cfg MetricConfig) metricPkiengineCrlX50
 }
 
 type metricPkiengineIssuerErrors struct {
-	data     pmetric.Metric // data buffer for generated metric.
-	config   MetricConfig   // metric config provided by user.
-	capacity int            // max observed number of data points added to the metric.
+	data     pmetric.Metric                    // data buffer for generated metric.
+	config   PkiengineIssuerErrorsMetricConfig // metric config provided by user.
+	capacity int                               // max observed number of data points added to the metric.
 }
 
 // init fills pkiengine.issuer.errors metric with initial data.
@@ -679,7 +963,7 @@ func (m *metricPkiengineIssuerErrors) emit(metrics pmetric.MetricSlice) {
 	}
 }
 
-func newMetricPkiengineIssuerErrors(cfg MetricConfig) metricPkiengineIssuerErrors {
+func newMetricPkiengineIssuerErrors(cfg PkiengineIssuerErrorsMetricConfig) metricPkiengineIssuerErrors {
 	m := metricPkiengineIssuerErrors{config: cfg}
 
 	if cfg.Enabled {
@@ -690,9 +974,10 @@ func newMetricPkiengineIssuerErrors(cfg MetricConfig) metricPkiengineIssuerError
 }
 
 type metricPkiengineMountCertificatesStored struct {
-	data     pmetric.Metric // data buffer for generated metric.
-	config   MetricConfig   // metric config provided by user.
-	capacity int            // max observed number of data points added to the metric.
+	data          pmetric.Metric                               // data buffer for generated metric.
+	config        PkiengineMountCertificatesStoredMetricConfig // metric config provided by user.
+	capacity      int                                          // max observed number of data points added to the metric.
+	aggDataPoints []int64                                      // slice containing number of aggregated datapoints at each index
 }
 
 // init fills pkiengine.mount.certificates_stored metric with initial data.
@@ -702,17 +987,48 @@ func (m *metricPkiengineMountCertificatesStored) init() {
 	m.data.SetUnit("{certificates_stored}")
 	m.data.SetEmptyGauge()
 	m.data.Gauge().DataPoints().EnsureCapacity(m.capacity)
+	m.aggDataPoints = m.aggDataPoints[:0]
 }
 
 func (m *metricPkiengineMountCertificatesStored) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64, engineMountAttributeValue string) {
 	if !m.config.Enabled {
 		return
 	}
-	dp := m.data.Gauge().DataPoints().AppendEmpty()
+
+	dp := pmetric.NewNumberDataPoint()
 	dp.SetStartTimestamp(start)
 	dp.SetTimestamp(ts)
+	if slices.Contains(m.config.EnabledAttributes, PkiengineMountCertificatesStoredMetricAttributeKeyEngineMount) {
+		dp.Attributes().PutStr("engine.mount", engineMountAttributeValue)
+	}
+
+	var s string
+	dps := m.data.Gauge().DataPoints()
+	for i := 0; i < dps.Len(); i++ {
+		dpi := dps.At(i)
+		if dp.Attributes().Equal(dpi.Attributes()) && dp.StartTimestamp() == dpi.StartTimestamp() && dp.Timestamp() == dpi.Timestamp() {
+			switch s = m.config.AggregationStrategy; s {
+			case AggregationStrategySum, AggregationStrategyAvg:
+				dpi.SetIntValue(dpi.IntValue() + val)
+				m.aggDataPoints[i] += 1
+				return
+			case AggregationStrategyMin:
+				if dpi.IntValue() > val {
+					dpi.SetIntValue(val)
+				}
+				return
+			case AggregationStrategyMax:
+				if dpi.IntValue() < val {
+					dpi.SetIntValue(val)
+				}
+				return
+			}
+		}
+	}
+
 	dp.SetIntValue(val)
-	dp.Attributes().PutStr("engine.mount", engineMountAttributeValue)
+	m.aggDataPoints = append(m.aggDataPoints, 1)
+	dp.MoveTo(dps.AppendEmpty())
 }
 
 // updateCapacity saves max length of data point slices that will be used for the slice capacity.
@@ -725,13 +1041,18 @@ func (m *metricPkiengineMountCertificatesStored) updateCapacity() {
 // emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
 func (m *metricPkiengineMountCertificatesStored) emit(metrics pmetric.MetricSlice) {
 	if m.config.Enabled && m.data.Gauge().DataPoints().Len() > 0 {
+		if m.config.AggregationStrategy == AggregationStrategyAvg {
+			for i, aggCount := range m.aggDataPoints {
+				m.data.Gauge().DataPoints().At(i).SetIntValue(m.data.Gauge().DataPoints().At(i).IntValue() / aggCount)
+			}
+		}
 		m.updateCapacity()
 		m.data.MoveTo(metrics.AppendEmpty())
 		m.init()
 	}
 }
 
-func newMetricPkiengineMountCertificatesStored(cfg MetricConfig) metricPkiengineMountCertificatesStored {
+func newMetricPkiengineMountCertificatesStored(cfg PkiengineMountCertificatesStoredMetricConfig) metricPkiengineMountCertificatesStored {
 	m := metricPkiengineMountCertificatesStored{config: cfg}
 
 	if cfg.Enabled {
@@ -742,9 +1063,9 @@ func newMetricPkiengineMountCertificatesStored(cfg MetricConfig) metricPkiengine
 }
 
 type metricPkiengineMountErrors struct {
-	data     pmetric.Metric // data buffer for generated metric.
-	config   MetricConfig   // metric config provided by user.
-	capacity int            // max observed number of data points added to the metric.
+	data     pmetric.Metric                   // data buffer for generated metric.
+	config   PkiengineMountErrorsMetricConfig // metric config provided by user.
+	capacity int                              // max observed number of data points added to the metric.
 }
 
 // init fills pkiengine.mount.errors metric with initial data.
@@ -783,7 +1104,7 @@ func (m *metricPkiengineMountErrors) emit(metrics pmetric.MetricSlice) {
 	}
 }
 
-func newMetricPkiengineMountErrors(cfg MetricConfig) metricPkiengineMountErrors {
+func newMetricPkiengineMountErrors(cfg PkiengineMountErrorsMetricConfig) metricPkiengineMountErrors {
 	m := metricPkiengineMountErrors{config: cfg}
 
 	if cfg.Enabled {

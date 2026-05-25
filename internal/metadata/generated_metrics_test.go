@@ -19,6 +19,7 @@ const (
 	testDataSetDefault testDataSet = iota
 	testDataSetAll
 	testDataSetNone
+	testDataSetReag
 )
 
 func TestMetricsBuilder(t *testing.T) {
@@ -35,6 +36,11 @@ func TestMetricsBuilder(t *testing.T) {
 			name:        "all_set",
 			metricsSet:  testDataSetAll,
 			resAttrsSet: testDataSetAll,
+		},
+		{
+			name:        "reaggregate_set",
+			metricsSet:  testDataSetReag,
+			resAttrsSet: testDataSetReag,
 		},
 		{
 			name:        "none_set",
@@ -60,9 +66,19 @@ func TestMetricsBuilder(t *testing.T) {
 			settings := receivertest.NewNopSettings(receivertest.NopType)
 			settings.Logger = zap.New(observedZapCore)
 			mb := NewMetricsBuilder(loadMetricsBuilderConfig(t, tt.name), settings, WithStartTime(start))
+			aggMap := make(map[string]string) // contains the aggregation strategies for each metric name
+			aggMap["pkiengine.cert.x509.not_after"] = mb.metricPkiengineCertX509NotAfter.config.AggregationStrategy
+			aggMap["pkiengine.cert.x509.not_before"] = mb.metricPkiengineCertX509NotBefore.config.AggregationStrategy
+			aggMap["pkiengine.crl.processing_status"] = mb.metricPkiengineCrlProcessingStatus.config.AggregationStrategy
+			aggMap["pkiengine.crl.x509.next_update"] = mb.metricPkiengineCrlX509NextUpdate.config.AggregationStrategy
+			aggMap["pkiengine.crl.x509.revoked_certificates"] = mb.metricPkiengineCrlX509RevokedCertificates.config.AggregationStrategy
+			aggMap["pkiengine.crl.x509.this_update"] = mb.metricPkiengineCrlX509ThisUpdate.config.AggregationStrategy
+			aggMap["pkiengine.mount.certificates_stored"] = mb.metricPkiengineMountCertificatesStored.config.AggregationStrategy
 
 			expectedWarnings := 0
-			assert.Equal(t, expectedWarnings, observedLogs.Len())
+			if tt.metricsSet != testDataSetReag {
+				assert.Equal(t, expectedWarnings, observedLogs.Len())
+			}
 
 			defaultMetricsCount := 0
 			allMetricsCount := 0
@@ -70,10 +86,16 @@ func TestMetricsBuilder(t *testing.T) {
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineCertX509NotAfterDataPoint(ts, 1, AttributeCertTypeIssuer, "cert.x509.issuer.common_name-val", "cert.x509.serial_number-val", "cert.x509.subject.common_name-val", []any{"cert.x509.subject.country-item1", "cert.x509.subject.country-item2"}, []any{"cert.x509.subject.organization-item1", "cert.x509.subject.organization-item2"}, []any{"cert.x509.subject.organizational_unit-item1", "cert.x509.subject.organizational_unit-item2"}, "engine.mount-val", "issuer.id-val")
+			if tt.name == "reaggregate_set" {
+				mb.RecordPkiengineCertX509NotAfterDataPoint(ts, 3, AttributeCertTypeLeaf, "cert.x509.issuer.common_name-val-2", "cert.x509.serial_number-val-2", "cert.x509.subject.common_name-val-2", []any{"cert.x509.subject.country-item3", "cert.x509.subject.country-item4"}, []any{"cert.x509.subject.organization-item3", "cert.x509.subject.organization-item4"}, []any{"cert.x509.subject.organizational_unit-item3", "cert.x509.subject.organizational_unit-item4"}, "engine.mount-val-2", "issuer.id-val-2")
+			}
 
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineCertX509NotBeforeDataPoint(ts, 1, AttributeCertTypeIssuer, "cert.x509.issuer.common_name-val", "cert.x509.serial_number-val", "cert.x509.subject.common_name-val", []any{"cert.x509.subject.country-item1", "cert.x509.subject.country-item2"}, []any{"cert.x509.subject.organization-item1", "cert.x509.subject.organization-item2"}, []any{"cert.x509.subject.organizational_unit-item1", "cert.x509.subject.organizational_unit-item2"}, "engine.mount-val", "issuer.id-val")
+			if tt.name == "reaggregate_set" {
+				mb.RecordPkiengineCertX509NotBeforeDataPoint(ts, 3, AttributeCertTypeLeaf, "cert.x509.issuer.common_name-val-2", "cert.x509.serial_number-val-2", "cert.x509.subject.common_name-val-2", []any{"cert.x509.subject.country-item3", "cert.x509.subject.country-item4"}, []any{"cert.x509.subject.organization-item3", "cert.x509.subject.organization-item4"}, []any{"cert.x509.subject.organizational_unit-item3", "cert.x509.subject.organizational_unit-item4"}, "engine.mount-val-2", "issuer.id-val-2")
+			}
 
 			defaultMetricsCount++
 			allMetricsCount++
@@ -90,18 +112,30 @@ func TestMetricsBuilder(t *testing.T) {
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineCrlProcessingStatusDataPoint(ts, 1, AttributeCrlRoleSubject, AttributeCrlKindBase, "crl.uri-val")
+			if tt.name == "reaggregate_set" {
+				mb.RecordPkiengineCrlProcessingStatusDataPoint(ts, 3, AttributeCrlRoleIssuer, AttributeCrlKindDelta, "crl.uri-val-2")
+			}
 
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineCrlX509NextUpdateDataPoint(ts, 1, "crl.uri-val", AttributeCrlRoleSubject, AttributeCrlKindBase, "crl.x509.issuer.common_name-val")
+			if tt.name == "reaggregate_set" {
+				mb.RecordPkiengineCrlX509NextUpdateDataPoint(ts, 3, "crl.uri-val-2", AttributeCrlRoleIssuer, AttributeCrlKindDelta, "crl.x509.issuer.common_name-val-2")
+			}
 
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineCrlX509RevokedCertificatesDataPoint(ts, 1, "crl.uri-val", AttributeCrlRoleSubject, AttributeCrlKindBase, "crl.x509.issuer.common_name-val")
+			if tt.name == "reaggregate_set" {
+				mb.RecordPkiengineCrlX509RevokedCertificatesDataPoint(ts, 3, "crl.uri-val-2", AttributeCrlRoleIssuer, AttributeCrlKindDelta, "crl.x509.issuer.common_name-val-2")
+			}
 
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineCrlX509ThisUpdateDataPoint(ts, 1, "crl.uri-val", AttributeCrlRoleSubject, AttributeCrlKindBase, "crl.x509.issuer.common_name-val")
+			if tt.name == "reaggregate_set" {
+				mb.RecordPkiengineCrlX509ThisUpdateDataPoint(ts, 3, "crl.uri-val-2", AttributeCrlRoleIssuer, AttributeCrlKindDelta, "crl.x509.issuer.common_name-val-2")
+			}
 
 			defaultMetricsCount++
 			allMetricsCount++
@@ -110,6 +144,9 @@ func TestMetricsBuilder(t *testing.T) {
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineMountCertificatesStoredDataPoint(ts, 1, "engine.mount-val")
+			if tt.name == "reaggregate_set" {
+				mb.RecordPkiengineMountCertificatesStoredDataPoint(ts, 3, "engine.mount-val-2")
+			}
 
 			defaultMetricsCount++
 			allMetricsCount++
@@ -120,6 +157,15 @@ func TestMetricsBuilder(t *testing.T) {
 			rb.SetEngineNamespace("engine.namespace-val")
 			res := rb.Emit()
 			metrics := mb.Emit(WithResource(res))
+			if tt.name == "reaggregate_set" {
+				assert.Empty(t, mb.metricPkiengineCertX509NotAfter.aggDataPoints)
+				assert.Empty(t, mb.metricPkiengineCertX509NotBefore.aggDataPoints)
+				assert.Empty(t, mb.metricPkiengineCrlProcessingStatus.aggDataPoints)
+				assert.Empty(t, mb.metricPkiengineCrlX509NextUpdate.aggDataPoints)
+				assert.Empty(t, mb.metricPkiengineCrlX509RevokedCertificates.aggDataPoints)
+				assert.Empty(t, mb.metricPkiengineCrlX509ThisUpdate.aggDataPoints)
+				assert.Empty(t, mb.metricPkiengineMountCertificatesStored.aggDataPoints)
+			}
 
 			if tt.expectEmpty {
 				assert.Equal(t, 0, metrics.ResourceMetrics().Len())
@@ -147,83 +193,165 @@ func TestMetricsBuilder(t *testing.T) {
 			for _, mi := range allMetricsList {
 				switch mi.Name() {
 				case "pkiengine.cert.x509.not_after":
-					assert.False(t, validatedMetrics["pkiengine.cert.x509.not_after"], "Found a duplicate in the metrics slice: pkiengine.cert.x509.not_after")
-					validatedMetrics["pkiengine.cert.x509.not_after"] = true
-					assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
-					assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
-					assert.Equal(t, "Time until certificate expiration as specified by the `notAfter` field.", mi.Description())
-					assert.Equal(t, "minutes", mi.Unit())
-					dp := mi.Gauge().DataPoints().At(0)
-					assert.Equal(t, start, dp.StartTimestamp())
-					assert.Equal(t, ts, dp.Timestamp())
-					assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
-					assert.Equal(t, int64(1), dp.IntValue())
-					certTypeAttrVal, ok := dp.Attributes().Get("cert.type")
-					assert.True(t, ok)
-					assert.Equal(t, "issuer", certTypeAttrVal.Str())
-					certX509IssuerCommonNameAttrVal, ok := dp.Attributes().Get("cert.x509.issuer.common_name")
-					assert.True(t, ok)
-					assert.Equal(t, "cert.x509.issuer.common_name-val", certX509IssuerCommonNameAttrVal.Str())
-					certX509SerialNumberAttrVal, ok := dp.Attributes().Get("cert.x509.serial_number")
-					assert.True(t, ok)
-					assert.Equal(t, "cert.x509.serial_number-val", certX509SerialNumberAttrVal.Str())
-					certX509SubjectCommonNameAttrVal, ok := dp.Attributes().Get("cert.x509.subject.common_name")
-					assert.True(t, ok)
-					assert.Equal(t, "cert.x509.subject.common_name-val", certX509SubjectCommonNameAttrVal.Str())
-					certX509SubjectCountryAttrVal, ok := dp.Attributes().Get("cert.x509.subject.country")
-					assert.True(t, ok)
-					assert.Equal(t, []any{"cert.x509.subject.country-item1", "cert.x509.subject.country-item2"}, certX509SubjectCountryAttrVal.Slice().AsRaw())
-					certX509SubjectOrganizationAttrVal, ok := dp.Attributes().Get("cert.x509.subject.organization")
-					assert.True(t, ok)
-					assert.Equal(t, []any{"cert.x509.subject.organization-item1", "cert.x509.subject.organization-item2"}, certX509SubjectOrganizationAttrVal.Slice().AsRaw())
-					certX509SubjectOrganizationalUnitAttrVal, ok := dp.Attributes().Get("cert.x509.subject.organizational_unit")
-					assert.True(t, ok)
-					assert.Equal(t, []any{"cert.x509.subject.organizational_unit-item1", "cert.x509.subject.organizational_unit-item2"}, certX509SubjectOrganizationalUnitAttrVal.Slice().AsRaw())
-					engineMountAttrVal, ok := dp.Attributes().Get("engine.mount")
-					assert.True(t, ok)
-					assert.Equal(t, "engine.mount-val", engineMountAttrVal.Str())
-					issuerIDAttrVal, ok := dp.Attributes().Get("issuer.id")
-					assert.True(t, ok)
-					assert.Equal(t, "issuer.id-val", issuerIDAttrVal.Str())
+					if tt.name != "reaggregate_set" {
+						assert.False(t, validatedMetrics["pkiengine.cert.x509.not_after"], "Found a duplicate in the metrics slice: pkiengine.cert.x509.not_after")
+						validatedMetrics["pkiengine.cert.x509.not_after"] = true
+						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
+						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, "Time until certificate expiration as specified by the `notAfter` field.", mi.Description())
+						assert.Equal(t, "minutes", mi.Unit())
+						dp := mi.Gauge().DataPoints().At(0)
+						assert.Equal(t, start, dp.StartTimestamp())
+						assert.Equal(t, ts, dp.Timestamp())
+						assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
+						assert.Equal(t, int64(1), dp.IntValue())
+						certTypeAttrVal, ok := dp.Attributes().Get("cert.type")
+						assert.True(t, ok)
+						assert.Equal(t, "issuer", certTypeAttrVal.Str())
+						certX509IssuerCommonNameAttrVal, ok := dp.Attributes().Get("cert.x509.issuer.common_name")
+						assert.True(t, ok)
+						assert.Equal(t, "cert.x509.issuer.common_name-val", certX509IssuerCommonNameAttrVal.Str())
+						certX509SerialNumberAttrVal, ok := dp.Attributes().Get("cert.x509.serial_number")
+						assert.True(t, ok)
+						assert.Equal(t, "cert.x509.serial_number-val", certX509SerialNumberAttrVal.Str())
+						certX509SubjectCommonNameAttrVal, ok := dp.Attributes().Get("cert.x509.subject.common_name")
+						assert.True(t, ok)
+						assert.Equal(t, "cert.x509.subject.common_name-val", certX509SubjectCommonNameAttrVal.Str())
+						certX509SubjectCountryAttrVal, ok := dp.Attributes().Get("cert.x509.subject.country")
+						assert.True(t, ok)
+						assert.Equal(t, []any{"cert.x509.subject.country-item1", "cert.x509.subject.country-item2"}, certX509SubjectCountryAttrVal.Slice().AsRaw())
+						certX509SubjectOrganizationAttrVal, ok := dp.Attributes().Get("cert.x509.subject.organization")
+						assert.True(t, ok)
+						assert.Equal(t, []any{"cert.x509.subject.organization-item1", "cert.x509.subject.organization-item2"}, certX509SubjectOrganizationAttrVal.Slice().AsRaw())
+						certX509SubjectOrganizationalUnitAttrVal, ok := dp.Attributes().Get("cert.x509.subject.organizational_unit")
+						assert.True(t, ok)
+						assert.Equal(t, []any{"cert.x509.subject.organizational_unit-item1", "cert.x509.subject.organizational_unit-item2"}, certX509SubjectOrganizationalUnitAttrVal.Slice().AsRaw())
+						engineMountAttrVal, ok := dp.Attributes().Get("engine.mount")
+						assert.True(t, ok)
+						assert.Equal(t, "engine.mount-val", engineMountAttrVal.Str())
+						issuerIDAttrVal, ok := dp.Attributes().Get("issuer.id")
+						assert.True(t, ok)
+						assert.Equal(t, "issuer.id-val", issuerIDAttrVal.Str())
+					} else {
+						assert.False(t, validatedMetrics["pkiengine.cert.x509.not_after"], "Found a duplicate in the metrics slice: pkiengine.cert.x509.not_after")
+						validatedMetrics["pkiengine.cert.x509.not_after"] = true
+						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
+						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, "Time until certificate expiration as specified by the `notAfter` field.", mi.Description())
+						assert.Equal(t, "minutes", mi.Unit())
+						dp := mi.Gauge().DataPoints().At(0)
+						assert.Equal(t, start, dp.StartTimestamp())
+						assert.Equal(t, ts, dp.Timestamp())
+						assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
+						switch aggMap["pkiengine.cert.x509.not_after"] {
+						case "sum":
+							assert.Equal(t, int64(4), dp.IntValue())
+						case "avg":
+							assert.Equal(t, int64(2), dp.IntValue())
+						case "min":
+							assert.Equal(t, int64(1), dp.IntValue())
+						case "max":
+							assert.Equal(t, int64(3), dp.IntValue())
+						}
+						_, ok := dp.Attributes().Get("cert.type")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("cert.x509.issuer.common_name")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("cert.x509.serial_number")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("cert.x509.subject.common_name")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("cert.x509.subject.country")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("cert.x509.subject.organization")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("cert.x509.subject.organizational_unit")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("engine.mount")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("issuer.id")
+						assert.False(t, ok)
+					}
 				case "pkiengine.cert.x509.not_before":
-					assert.False(t, validatedMetrics["pkiengine.cert.x509.not_before"], "Found a duplicate in the metrics slice: pkiengine.cert.x509.not_before")
-					validatedMetrics["pkiengine.cert.x509.not_before"] = true
-					assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
-					assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
-					assert.Equal(t, "Time util certificate validity start as specified by the `notBefore` field.", mi.Description())
-					assert.Equal(t, "minutes", mi.Unit())
-					dp := mi.Gauge().DataPoints().At(0)
-					assert.Equal(t, start, dp.StartTimestamp())
-					assert.Equal(t, ts, dp.Timestamp())
-					assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
-					assert.Equal(t, int64(1), dp.IntValue())
-					certTypeAttrVal, ok := dp.Attributes().Get("cert.type")
-					assert.True(t, ok)
-					assert.Equal(t, "issuer", certTypeAttrVal.Str())
-					certX509IssuerCommonNameAttrVal, ok := dp.Attributes().Get("cert.x509.issuer.common_name")
-					assert.True(t, ok)
-					assert.Equal(t, "cert.x509.issuer.common_name-val", certX509IssuerCommonNameAttrVal.Str())
-					certX509SerialNumberAttrVal, ok := dp.Attributes().Get("cert.x509.serial_number")
-					assert.True(t, ok)
-					assert.Equal(t, "cert.x509.serial_number-val", certX509SerialNumberAttrVal.Str())
-					certX509SubjectCommonNameAttrVal, ok := dp.Attributes().Get("cert.x509.subject.common_name")
-					assert.True(t, ok)
-					assert.Equal(t, "cert.x509.subject.common_name-val", certX509SubjectCommonNameAttrVal.Str())
-					certX509SubjectCountryAttrVal, ok := dp.Attributes().Get("cert.x509.subject.country")
-					assert.True(t, ok)
-					assert.Equal(t, []any{"cert.x509.subject.country-item1", "cert.x509.subject.country-item2"}, certX509SubjectCountryAttrVal.Slice().AsRaw())
-					certX509SubjectOrganizationAttrVal, ok := dp.Attributes().Get("cert.x509.subject.organization")
-					assert.True(t, ok)
-					assert.Equal(t, []any{"cert.x509.subject.organization-item1", "cert.x509.subject.organization-item2"}, certX509SubjectOrganizationAttrVal.Slice().AsRaw())
-					certX509SubjectOrganizationalUnitAttrVal, ok := dp.Attributes().Get("cert.x509.subject.organizational_unit")
-					assert.True(t, ok)
-					assert.Equal(t, []any{"cert.x509.subject.organizational_unit-item1", "cert.x509.subject.organizational_unit-item2"}, certX509SubjectOrganizationalUnitAttrVal.Slice().AsRaw())
-					engineMountAttrVal, ok := dp.Attributes().Get("engine.mount")
-					assert.True(t, ok)
-					assert.Equal(t, "engine.mount-val", engineMountAttrVal.Str())
-					issuerIDAttrVal, ok := dp.Attributes().Get("issuer.id")
-					assert.True(t, ok)
-					assert.Equal(t, "issuer.id-val", issuerIDAttrVal.Str())
+					if tt.name != "reaggregate_set" {
+						assert.False(t, validatedMetrics["pkiengine.cert.x509.not_before"], "Found a duplicate in the metrics slice: pkiengine.cert.x509.not_before")
+						validatedMetrics["pkiengine.cert.x509.not_before"] = true
+						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
+						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, "Time util certificate validity start as specified by the `notBefore` field.", mi.Description())
+						assert.Equal(t, "minutes", mi.Unit())
+						dp := mi.Gauge().DataPoints().At(0)
+						assert.Equal(t, start, dp.StartTimestamp())
+						assert.Equal(t, ts, dp.Timestamp())
+						assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
+						assert.Equal(t, int64(1), dp.IntValue())
+						certTypeAttrVal, ok := dp.Attributes().Get("cert.type")
+						assert.True(t, ok)
+						assert.Equal(t, "issuer", certTypeAttrVal.Str())
+						certX509IssuerCommonNameAttrVal, ok := dp.Attributes().Get("cert.x509.issuer.common_name")
+						assert.True(t, ok)
+						assert.Equal(t, "cert.x509.issuer.common_name-val", certX509IssuerCommonNameAttrVal.Str())
+						certX509SerialNumberAttrVal, ok := dp.Attributes().Get("cert.x509.serial_number")
+						assert.True(t, ok)
+						assert.Equal(t, "cert.x509.serial_number-val", certX509SerialNumberAttrVal.Str())
+						certX509SubjectCommonNameAttrVal, ok := dp.Attributes().Get("cert.x509.subject.common_name")
+						assert.True(t, ok)
+						assert.Equal(t, "cert.x509.subject.common_name-val", certX509SubjectCommonNameAttrVal.Str())
+						certX509SubjectCountryAttrVal, ok := dp.Attributes().Get("cert.x509.subject.country")
+						assert.True(t, ok)
+						assert.Equal(t, []any{"cert.x509.subject.country-item1", "cert.x509.subject.country-item2"}, certX509SubjectCountryAttrVal.Slice().AsRaw())
+						certX509SubjectOrganizationAttrVal, ok := dp.Attributes().Get("cert.x509.subject.organization")
+						assert.True(t, ok)
+						assert.Equal(t, []any{"cert.x509.subject.organization-item1", "cert.x509.subject.organization-item2"}, certX509SubjectOrganizationAttrVal.Slice().AsRaw())
+						certX509SubjectOrganizationalUnitAttrVal, ok := dp.Attributes().Get("cert.x509.subject.organizational_unit")
+						assert.True(t, ok)
+						assert.Equal(t, []any{"cert.x509.subject.organizational_unit-item1", "cert.x509.subject.organizational_unit-item2"}, certX509SubjectOrganizationalUnitAttrVal.Slice().AsRaw())
+						engineMountAttrVal, ok := dp.Attributes().Get("engine.mount")
+						assert.True(t, ok)
+						assert.Equal(t, "engine.mount-val", engineMountAttrVal.Str())
+						issuerIDAttrVal, ok := dp.Attributes().Get("issuer.id")
+						assert.True(t, ok)
+						assert.Equal(t, "issuer.id-val", issuerIDAttrVal.Str())
+					} else {
+						assert.False(t, validatedMetrics["pkiengine.cert.x509.not_before"], "Found a duplicate in the metrics slice: pkiengine.cert.x509.not_before")
+						validatedMetrics["pkiengine.cert.x509.not_before"] = true
+						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
+						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, "Time util certificate validity start as specified by the `notBefore` field.", mi.Description())
+						assert.Equal(t, "minutes", mi.Unit())
+						dp := mi.Gauge().DataPoints().At(0)
+						assert.Equal(t, start, dp.StartTimestamp())
+						assert.Equal(t, ts, dp.Timestamp())
+						assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
+						switch aggMap["pkiengine.cert.x509.not_before"] {
+						case "sum":
+							assert.Equal(t, int64(4), dp.IntValue())
+						case "avg":
+							assert.Equal(t, int64(2), dp.IntValue())
+						case "min":
+							assert.Equal(t, int64(1), dp.IntValue())
+						case "max":
+							assert.Equal(t, int64(3), dp.IntValue())
+						}
+						_, ok := dp.Attributes().Get("cert.type")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("cert.x509.issuer.common_name")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("cert.x509.serial_number")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("cert.x509.subject.common_name")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("cert.x509.subject.country")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("cert.x509.subject.organization")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("cert.x509.subject.organizational_unit")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("engine.mount")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("issuer.id")
+						assert.False(t, ok)
+					}
 				case "pkiengine.crl.cache.evictions":
 					assert.False(t, validatedMetrics["pkiengine.crl.cache.evictions"], "Found a duplicate in the metrics slice: pkiengine.crl.cache.evictions")
 					validatedMetrics["pkiengine.crl.cache.evictions"] = true
@@ -261,98 +389,220 @@ func TestMetricsBuilder(t *testing.T) {
 					assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
 					assert.Equal(t, int64(1), dp.IntValue())
 				case "pkiengine.crl.processing_status":
-					assert.False(t, validatedMetrics["pkiengine.crl.processing_status"], "Found a duplicate in the metrics slice: pkiengine.crl.processing_status")
-					validatedMetrics["pkiengine.crl.processing_status"] = true
-					assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
-					assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
-					assert.Equal(t, "CRL processing status as an integer value.", mi.Description())
-					assert.Equal(t, "{status}", mi.Unit())
-					dp := mi.Gauge().DataPoints().At(0)
-					assert.Equal(t, start, dp.StartTimestamp())
-					assert.Equal(t, ts, dp.Timestamp())
-					assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
-					assert.Equal(t, int64(1), dp.IntValue())
-					crlRoleAttrVal, ok := dp.Attributes().Get("crl.role")
-					assert.True(t, ok)
-					assert.Equal(t, "subject", crlRoleAttrVal.Str())
-					crlKindAttrVal, ok := dp.Attributes().Get("crl.kind")
-					assert.True(t, ok)
-					assert.Equal(t, "base", crlKindAttrVal.Str())
-					crlURIAttrVal, ok := dp.Attributes().Get("crl.uri")
-					assert.True(t, ok)
-					assert.Equal(t, "crl.uri-val", crlURIAttrVal.Str())
+					if tt.name != "reaggregate_set" {
+						assert.False(t, validatedMetrics["pkiengine.crl.processing_status"], "Found a duplicate in the metrics slice: pkiengine.crl.processing_status")
+						validatedMetrics["pkiengine.crl.processing_status"] = true
+						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
+						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, "CRL processing status as an integer value.", mi.Description())
+						assert.Equal(t, "{status}", mi.Unit())
+						dp := mi.Gauge().DataPoints().At(0)
+						assert.Equal(t, start, dp.StartTimestamp())
+						assert.Equal(t, ts, dp.Timestamp())
+						assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
+						assert.Equal(t, int64(1), dp.IntValue())
+						crlRoleAttrVal, ok := dp.Attributes().Get("crl.role")
+						assert.True(t, ok)
+						assert.Equal(t, "subject", crlRoleAttrVal.Str())
+						crlKindAttrVal, ok := dp.Attributes().Get("crl.kind")
+						assert.True(t, ok)
+						assert.Equal(t, "base", crlKindAttrVal.Str())
+						crlURIAttrVal, ok := dp.Attributes().Get("crl.uri")
+						assert.True(t, ok)
+						assert.Equal(t, "crl.uri-val", crlURIAttrVal.Str())
+					} else {
+						assert.False(t, validatedMetrics["pkiengine.crl.processing_status"], "Found a duplicate in the metrics slice: pkiengine.crl.processing_status")
+						validatedMetrics["pkiengine.crl.processing_status"] = true
+						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
+						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, "CRL processing status as an integer value.", mi.Description())
+						assert.Equal(t, "{status}", mi.Unit())
+						dp := mi.Gauge().DataPoints().At(0)
+						assert.Equal(t, start, dp.StartTimestamp())
+						assert.Equal(t, ts, dp.Timestamp())
+						assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
+						switch aggMap["pkiengine.crl.processing_status"] {
+						case "sum":
+							assert.Equal(t, int64(4), dp.IntValue())
+						case "avg":
+							assert.Equal(t, int64(2), dp.IntValue())
+						case "min":
+							assert.Equal(t, int64(1), dp.IntValue())
+						case "max":
+							assert.Equal(t, int64(3), dp.IntValue())
+						}
+						_, ok := dp.Attributes().Get("crl.role")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("crl.kind")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("crl.uri")
+						assert.False(t, ok)
+					}
 				case "pkiengine.crl.x509.next_update":
-					assert.False(t, validatedMetrics["pkiengine.crl.x509.next_update"], "Found a duplicate in the metrics slice: pkiengine.crl.x509.next_update")
-					validatedMetrics["pkiengine.crl.x509.next_update"] = true
-					assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
-					assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
-					assert.Equal(t, "Time until the CRL `nextUpdate` field.", mi.Description())
-					assert.Equal(t, "minutes", mi.Unit())
-					dp := mi.Gauge().DataPoints().At(0)
-					assert.Equal(t, start, dp.StartTimestamp())
-					assert.Equal(t, ts, dp.Timestamp())
-					assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
-					assert.Equal(t, int64(1), dp.IntValue())
-					crlURIAttrVal, ok := dp.Attributes().Get("crl.uri")
-					assert.True(t, ok)
-					assert.Equal(t, "crl.uri-val", crlURIAttrVal.Str())
-					crlRoleAttrVal, ok := dp.Attributes().Get("crl.role")
-					assert.True(t, ok)
-					assert.Equal(t, "subject", crlRoleAttrVal.Str())
-					crlKindAttrVal, ok := dp.Attributes().Get("crl.kind")
-					assert.True(t, ok)
-					assert.Equal(t, "base", crlKindAttrVal.Str())
-					crlX509IssuerCommonNameAttrVal, ok := dp.Attributes().Get("crl.x509.issuer.common_name")
-					assert.True(t, ok)
-					assert.Equal(t, "crl.x509.issuer.common_name-val", crlX509IssuerCommonNameAttrVal.Str())
+					if tt.name != "reaggregate_set" {
+						assert.False(t, validatedMetrics["pkiengine.crl.x509.next_update"], "Found a duplicate in the metrics slice: pkiengine.crl.x509.next_update")
+						validatedMetrics["pkiengine.crl.x509.next_update"] = true
+						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
+						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, "Time until the CRL `nextUpdate` field.", mi.Description())
+						assert.Equal(t, "minutes", mi.Unit())
+						dp := mi.Gauge().DataPoints().At(0)
+						assert.Equal(t, start, dp.StartTimestamp())
+						assert.Equal(t, ts, dp.Timestamp())
+						assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
+						assert.Equal(t, int64(1), dp.IntValue())
+						crlURIAttrVal, ok := dp.Attributes().Get("crl.uri")
+						assert.True(t, ok)
+						assert.Equal(t, "crl.uri-val", crlURIAttrVal.Str())
+						crlRoleAttrVal, ok := dp.Attributes().Get("crl.role")
+						assert.True(t, ok)
+						assert.Equal(t, "subject", crlRoleAttrVal.Str())
+						crlKindAttrVal, ok := dp.Attributes().Get("crl.kind")
+						assert.True(t, ok)
+						assert.Equal(t, "base", crlKindAttrVal.Str())
+						crlX509IssuerCommonNameAttrVal, ok := dp.Attributes().Get("crl.x509.issuer.common_name")
+						assert.True(t, ok)
+						assert.Equal(t, "crl.x509.issuer.common_name-val", crlX509IssuerCommonNameAttrVal.Str())
+					} else {
+						assert.False(t, validatedMetrics["pkiengine.crl.x509.next_update"], "Found a duplicate in the metrics slice: pkiengine.crl.x509.next_update")
+						validatedMetrics["pkiengine.crl.x509.next_update"] = true
+						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
+						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, "Time until the CRL `nextUpdate` field.", mi.Description())
+						assert.Equal(t, "minutes", mi.Unit())
+						dp := mi.Gauge().DataPoints().At(0)
+						assert.Equal(t, start, dp.StartTimestamp())
+						assert.Equal(t, ts, dp.Timestamp())
+						assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
+						switch aggMap["pkiengine.crl.x509.next_update"] {
+						case "sum":
+							assert.Equal(t, int64(4), dp.IntValue())
+						case "avg":
+							assert.Equal(t, int64(2), dp.IntValue())
+						case "min":
+							assert.Equal(t, int64(1), dp.IntValue())
+						case "max":
+							assert.Equal(t, int64(3), dp.IntValue())
+						}
+						_, ok := dp.Attributes().Get("crl.uri")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("crl.role")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("crl.kind")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("crl.x509.issuer.common_name")
+						assert.False(t, ok)
+					}
 				case "pkiengine.crl.x509.revoked_certificates":
-					assert.False(t, validatedMetrics["pkiengine.crl.x509.revoked_certificates"], "Found a duplicate in the metrics slice: pkiengine.crl.x509.revoked_certificates")
-					validatedMetrics["pkiengine.crl.x509.revoked_certificates"] = true
-					assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
-					assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
-					assert.Equal(t, "Number of certificates listed in the CRL `revokedCertificates` field.", mi.Description())
-					assert.Equal(t, "count", mi.Unit())
-					dp := mi.Gauge().DataPoints().At(0)
-					assert.Equal(t, start, dp.StartTimestamp())
-					assert.Equal(t, ts, dp.Timestamp())
-					assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
-					assert.Equal(t, int64(1), dp.IntValue())
-					crlURIAttrVal, ok := dp.Attributes().Get("crl.uri")
-					assert.True(t, ok)
-					assert.Equal(t, "crl.uri-val", crlURIAttrVal.Str())
-					crlRoleAttrVal, ok := dp.Attributes().Get("crl.role")
-					assert.True(t, ok)
-					assert.Equal(t, "subject", crlRoleAttrVal.Str())
-					crlKindAttrVal, ok := dp.Attributes().Get("crl.kind")
-					assert.True(t, ok)
-					assert.Equal(t, "base", crlKindAttrVal.Str())
-					crlX509IssuerCommonNameAttrVal, ok := dp.Attributes().Get("crl.x509.issuer.common_name")
-					assert.True(t, ok)
-					assert.Equal(t, "crl.x509.issuer.common_name-val", crlX509IssuerCommonNameAttrVal.Str())
+					if tt.name != "reaggregate_set" {
+						assert.False(t, validatedMetrics["pkiengine.crl.x509.revoked_certificates"], "Found a duplicate in the metrics slice: pkiengine.crl.x509.revoked_certificates")
+						validatedMetrics["pkiengine.crl.x509.revoked_certificates"] = true
+						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
+						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, "Number of certificates listed in the CRL `revokedCertificates` field.", mi.Description())
+						assert.Equal(t, "count", mi.Unit())
+						dp := mi.Gauge().DataPoints().At(0)
+						assert.Equal(t, start, dp.StartTimestamp())
+						assert.Equal(t, ts, dp.Timestamp())
+						assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
+						assert.Equal(t, int64(1), dp.IntValue())
+						crlURIAttrVal, ok := dp.Attributes().Get("crl.uri")
+						assert.True(t, ok)
+						assert.Equal(t, "crl.uri-val", crlURIAttrVal.Str())
+						crlRoleAttrVal, ok := dp.Attributes().Get("crl.role")
+						assert.True(t, ok)
+						assert.Equal(t, "subject", crlRoleAttrVal.Str())
+						crlKindAttrVal, ok := dp.Attributes().Get("crl.kind")
+						assert.True(t, ok)
+						assert.Equal(t, "base", crlKindAttrVal.Str())
+						crlX509IssuerCommonNameAttrVal, ok := dp.Attributes().Get("crl.x509.issuer.common_name")
+						assert.True(t, ok)
+						assert.Equal(t, "crl.x509.issuer.common_name-val", crlX509IssuerCommonNameAttrVal.Str())
+					} else {
+						assert.False(t, validatedMetrics["pkiengine.crl.x509.revoked_certificates"], "Found a duplicate in the metrics slice: pkiengine.crl.x509.revoked_certificates")
+						validatedMetrics["pkiengine.crl.x509.revoked_certificates"] = true
+						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
+						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, "Number of certificates listed in the CRL `revokedCertificates` field.", mi.Description())
+						assert.Equal(t, "count", mi.Unit())
+						dp := mi.Gauge().DataPoints().At(0)
+						assert.Equal(t, start, dp.StartTimestamp())
+						assert.Equal(t, ts, dp.Timestamp())
+						assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
+						switch aggMap["pkiengine.crl.x509.revoked_certificates"] {
+						case "sum":
+							assert.Equal(t, int64(4), dp.IntValue())
+						case "avg":
+							assert.Equal(t, int64(2), dp.IntValue())
+						case "min":
+							assert.Equal(t, int64(1), dp.IntValue())
+						case "max":
+							assert.Equal(t, int64(3), dp.IntValue())
+						}
+						_, ok := dp.Attributes().Get("crl.uri")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("crl.role")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("crl.kind")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("crl.x509.issuer.common_name")
+						assert.False(t, ok)
+					}
 				case "pkiengine.crl.x509.this_update":
-					assert.False(t, validatedMetrics["pkiengine.crl.x509.this_update"], "Found a duplicate in the metrics slice: pkiengine.crl.x509.this_update")
-					validatedMetrics["pkiengine.crl.x509.this_update"] = true
-					assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
-					assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
-					assert.Equal(t, "Time since the CRL `thisUpdate` field.", mi.Description())
-					assert.Equal(t, "minutes", mi.Unit())
-					dp := mi.Gauge().DataPoints().At(0)
-					assert.Equal(t, start, dp.StartTimestamp())
-					assert.Equal(t, ts, dp.Timestamp())
-					assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
-					assert.Equal(t, int64(1), dp.IntValue())
-					crlURIAttrVal, ok := dp.Attributes().Get("crl.uri")
-					assert.True(t, ok)
-					assert.Equal(t, "crl.uri-val", crlURIAttrVal.Str())
-					crlRoleAttrVal, ok := dp.Attributes().Get("crl.role")
-					assert.True(t, ok)
-					assert.Equal(t, "subject", crlRoleAttrVal.Str())
-					crlKindAttrVal, ok := dp.Attributes().Get("crl.kind")
-					assert.True(t, ok)
-					assert.Equal(t, "base", crlKindAttrVal.Str())
-					crlX509IssuerCommonNameAttrVal, ok := dp.Attributes().Get("crl.x509.issuer.common_name")
-					assert.True(t, ok)
-					assert.Equal(t, "crl.x509.issuer.common_name-val", crlX509IssuerCommonNameAttrVal.Str())
+					if tt.name != "reaggregate_set" {
+						assert.False(t, validatedMetrics["pkiengine.crl.x509.this_update"], "Found a duplicate in the metrics slice: pkiengine.crl.x509.this_update")
+						validatedMetrics["pkiengine.crl.x509.this_update"] = true
+						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
+						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, "Time since the CRL `thisUpdate` field.", mi.Description())
+						assert.Equal(t, "minutes", mi.Unit())
+						dp := mi.Gauge().DataPoints().At(0)
+						assert.Equal(t, start, dp.StartTimestamp())
+						assert.Equal(t, ts, dp.Timestamp())
+						assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
+						assert.Equal(t, int64(1), dp.IntValue())
+						crlURIAttrVal, ok := dp.Attributes().Get("crl.uri")
+						assert.True(t, ok)
+						assert.Equal(t, "crl.uri-val", crlURIAttrVal.Str())
+						crlRoleAttrVal, ok := dp.Attributes().Get("crl.role")
+						assert.True(t, ok)
+						assert.Equal(t, "subject", crlRoleAttrVal.Str())
+						crlKindAttrVal, ok := dp.Attributes().Get("crl.kind")
+						assert.True(t, ok)
+						assert.Equal(t, "base", crlKindAttrVal.Str())
+						crlX509IssuerCommonNameAttrVal, ok := dp.Attributes().Get("crl.x509.issuer.common_name")
+						assert.True(t, ok)
+						assert.Equal(t, "crl.x509.issuer.common_name-val", crlX509IssuerCommonNameAttrVal.Str())
+					} else {
+						assert.False(t, validatedMetrics["pkiengine.crl.x509.this_update"], "Found a duplicate in the metrics slice: pkiengine.crl.x509.this_update")
+						validatedMetrics["pkiengine.crl.x509.this_update"] = true
+						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
+						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, "Time since the CRL `thisUpdate` field.", mi.Description())
+						assert.Equal(t, "minutes", mi.Unit())
+						dp := mi.Gauge().DataPoints().At(0)
+						assert.Equal(t, start, dp.StartTimestamp())
+						assert.Equal(t, ts, dp.Timestamp())
+						assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
+						switch aggMap["pkiengine.crl.x509.this_update"] {
+						case "sum":
+							assert.Equal(t, int64(4), dp.IntValue())
+						case "avg":
+							assert.Equal(t, int64(2), dp.IntValue())
+						case "min":
+							assert.Equal(t, int64(1), dp.IntValue())
+						case "max":
+							assert.Equal(t, int64(3), dp.IntValue())
+						}
+						_, ok := dp.Attributes().Get("crl.uri")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("crl.role")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("crl.kind")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("crl.x509.issuer.common_name")
+						assert.False(t, ok)
+					}
 				case "pkiengine.issuer.errors":
 					assert.False(t, validatedMetrics["pkiengine.issuer.errors"], "Found a duplicate in the metrics slice: pkiengine.issuer.errors")
 					validatedMetrics["pkiengine.issuer.errors"] = true
@@ -368,20 +618,45 @@ func TestMetricsBuilder(t *testing.T) {
 					assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
 					assert.Equal(t, int64(1), dp.IntValue())
 				case "pkiengine.mount.certificates_stored":
-					assert.False(t, validatedMetrics["pkiengine.mount.certificates_stored"], "Found a duplicate in the metrics slice: pkiengine.mount.certificates_stored")
-					validatedMetrics["pkiengine.mount.certificates_stored"] = true
-					assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
-					assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
-					assert.Equal(t, "Number of certificates stored in the mount.", mi.Description())
-					assert.Equal(t, "{certificates_stored}", mi.Unit())
-					dp := mi.Gauge().DataPoints().At(0)
-					assert.Equal(t, start, dp.StartTimestamp())
-					assert.Equal(t, ts, dp.Timestamp())
-					assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
-					assert.Equal(t, int64(1), dp.IntValue())
-					engineMountAttrVal, ok := dp.Attributes().Get("engine.mount")
-					assert.True(t, ok)
-					assert.Equal(t, "engine.mount-val", engineMountAttrVal.Str())
+					if tt.name != "reaggregate_set" {
+						assert.False(t, validatedMetrics["pkiengine.mount.certificates_stored"], "Found a duplicate in the metrics slice: pkiengine.mount.certificates_stored")
+						validatedMetrics["pkiengine.mount.certificates_stored"] = true
+						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
+						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, "Number of certificates stored in the mount.", mi.Description())
+						assert.Equal(t, "{certificates_stored}", mi.Unit())
+						dp := mi.Gauge().DataPoints().At(0)
+						assert.Equal(t, start, dp.StartTimestamp())
+						assert.Equal(t, ts, dp.Timestamp())
+						assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
+						assert.Equal(t, int64(1), dp.IntValue())
+						engineMountAttrVal, ok := dp.Attributes().Get("engine.mount")
+						assert.True(t, ok)
+						assert.Equal(t, "engine.mount-val", engineMountAttrVal.Str())
+					} else {
+						assert.False(t, validatedMetrics["pkiengine.mount.certificates_stored"], "Found a duplicate in the metrics slice: pkiengine.mount.certificates_stored")
+						validatedMetrics["pkiengine.mount.certificates_stored"] = true
+						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
+						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, "Number of certificates stored in the mount.", mi.Description())
+						assert.Equal(t, "{certificates_stored}", mi.Unit())
+						dp := mi.Gauge().DataPoints().At(0)
+						assert.Equal(t, start, dp.StartTimestamp())
+						assert.Equal(t, ts, dp.Timestamp())
+						assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
+						switch aggMap["pkiengine.mount.certificates_stored"] {
+						case "sum":
+							assert.Equal(t, int64(4), dp.IntValue())
+						case "avg":
+							assert.Equal(t, int64(2), dp.IntValue())
+						case "min":
+							assert.Equal(t, int64(1), dp.IntValue())
+						case "max":
+							assert.Equal(t, int64(3), dp.IntValue())
+						}
+						_, ok := dp.Attributes().Get("engine.mount")
+						assert.False(t, ok)
+					}
 				case "pkiengine.mount.errors":
 					assert.False(t, validatedMetrics["pkiengine.mount.errors"], "Found a duplicate in the metrics slice: pkiengine.mount.errors")
 					validatedMetrics["pkiengine.mount.errors"] = true
