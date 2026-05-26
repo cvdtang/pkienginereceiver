@@ -26,40 +26,54 @@ func TestMetricsBuilderConfig(t *testing.T) {
 			name: "all_set",
 			want: MetricsBuilderConfig{
 				Metrics: MetricsConfig{
-					PkiengineCertX509NotAfter: MetricConfig{
+					PkiengineCertX509NotAfter: PkiengineCertX509NotAfterMetricConfig{
+						Enabled:             true,
+						AggregationStrategy: AggregationStrategyAvg,
+						EnabledAttributes:   []PkiengineCertX509NotAfterMetricAttributeKey{PkiengineCertX509NotAfterMetricAttributeKeyCertType, PkiengineCertX509NotAfterMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotAfterMetricAttributeKeyEngineMount, PkiengineCertX509NotAfterMetricAttributeKeyIssuerID},
+					},
+					PkiengineCertX509NotBefore: PkiengineCertX509NotBeforeMetricConfig{
+						Enabled:             true,
+						AggregationStrategy: AggregationStrategyAvg,
+						EnabledAttributes:   []PkiengineCertX509NotBeforeMetricAttributeKey{PkiengineCertX509NotBeforeMetricAttributeKeyCertType, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotBeforeMetricAttributeKeyEngineMount, PkiengineCertX509NotBeforeMetricAttributeKeyIssuerID},
+					},
+					PkiengineCrlCacheEvictions: PkiengineCrlCacheEvictionsMetricConfig{
 						Enabled: true,
 					},
-					PkiengineCertX509NotBefore: MetricConfig{
+					PkiengineCrlCacheHits: PkiengineCrlCacheHitsMetricConfig{
 						Enabled: true,
 					},
-					PkiengineCrlCacheEvictions: MetricConfig{
+					PkiengineCrlCacheMisses: PkiengineCrlCacheMissesMetricConfig{
 						Enabled: true,
 					},
-					PkiengineCrlCacheHits: MetricConfig{
+					PkiengineCrlProcessingStatus: PkiengineCrlProcessingStatusMetricConfig{
+						Enabled:             true,
+						AggregationStrategy: AggregationStrategyAvg,
+						EnabledAttributes:   []PkiengineCrlProcessingStatusMetricAttributeKey{PkiengineCrlProcessingStatusMetricAttributeKeyCrlRole, PkiengineCrlProcessingStatusMetricAttributeKeyCrlKind, PkiengineCrlProcessingStatusMetricAttributeKeyCrlURI},
+					},
+					PkiengineCrlX509NextUpdate: PkiengineCrlX509NextUpdateMetricConfig{
+						Enabled:             true,
+						AggregationStrategy: AggregationStrategyAvg,
+						EnabledAttributes:   []PkiengineCrlX509NextUpdateMetricAttributeKey{PkiengineCrlX509NextUpdateMetricAttributeKeyCrlURI, PkiengineCrlX509NextUpdateMetricAttributeKeyCrlRole, PkiengineCrlX509NextUpdateMetricAttributeKeyCrlKind, PkiengineCrlX509NextUpdateMetricAttributeKeyCrlX509IssuerCommonName},
+					},
+					PkiengineCrlX509RevokedCertificates: PkiengineCrlX509RevokedCertificatesMetricConfig{
+						Enabled:             true,
+						AggregationStrategy: AggregationStrategyAvg,
+						EnabledAttributes:   []PkiengineCrlX509RevokedCertificatesMetricAttributeKey{PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlURI, PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlRole, PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlKind, PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlX509IssuerCommonName},
+					},
+					PkiengineCrlX509ThisUpdate: PkiengineCrlX509ThisUpdateMetricConfig{
+						Enabled:             true,
+						AggregationStrategy: AggregationStrategyAvg,
+						EnabledAttributes:   []PkiengineCrlX509ThisUpdateMetricAttributeKey{PkiengineCrlX509ThisUpdateMetricAttributeKeyCrlURI, PkiengineCrlX509ThisUpdateMetricAttributeKeyCrlRole, PkiengineCrlX509ThisUpdateMetricAttributeKeyCrlKind, PkiengineCrlX509ThisUpdateMetricAttributeKeyCrlX509IssuerCommonName},
+					},
+					PkiengineIssuerErrors: PkiengineIssuerErrorsMetricConfig{
 						Enabled: true,
 					},
-					PkiengineCrlCacheMisses: MetricConfig{
-						Enabled: true,
+					PkiengineMountCertificatesStored: PkiengineMountCertificatesStoredMetricConfig{
+						Enabled:             true,
+						AggregationStrategy: AggregationStrategyAvg,
+						EnabledAttributes:   []PkiengineMountCertificatesStoredMetricAttributeKey{PkiengineMountCertificatesStoredMetricAttributeKeyEngineMount},
 					},
-					PkiengineCrlProcessingStatus: MetricConfig{
-						Enabled: true,
-					},
-					PkiengineCrlX509NextUpdate: MetricConfig{
-						Enabled: true,
-					},
-					PkiengineCrlX509RevokedCertificates: MetricConfig{
-						Enabled: true,
-					},
-					PkiengineCrlX509ThisUpdate: MetricConfig{
-						Enabled: true,
-					},
-					PkiengineIssuerErrors: MetricConfig{
-						Enabled: true,
-					},
-					PkiengineMountCertificatesStored: MetricConfig{
-						Enabled: true,
-					},
-					PkiengineMountErrors: MetricConfig{
+					PkiengineMountErrors: PkiengineMountErrorsMetricConfig{
 						Enabled: true,
 					},
 				},
@@ -73,40 +87,54 @@ func TestMetricsBuilderConfig(t *testing.T) {
 			name: "none_set",
 			want: MetricsBuilderConfig{
 				Metrics: MetricsConfig{
-					PkiengineCertX509NotAfter: MetricConfig{
+					PkiengineCertX509NotAfter: PkiengineCertX509NotAfterMetricConfig{
+						Enabled:             false,
+						AggregationStrategy: AggregationStrategyAvg,
+						EnabledAttributes:   []PkiengineCertX509NotAfterMetricAttributeKey{PkiengineCertX509NotAfterMetricAttributeKeyCertType, PkiengineCertX509NotAfterMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotAfterMetricAttributeKeyEngineMount, PkiengineCertX509NotAfterMetricAttributeKeyIssuerID},
+					},
+					PkiengineCertX509NotBefore: PkiengineCertX509NotBeforeMetricConfig{
+						Enabled:             false,
+						AggregationStrategy: AggregationStrategyAvg,
+						EnabledAttributes:   []PkiengineCertX509NotBeforeMetricAttributeKey{PkiengineCertX509NotBeforeMetricAttributeKeyCertType, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotBeforeMetricAttributeKeyEngineMount, PkiengineCertX509NotBeforeMetricAttributeKeyIssuerID},
+					},
+					PkiengineCrlCacheEvictions: PkiengineCrlCacheEvictionsMetricConfig{
 						Enabled: false,
 					},
-					PkiengineCertX509NotBefore: MetricConfig{
+					PkiengineCrlCacheHits: PkiengineCrlCacheHitsMetricConfig{
 						Enabled: false,
 					},
-					PkiengineCrlCacheEvictions: MetricConfig{
+					PkiengineCrlCacheMisses: PkiengineCrlCacheMissesMetricConfig{
 						Enabled: false,
 					},
-					PkiengineCrlCacheHits: MetricConfig{
+					PkiengineCrlProcessingStatus: PkiengineCrlProcessingStatusMetricConfig{
+						Enabled:             false,
+						AggregationStrategy: AggregationStrategyAvg,
+						EnabledAttributes:   []PkiengineCrlProcessingStatusMetricAttributeKey{PkiengineCrlProcessingStatusMetricAttributeKeyCrlRole, PkiengineCrlProcessingStatusMetricAttributeKeyCrlKind, PkiengineCrlProcessingStatusMetricAttributeKeyCrlURI},
+					},
+					PkiengineCrlX509NextUpdate: PkiengineCrlX509NextUpdateMetricConfig{
+						Enabled:             false,
+						AggregationStrategy: AggregationStrategyAvg,
+						EnabledAttributes:   []PkiengineCrlX509NextUpdateMetricAttributeKey{PkiengineCrlX509NextUpdateMetricAttributeKeyCrlURI, PkiengineCrlX509NextUpdateMetricAttributeKeyCrlRole, PkiengineCrlX509NextUpdateMetricAttributeKeyCrlKind, PkiengineCrlX509NextUpdateMetricAttributeKeyCrlX509IssuerCommonName},
+					},
+					PkiengineCrlX509RevokedCertificates: PkiengineCrlX509RevokedCertificatesMetricConfig{
+						Enabled:             false,
+						AggregationStrategy: AggregationStrategyAvg,
+						EnabledAttributes:   []PkiengineCrlX509RevokedCertificatesMetricAttributeKey{PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlURI, PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlRole, PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlKind, PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlX509IssuerCommonName},
+					},
+					PkiengineCrlX509ThisUpdate: PkiengineCrlX509ThisUpdateMetricConfig{
+						Enabled:             false,
+						AggregationStrategy: AggregationStrategyAvg,
+						EnabledAttributes:   []PkiengineCrlX509ThisUpdateMetricAttributeKey{PkiengineCrlX509ThisUpdateMetricAttributeKeyCrlURI, PkiengineCrlX509ThisUpdateMetricAttributeKeyCrlRole, PkiengineCrlX509ThisUpdateMetricAttributeKeyCrlKind, PkiengineCrlX509ThisUpdateMetricAttributeKeyCrlX509IssuerCommonName},
+					},
+					PkiengineIssuerErrors: PkiengineIssuerErrorsMetricConfig{
 						Enabled: false,
 					},
-					PkiengineCrlCacheMisses: MetricConfig{
-						Enabled: false,
+					PkiengineMountCertificatesStored: PkiengineMountCertificatesStoredMetricConfig{
+						Enabled:             false,
+						AggregationStrategy: AggregationStrategyAvg,
+						EnabledAttributes:   []PkiengineMountCertificatesStoredMetricAttributeKey{PkiengineMountCertificatesStoredMetricAttributeKeyEngineMount},
 					},
-					PkiengineCrlProcessingStatus: MetricConfig{
-						Enabled: false,
-					},
-					PkiengineCrlX509NextUpdate: MetricConfig{
-						Enabled: false,
-					},
-					PkiengineCrlX509RevokedCertificates: MetricConfig{
-						Enabled: false,
-					},
-					PkiengineCrlX509ThisUpdate: MetricConfig{
-						Enabled: false,
-					},
-					PkiengineIssuerErrors: MetricConfig{
-						Enabled: false,
-					},
-					PkiengineMountCertificatesStored: MetricConfig{
-						Enabled: false,
-					},
-					PkiengineMountErrors: MetricConfig{
+					PkiengineMountErrors: PkiengineMountErrorsMetricConfig{
 						Enabled: false,
 					},
 				},
@@ -120,7 +148,7 @@ func TestMetricsBuilderConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := loadMetricsBuilderConfig(t, tt.name)
-			diff := cmp.Diff(tt.want, cfg, cmpopts.IgnoreUnexported(MetricConfig{}, ResourceAttributeConfig{}))
+			diff := cmp.Diff(tt.want, cfg, cmpopts.IgnoreUnexported(PkiengineCertX509NotAfterMetricConfig{}, PkiengineCertX509NotBeforeMetricConfig{}, PkiengineCrlCacheEvictionsMetricConfig{}, PkiengineCrlCacheHitsMetricConfig{}, PkiengineCrlCacheMissesMetricConfig{}, PkiengineCrlProcessingStatusMetricConfig{}, PkiengineCrlX509NextUpdateMetricConfig{}, PkiengineCrlX509RevokedCertificatesMetricConfig{}, PkiengineCrlX509ThisUpdateMetricConfig{}, PkiengineIssuerErrorsMetricConfig{}, PkiengineMountCertificatesStoredMetricConfig{}, PkiengineMountErrorsMetricConfig{}, ResourceAttributeConfig{}))
 			require.Emptyf(t, diff, "Config mismatch (-expected +actual):\n%s", diff)
 		})
 	}

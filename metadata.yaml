@@ -21,7 +21,7 @@ feature_gates:
     stage: stable
     from_version: v0.151.0
     to_version: v0.154.0
-    reference_url: https://github.com/cvdtang/pkienginereceiver/releases/tag/v0.151.0
+    reference_url: https://github.com/cvdtang/pkienginereceiver/issues/0
 
 resource_attributes:
   engine.address:
