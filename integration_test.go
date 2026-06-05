@@ -69,7 +69,7 @@ const (
 	// renovate: datasource=docker depName=rancher/k3s
 	k3sImage = "rancher/k3s:v1.36.1-k3s1"
 	// renovate: datasource=docker depName=hashicorp/vault
-	vaultVersion = "2.0.1"
+	vaultVersion = "2.0.2"
 	// renovate: datasource=docker depName=openbao/openbao
 	openBaoVersion        = "2.5.4"
 	kubernetesAPIAudience = "https://kubernetes.default.svc"
