@@ -15,13 +15,7 @@ status:
   codeowners:
     active: [cvdtang]
 
-feature_gates:
-  - id: receiver.pkiengine.emitCertMetricsFromIssuers
-    description: Switches issuer certificate emission from `pkiengine.issuer.x509.*` to `pkiengine.cert.x509.*`.
-    stage: stable
-    from_version: v0.151.0
-    to_version: v0.154.0
-    reference_url: https://github.com/cvdtang/pkienginereceiver/issues/0
+feature_gates: []
 
 resource_attributes:
   engine.address:

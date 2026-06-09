@@ -154,7 +154,7 @@ require (
 	go.opentelemetry.io/collector/confmap/provider/fileprovider v1.59.0 // indirect
 	go.opentelemetry.io/collector/consumer/consumererror v0.153.0 // indirect
 	go.opentelemetry.io/collector/consumer/xconsumer v0.153.0 // indirect
-	go.opentelemetry.io/collector/featuregate v1.59.0
+	go.opentelemetry.io/collector/featuregate v1.59.0 // indirect
 	go.opentelemetry.io/collector/filter v0.153.0
 	go.opentelemetry.io/collector/pdata/pprofile v0.153.0 // indirect
 	go.opentelemetry.io/collector/pipeline v1.59.0 // indirect
