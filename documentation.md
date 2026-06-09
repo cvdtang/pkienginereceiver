@@ -186,13 +186,3 @@ Number of errors that occurred while processing mounts.
 | ---- | ----------- | ------ | ------- | ------------------- |
 | engine.address | Address of the secret store. | Any Str | true | - |
 | engine.namespace | Namespace of the secret store. | Any Str | true | - |
-
-## Feature Gates
-
-This component has the following feature gates:
-
-| Feature Gate | Stage | Description | From Version | To Version | Reference |
-| ------------ | ----- | ----------- | ------------ | ---------- | --------- |
-| `receiver.pkiengine.emitCertMetricsFromIssuers` | stable | Switches issuer certificate emission from `pkiengine.issuer.x509.*` to `pkiengine.cert.x509.*`. | v0.151.0 | v0.154.0 | [Link](https://github.com/cvdtang/pkienginereceiver/issues/0) |
-
-For more information about feature gates, see the [Feature Gates](https://github.com/open-telemetry/opentelemetry-collector/blob/main/featuregate/README.md) documentation.
