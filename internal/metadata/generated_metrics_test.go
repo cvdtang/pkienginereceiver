@@ -82,72 +82,60 @@ func TestMetricsBuilder(t *testing.T) {
 
 			defaultMetricsCount := 0
 			allMetricsCount := 0
-
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineCertX509NotAfterDataPoint(ts, 1, AttributeCertTypeIssuer, "cert.x509.issuer.common_name-val", "cert.x509.serial_number-val", "cert.x509.subject.common_name-val", []any{"cert.x509.subject.country-item1", "cert.x509.subject.country-item2"}, []any{"cert.x509.subject.organization-item1", "cert.x509.subject.organization-item2"}, []any{"cert.x509.subject.organizational_unit-item1", "cert.x509.subject.organizational_unit-item2"}, "engine.mount-val", "issuer.id-val")
 			if tt.name == "reaggregate_set" {
 				mb.RecordPkiengineCertX509NotAfterDataPoint(ts, 3, AttributeCertTypeLeaf, "cert.x509.issuer.common_name-val-2", "cert.x509.serial_number-val-2", "cert.x509.subject.common_name-val-2", []any{"cert.x509.subject.country-item3", "cert.x509.subject.country-item4"}, []any{"cert.x509.subject.organization-item3", "cert.x509.subject.organization-item4"}, []any{"cert.x509.subject.organizational_unit-item3", "cert.x509.subject.organizational_unit-item4"}, "engine.mount-val-2", "issuer.id-val-2")
 			}
-
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineCertX509NotBeforeDataPoint(ts, 1, AttributeCertTypeIssuer, "cert.x509.issuer.common_name-val", "cert.x509.serial_number-val", "cert.x509.subject.common_name-val", []any{"cert.x509.subject.country-item1", "cert.x509.subject.country-item2"}, []any{"cert.x509.subject.organization-item1", "cert.x509.subject.organization-item2"}, []any{"cert.x509.subject.organizational_unit-item1", "cert.x509.subject.organizational_unit-item2"}, "engine.mount-val", "issuer.id-val")
 			if tt.name == "reaggregate_set" {
 				mb.RecordPkiengineCertX509NotBeforeDataPoint(ts, 3, AttributeCertTypeLeaf, "cert.x509.issuer.common_name-val-2", "cert.x509.serial_number-val-2", "cert.x509.subject.common_name-val-2", []any{"cert.x509.subject.country-item3", "cert.x509.subject.country-item4"}, []any{"cert.x509.subject.organization-item3", "cert.x509.subject.organization-item4"}, []any{"cert.x509.subject.organizational_unit-item3", "cert.x509.subject.organizational_unit-item4"}, "engine.mount-val-2", "issuer.id-val-2")
 			}
-
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineCrlCacheEvictionsDataPoint(ts, 1)
-
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineCrlCacheHitsDataPoint(ts, 1)
-
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineCrlCacheMissesDataPoint(ts, 1)
-
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineCrlProcessingStatusDataPoint(ts, 1, AttributeCrlRoleSubject, AttributeCrlKindBase, "crl.uri-val")
 			if tt.name == "reaggregate_set" {
 				mb.RecordPkiengineCrlProcessingStatusDataPoint(ts, 3, AttributeCrlRoleIssuer, AttributeCrlKindDelta, "crl.uri-val-2")
 			}
-
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineCrlX509NextUpdateDataPoint(ts, 1, "crl.uri-val", AttributeCrlRoleSubject, AttributeCrlKindBase, "crl.x509.issuer.common_name-val")
 			if tt.name == "reaggregate_set" {
 				mb.RecordPkiengineCrlX509NextUpdateDataPoint(ts, 3, "crl.uri-val-2", AttributeCrlRoleIssuer, AttributeCrlKindDelta, "crl.x509.issuer.common_name-val-2")
 			}
-
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineCrlX509RevokedCertificatesDataPoint(ts, 1, "crl.uri-val", AttributeCrlRoleSubject, AttributeCrlKindBase, "crl.x509.issuer.common_name-val")
 			if tt.name == "reaggregate_set" {
 				mb.RecordPkiengineCrlX509RevokedCertificatesDataPoint(ts, 3, "crl.uri-val-2", AttributeCrlRoleIssuer, AttributeCrlKindDelta, "crl.x509.issuer.common_name-val-2")
 			}
-
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineCrlX509ThisUpdateDataPoint(ts, 1, "crl.uri-val", AttributeCrlRoleSubject, AttributeCrlKindBase, "crl.x509.issuer.common_name-val")
 			if tt.name == "reaggregate_set" {
 				mb.RecordPkiengineCrlX509ThisUpdateDataPoint(ts, 3, "crl.uri-val-2", AttributeCrlRoleIssuer, AttributeCrlKindDelta, "crl.x509.issuer.common_name-val-2")
 			}
-
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineIssuerErrorsDataPoint(ts, 1)
-
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineMountCertificatesStoredDataPoint(ts, 1, "engine.mount-val")
 			if tt.name == "reaggregate_set" {
 				mb.RecordPkiengineMountCertificatesStoredDataPoint(ts, 3, "engine.mount-val-2")
 			}
-
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineMountErrorsDataPoint(ts, 1)

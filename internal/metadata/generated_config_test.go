@@ -153,6 +153,89 @@ func TestMetricsBuilderConfig(t *testing.T) {
 		})
 	}
 }
+func TestPkiengineCertX509NotAfterMetricsConfig_Validate(t *testing.T) {
+	cfg := DefaultMetricsConfig().PkiengineCertX509NotAfter
+	require.NoError(t, cfg.Validate())
+
+	cfg.EnabledAttributes = []PkiengineCertX509NotAfterMetricAttributeKey{"invalid"}
+	require.ErrorContains(t, cfg.Validate(), "metric pkiengine.cert.x509.not_after doesn't have an attribute invalid, valid attributes: [cert.type, cert.x509.issuer.common_name, cert.x509.serial_number, cert.x509.subject.common_name, cert.x509.subject.country, cert.x509.subject.organization, cert.x509.subject.organizational_unit, engine.mount, issuer.id]")
+
+	cfg = DefaultMetricsConfig().PkiengineCertX509NotAfter
+	cfg.AggregationStrategy = "invalid"
+	require.ErrorContains(t, cfg.Validate(), "invalid aggregation strategy")
+}
+
+func TestPkiengineCertX509NotBeforeMetricsConfig_Validate(t *testing.T) {
+	cfg := DefaultMetricsConfig().PkiengineCertX509NotBefore
+	require.NoError(t, cfg.Validate())
+
+	cfg.EnabledAttributes = []PkiengineCertX509NotBeforeMetricAttributeKey{"invalid"}
+	require.ErrorContains(t, cfg.Validate(), "metric pkiengine.cert.x509.not_before doesn't have an attribute invalid, valid attributes: [cert.type, cert.x509.issuer.common_name, cert.x509.serial_number, cert.x509.subject.common_name, cert.x509.subject.country, cert.x509.subject.organization, cert.x509.subject.organizational_unit, engine.mount, issuer.id]")
+
+	cfg = DefaultMetricsConfig().PkiengineCertX509NotBefore
+	cfg.AggregationStrategy = "invalid"
+	require.ErrorContains(t, cfg.Validate(), "invalid aggregation strategy")
+}
+
+func TestPkiengineCrlProcessingStatusMetricsConfig_Validate(t *testing.T) {
+	cfg := DefaultMetricsConfig().PkiengineCrlProcessingStatus
+	require.NoError(t, cfg.Validate())
+
+	cfg.EnabledAttributes = []PkiengineCrlProcessingStatusMetricAttributeKey{"invalid"}
+	require.ErrorContains(t, cfg.Validate(), "metric pkiengine.crl.processing_status doesn't have an attribute invalid, valid attributes: [crl.role, crl.kind, crl.uri]")
+
+	cfg = DefaultMetricsConfig().PkiengineCrlProcessingStatus
+	cfg.AggregationStrategy = "invalid"
+	require.ErrorContains(t, cfg.Validate(), "invalid aggregation strategy")
+}
+
+func TestPkiengineCrlX509NextUpdateMetricsConfig_Validate(t *testing.T) {
+	cfg := DefaultMetricsConfig().PkiengineCrlX509NextUpdate
+	require.NoError(t, cfg.Validate())
+
+	cfg.EnabledAttributes = []PkiengineCrlX509NextUpdateMetricAttributeKey{"invalid"}
+	require.ErrorContains(t, cfg.Validate(), "metric pkiengine.crl.x509.next_update doesn't have an attribute invalid, valid attributes: [crl.uri, crl.role, crl.kind, crl.x509.issuer.common_name]")
+
+	cfg = DefaultMetricsConfig().PkiengineCrlX509NextUpdate
+	cfg.AggregationStrategy = "invalid"
+	require.ErrorContains(t, cfg.Validate(), "invalid aggregation strategy")
+}
+
+func TestPkiengineCrlX509RevokedCertificatesMetricsConfig_Validate(t *testing.T) {
+	cfg := DefaultMetricsConfig().PkiengineCrlX509RevokedCertificates
+	require.NoError(t, cfg.Validate())
+
+	cfg.EnabledAttributes = []PkiengineCrlX509RevokedCertificatesMetricAttributeKey{"invalid"}
+	require.ErrorContains(t, cfg.Validate(), "metric pkiengine.crl.x509.revoked_certificates doesn't have an attribute invalid, valid attributes: [crl.uri, crl.role, crl.kind, crl.x509.issuer.common_name]")
+
+	cfg = DefaultMetricsConfig().PkiengineCrlX509RevokedCertificates
+	cfg.AggregationStrategy = "invalid"
+	require.ErrorContains(t, cfg.Validate(), "invalid aggregation strategy")
+}
+
+func TestPkiengineCrlX509ThisUpdateMetricsConfig_Validate(t *testing.T) {
+	cfg := DefaultMetricsConfig().PkiengineCrlX509ThisUpdate
+	require.NoError(t, cfg.Validate())
+
+	cfg.EnabledAttributes = []PkiengineCrlX509ThisUpdateMetricAttributeKey{"invalid"}
+	require.ErrorContains(t, cfg.Validate(), "metric pkiengine.crl.x509.this_update doesn't have an attribute invalid, valid attributes: [crl.uri, crl.role, crl.kind, crl.x509.issuer.common_name]")
+
+	cfg = DefaultMetricsConfig().PkiengineCrlX509ThisUpdate
+	cfg.AggregationStrategy = "invalid"
+	require.ErrorContains(t, cfg.Validate(), "invalid aggregation strategy")
+}
+
+func TestPkiengineMountCertificatesStoredMetricsConfig_Validate(t *testing.T) {
+	cfg := DefaultMetricsConfig().PkiengineMountCertificatesStored
+	require.NoError(t, cfg.Validate())
+
+	cfg.EnabledAttributes = []PkiengineMountCertificatesStoredMetricAttributeKey{"invalid"}
+	require.ErrorContains(t, cfg.Validate(), "metric pkiengine.mount.certificates_stored doesn't have an attribute invalid, valid attributes: [engine.mount]")
+
+	cfg = DefaultMetricsConfig().PkiengineMountCertificatesStored
+	cfg.AggregationStrategy = "invalid"
+	require.ErrorContains(t, cfg.Validate(), "invalid aggregation strategy")
+}
 
 func loadMetricsBuilderConfig(t *testing.T, name string) MetricsBuilderConfig {
 	cm, err := confmaptest.LoadConf(filepath.Join("testdata", "config.yaml"))
