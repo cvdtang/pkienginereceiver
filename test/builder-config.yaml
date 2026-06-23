@@ -4,21 +4,21 @@ dist:
   output_path: ../otelcol-dev
 
 exporters:
-- gomod: go.opentelemetry.io/collector/exporter/debugexporter v0.154.0
-- gomod: go.opentelemetry.io/collector/exporter/otlpexporter v0.154.0
+- gomod: go.opentelemetry.io/collector/exporter/debugexporter v0.155.0
+- gomod: go.opentelemetry.io/collector/exporter/otlpexporter v0.155.0
 - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/fileexporter v0.154.0
-- gomod: go.opentelemetry.io/collector/exporter/nopexporter v0.154.0
+- gomod: go.opentelemetry.io/collector/exporter/nopexporter v0.155.0
 processors:
-- gomod: go.opentelemetry.io/collector/processor/batchprocessor v0.154.0
+- gomod: go.opentelemetry.io/collector/processor/batchprocessor v0.155.0
 
 receivers:
-- gomod: go.opentelemetry.io/collector/receiver/otlpreceiver v0.154.0
+- gomod: go.opentelemetry.io/collector/receiver/otlpreceiver v0.155.0
 - gomod: github.com/cvdtang/pkienginereceiver v1.0.0
   path: .
 
 providers:
-- gomod: go.opentelemetry.io/collector/confmap/provider/envprovider v1.60.0
-- gomod: go.opentelemetry.io/collector/confmap/provider/fileprovider v1.60.0
-- gomod: go.opentelemetry.io/collector/confmap/provider/httpprovider v1.60.0
-- gomod: go.opentelemetry.io/collector/confmap/provider/httpsprovider v1.60.0
-- gomod: go.opentelemetry.io/collector/confmap/provider/yamlprovider v1.60.0
+- gomod: go.opentelemetry.io/collector/confmap/provider/envprovider v1.61.0
+- gomod: go.opentelemetry.io/collector/confmap/provider/fileprovider v1.61.0
+- gomod: go.opentelemetry.io/collector/confmap/provider/httpprovider v1.61.0
+- gomod: go.opentelemetry.io/collector/confmap/provider/httpsprovider v1.61.0
+- gomod: go.opentelemetry.io/collector/confmap/provider/yamlprovider v1.61.0
