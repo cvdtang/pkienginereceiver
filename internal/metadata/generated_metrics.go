@@ -3,14 +3,13 @@
 package metadata
 
 import (
-	"slices"
-	"time"
-
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/filter"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/receiver"
+	"slices"
+	"time"
 )
 
 const (
@@ -100,10 +99,12 @@ var MapAttributeCrlRole = map[string]AttributeCrlRole{
 
 var MetricsInfo = metricsInfo{
 	PkiengineCertX509NotAfter: metricInfo{
-		Name: "pkiengine.cert.x509.not_after",
+		Name:       "pkiengine.cert.x509.not_after",
+		Attributes: []string{"cert.type", "cert.x509.issuer.common_name", "cert.x509.serial_number", "cert.x509.subject.common_name", "cert.x509.subject.country", "cert.x509.subject.organization", "cert.x509.subject.organizational_unit", "engine.mount", "issuer.id"},
 	},
 	PkiengineCertX509NotBefore: metricInfo{
-		Name: "pkiengine.cert.x509.not_before",
+		Name:       "pkiengine.cert.x509.not_before",
+		Attributes: []string{"cert.type", "cert.x509.issuer.common_name", "cert.x509.serial_number", "cert.x509.subject.common_name", "cert.x509.subject.country", "cert.x509.subject.organization", "cert.x509.subject.organizational_unit", "engine.mount", "issuer.id"},
 	},
 	PkiengineCrlCacheEvictions: metricInfo{
 		Name: "pkiengine.crl.cache.evictions",
@@ -115,22 +116,27 @@ var MetricsInfo = metricsInfo{
 		Name: "pkiengine.crl.cache.misses",
 	},
 	PkiengineCrlProcessingStatus: metricInfo{
-		Name: "pkiengine.crl.processing_status",
+		Name:       "pkiengine.crl.processing_status",
+		Attributes: []string{"crl.role", "crl.kind", "crl.uri"},
 	},
 	PkiengineCrlX509NextUpdate: metricInfo{
-		Name: "pkiengine.crl.x509.next_update",
+		Name:       "pkiengine.crl.x509.next_update",
+		Attributes: []string{"crl.uri", "crl.role", "crl.kind", "crl.x509.issuer.common_name"},
 	},
 	PkiengineCrlX509RevokedCertificates: metricInfo{
-		Name: "pkiengine.crl.x509.revoked_certificates",
+		Name:       "pkiengine.crl.x509.revoked_certificates",
+		Attributes: []string{"crl.uri", "crl.role", "crl.kind", "crl.x509.issuer.common_name"},
 	},
 	PkiengineCrlX509ThisUpdate: metricInfo{
-		Name: "pkiengine.crl.x509.this_update",
+		Name:       "pkiengine.crl.x509.this_update",
+		Attributes: []string{"crl.uri", "crl.role", "crl.kind", "crl.x509.issuer.common_name"},
 	},
 	PkiengineIssuerErrors: metricInfo{
 		Name: "pkiengine.issuer.errors",
 	},
 	PkiengineMountCertificatesStored: metricInfo{
-		Name: "pkiengine.mount.certificates_stored",
+		Name:       "pkiengine.mount.certificates_stored",
+		Attributes: []string{"engine.mount"},
 	},
 	PkiengineMountErrors: metricInfo{
 		Name: "pkiengine.mount.errors",
@@ -153,7 +159,8 @@ type metricsInfo struct {
 }
 
 type metricInfo struct {
-	Name string
+	Name       string
+	Attributes []string
 }
 
 type metricPkiengineCertX509NotAfter struct {
