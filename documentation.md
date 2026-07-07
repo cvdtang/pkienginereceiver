@@ -86,7 +86,6 @@ CRL processing status as an integer value.
 
 Gauge values map to CRL processing status as follows: 0 - Failed to fetch, 1 - Failed to parse, 2 - Successfully processed
 
-
 | Unit | Metric Type | Value Type | Stability |
 | ---- | ----------- | ---------- | --------- |
 | {status} | Gauge | Int | Development |
@@ -182,7 +181,7 @@ Number of errors that occurred while processing mounts.
 
 ## Resource Attributes
 
-| Name | Description | Values | Enabled | Semantic Convention |
-| ---- | ----------- | ------ | ------- | ------------------- |
-| engine.address | Address of the secret store. | Any Str | true | - |
-| engine.namespace | Namespace of the secret store. | Any Str | true | - |
+| Name | Description | Values | Enabled | Semantic Convention | Stability |
+| ---- | ----------- | ------ | ------- | ------------------- | --------- |
+| engine.address | Address of the secret store. | Any Str | true | - | - |
+| engine.namespace | Namespace of the secret store. | Any Str | true | - | - |
