@@ -81,8 +81,8 @@ resourceMetrics:
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
             name: pkiengine.cert.x509.not_after
-            unit: minutes
-          - description: Time util certificate validity start as specified by the `notBefore` field.
+            unit: min
+          - description: Time until certificate validity start as specified by the `notBefore` field.
             gauge:
               dataPoints:
                 - asInt: "-1"
@@ -154,7 +154,7 @@ resourceMetrics:
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
             name: pkiengine.cert.x509.not_before
-            unit: minutes
+            unit: min
           - description: Number of CRL cache evictions.
             gauge:
               dataPoints:
@@ -301,7 +301,7 @@ resourceMetrics:
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
             name: pkiengine.crl.x509.next_update
-            unit: minutes
+            unit: min
           - description: Number of certificates listed in the CRL `revokedCertificates` field.
             gauge:
               dataPoints:
@@ -354,7 +354,7 @@ resourceMetrics:
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
             name: pkiengine.crl.x509.revoked_certificates
-            unit: count
+            unit: '{count}'
           - description: Time since the CRL `thisUpdate` field.
             gauge:
               dataPoints:
@@ -407,7 +407,7 @@ resourceMetrics:
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
             name: pkiengine.crl.x509.this_update
-            unit: minutes
+            unit: min
           - description: Number of errors that occurred while processing issuers.
             name: pkiengine.issuer.errors
             sum:
