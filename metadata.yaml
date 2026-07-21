@@ -97,7 +97,7 @@ metrics:
     stability: development
     gauge:
       value_type: int
-    unit: minutes
+    unit: min
     attributes:
      - cert.type
      - cert.x509.issuer.common_name
@@ -110,12 +110,12 @@ metrics:
      - issuer.id
 
   pkiengine.cert.x509.not_before:
-    description: Time util certificate validity start as specified by the `notBefore` field.
+    description: Time until certificate validity start as specified by the `notBefore` field.
     enabled: true
     stability: development
     gauge:
       value_type: int
-    unit: minutes
+    unit: min
     attributes:
      - cert.type
      - cert.x509.issuer.common_name
@@ -177,7 +177,7 @@ metrics:
     stability: development
     gauge:
       value_type: int
-    unit: minutes
+    unit: min
     attributes:
      - crl.uri
      - crl.role
@@ -190,7 +190,7 @@ metrics:
     stability: development
     gauge:
       value_type: int
-    unit: count
+    unit: "{count}"
     attributes:
      - crl.uri
      - crl.role
@@ -203,7 +203,7 @@ metrics:
     stability: development
     gauge:
       value_type: int
-    unit: minutes
+    unit: min
     attributes:
      - crl.uri
      - crl.role

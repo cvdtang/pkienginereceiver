@@ -87,8 +87,8 @@ resourceMetrics:
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
             name: pkiengine.cert.x509.not_after
-            unit: minutes
-          - description: Time util certificate validity start as specified by the `notBefore` field.
+            unit: min
+          - description: Time until certificate validity start as specified by the `notBefore` field.
             gauge:
               dataPoints:
                 - asInt: "-61"
@@ -166,7 +166,7 @@ resourceMetrics:
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
             name: pkiengine.cert.x509.not_before
-            unit: minutes
+            unit: min
           - description: Number of CRL cache evictions.
             gauge:
               dataPoints:
