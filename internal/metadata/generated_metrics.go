@@ -174,7 +174,7 @@ type metricPkiengineCertX509NotAfter struct {
 func (m *metricPkiengineCertX509NotAfter) init() {
 	m.data.SetName("pkiengine.cert.x509.not_after")
 	m.data.SetDescription("Time until certificate expiration as specified by the `notAfter` field.")
-	m.data.SetUnit("minutes")
+	m.data.SetUnit("min")
 	m.data.SetEmptyGauge()
 	m.data.Gauge().DataPoints().EnsureCapacity(m.capacity)
 	m.aggDataPoints = m.aggDataPoints[:0]
@@ -286,8 +286,8 @@ type metricPkiengineCertX509NotBefore struct {
 // init fills pkiengine.cert.x509.not_before metric with initial data.
 func (m *metricPkiengineCertX509NotBefore) init() {
 	m.data.SetName("pkiengine.cert.x509.not_before")
-	m.data.SetDescription("Time util certificate validity start as specified by the `notBefore` field.")
-	m.data.SetUnit("minutes")
+	m.data.SetDescription("Time until certificate validity start as specified by the `notBefore` field.")
+	m.data.SetUnit("min")
 	m.data.SetEmptyGauge()
 	m.data.Gauge().DataPoints().EnsureCapacity(m.capacity)
 	m.aggDataPoints = m.aggDataPoints[:0]
@@ -645,7 +645,7 @@ type metricPkiengineCrlX509NextUpdate struct {
 func (m *metricPkiengineCrlX509NextUpdate) init() {
 	m.data.SetName("pkiengine.crl.x509.next_update")
 	m.data.SetDescription("Time until the CRL `nextUpdate` field.")
-	m.data.SetUnit("minutes")
+	m.data.SetUnit("min")
 	m.data.SetEmptyGauge()
 	m.data.Gauge().DataPoints().EnsureCapacity(m.capacity)
 	m.aggDataPoints = m.aggDataPoints[:0]
@@ -743,7 +743,7 @@ type metricPkiengineCrlX509RevokedCertificates struct {
 func (m *metricPkiengineCrlX509RevokedCertificates) init() {
 	m.data.SetName("pkiengine.crl.x509.revoked_certificates")
 	m.data.SetDescription("Number of certificates listed in the CRL `revokedCertificates` field.")
-	m.data.SetUnit("count")
+	m.data.SetUnit("{count}")
 	m.data.SetEmptyGauge()
 	m.data.Gauge().DataPoints().EnsureCapacity(m.capacity)
 	m.aggDataPoints = m.aggDataPoints[:0]
@@ -841,7 +841,7 @@ type metricPkiengineCrlX509ThisUpdate struct {
 func (m *metricPkiengineCrlX509ThisUpdate) init() {
 	m.data.SetName("pkiengine.crl.x509.this_update")
 	m.data.SetDescription("Time since the CRL `thisUpdate` field.")
-	m.data.SetUnit("minutes")
+	m.data.SetUnit("min")
 	m.data.SetEmptyGauge()
 	m.data.Gauge().DataPoints().EnsureCapacity(m.capacity)
 	m.aggDataPoints = m.aggDataPoints[:0]

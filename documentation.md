@@ -18,7 +18,7 @@ Time until certificate expiration as specified by the `notAfter` field.
 
 | Unit | Metric Type | Value Type | Stability |
 | ---- | ----------- | ---------- | --------- |
-| minutes | Gauge | Int | Development |
+| min | Gauge | Int | Development |
 
 #### Attributes
 
@@ -36,11 +36,11 @@ Time until certificate expiration as specified by the `notAfter` field.
 
 ### pkiengine.cert.x509.not_before
 
-Time util certificate validity start as specified by the `notBefore` field.
+Time until certificate validity start as specified by the `notBefore` field.
 
 | Unit | Metric Type | Value Type | Stability |
 | ---- | ----------- | ---------- | --------- |
-| minutes | Gauge | Int | Development |
+| min | Gauge | Int | Development |
 
 #### Attributes
 
@@ -104,7 +104,7 @@ Time until the CRL `nextUpdate` field.
 
 | Unit | Metric Type | Value Type | Stability |
 | ---- | ----------- | ---------- | --------- |
-| minutes | Gauge | Int | Development |
+| min | Gauge | Int | Development |
 
 #### Attributes
 
@@ -121,7 +121,7 @@ Number of certificates listed in the CRL `revokedCertificates` field.
 
 | Unit | Metric Type | Value Type | Stability |
 | ---- | ----------- | ---------- | --------- |
-| count | Gauge | Int | Development |
+| {count} | Gauge | Int | Development |
 
 #### Attributes
 
@@ -138,7 +138,7 @@ Time since the CRL `thisUpdate` field.
 
 | Unit | Metric Type | Value Type | Stability |
 | ---- | ----------- | ---------- | --------- |
-| minutes | Gauge | Int | Development |
+| min | Gauge | Int | Development |
 
 #### Attributes
 
