@@ -3,10 +3,10 @@ all_set:
   metrics:
     pkiengine.cert.x509.not_after:
       enabled: true
-      attributes: ["cert.type","cert.x509.issuer.common_name","cert.x509.serial_number","cert.x509.subject.common_name","cert.x509.subject.country","cert.x509.subject.organization","cert.x509.subject.organizational_unit","engine.mount","issuer.id"]
+      attributes: ["cert.type","cert.x509.issuer.common_name","cert.x509.serial_number","cert.x509.subject.common_name","cert.x509.subject.country","cert.x509.subject.organization","cert.x509.subject.organizational_unit","cert.x509.subject.san","engine.mount","issuer.id"]
     pkiengine.cert.x509.not_before:
       enabled: true
-      attributes: ["cert.type","cert.x509.issuer.common_name","cert.x509.serial_number","cert.x509.subject.common_name","cert.x509.subject.country","cert.x509.subject.organization","cert.x509.subject.organizational_unit","engine.mount","issuer.id"]
+      attributes: ["cert.type","cert.x509.issuer.common_name","cert.x509.serial_number","cert.x509.subject.common_name","cert.x509.subject.country","cert.x509.subject.organization","cert.x509.subject.organizational_unit","cert.x509.subject.san","engine.mount","issuer.id"]
     pkiengine.crl.cache.evictions:
       enabled: true
     pkiengine.crl.cache.hits:
@@ -79,10 +79,10 @@ none_set:
   metrics:
     pkiengine.cert.x509.not_after:
       enabled: false
-      attributes: ["cert.type","cert.x509.issuer.common_name","cert.x509.serial_number","cert.x509.subject.common_name","cert.x509.subject.country","cert.x509.subject.organization","cert.x509.subject.organizational_unit","engine.mount","issuer.id"]
+      attributes: ["cert.type","cert.x509.issuer.common_name","cert.x509.serial_number","cert.x509.subject.common_name","cert.x509.subject.country","cert.x509.subject.organization","cert.x509.subject.organizational_unit","cert.x509.subject.san","engine.mount","issuer.id"]
     pkiengine.cert.x509.not_before:
       enabled: false
-      attributes: ["cert.type","cert.x509.issuer.common_name","cert.x509.serial_number","cert.x509.subject.common_name","cert.x509.subject.country","cert.x509.subject.organization","cert.x509.subject.organizational_unit","engine.mount","issuer.id"]
+      attributes: ["cert.type","cert.x509.issuer.common_name","cert.x509.serial_number","cert.x509.subject.common_name","cert.x509.subject.country","cert.x509.subject.organization","cert.x509.subject.organizational_unit","cert.x509.subject.san","engine.mount","issuer.id"]
     pkiengine.crl.cache.evictions:
       enabled: false
     pkiengine.crl.cache.hits:

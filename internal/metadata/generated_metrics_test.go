@@ -84,15 +84,15 @@ func TestMetricsBuilder(t *testing.T) {
 			allMetricsCount := 0
 			defaultMetricsCount++
 			allMetricsCount++
-			mb.RecordPkiengineCertX509NotAfterDataPoint(ts, 1, AttributeCertTypeIssuer, "cert.x509.issuer.common_name-val", "cert.x509.serial_number-val", "cert.x509.subject.common_name-val", []any{"cert.x509.subject.country-item1", "cert.x509.subject.country-item2"}, []any{"cert.x509.subject.organization-item1", "cert.x509.subject.organization-item2"}, []any{"cert.x509.subject.organizational_unit-item1", "cert.x509.subject.organizational_unit-item2"}, "engine.mount-val", "issuer.id-val")
+			mb.RecordPkiengineCertX509NotAfterDataPoint(ts, 1, AttributeCertTypeIssuer, "cert.x509.issuer.common_name-val", "cert.x509.serial_number-val", "cert.x509.subject.common_name-val", []any{"cert.x509.subject.country-item1", "cert.x509.subject.country-item2"}, []any{"cert.x509.subject.organization-item1", "cert.x509.subject.organization-item2"}, []any{"cert.x509.subject.organizational_unit-item1", "cert.x509.subject.organizational_unit-item2"}, []any{"cert.x509.subject.san-item1", "cert.x509.subject.san-item2"}, "engine.mount-val", "issuer.id-val")
 			if tt.name == "reaggregate_set" {
-				mb.RecordPkiengineCertX509NotAfterDataPoint(ts, 3, AttributeCertTypeLeaf, "cert.x509.issuer.common_name-val-2", "cert.x509.serial_number-val-2", "cert.x509.subject.common_name-val-2", []any{"cert.x509.subject.country-item3", "cert.x509.subject.country-item4"}, []any{"cert.x509.subject.organization-item3", "cert.x509.subject.organization-item4"}, []any{"cert.x509.subject.organizational_unit-item3", "cert.x509.subject.organizational_unit-item4"}, "engine.mount-val-2", "issuer.id-val-2")
+				mb.RecordPkiengineCertX509NotAfterDataPoint(ts, 3, AttributeCertTypeLeaf, "cert.x509.issuer.common_name-val-2", "cert.x509.serial_number-val-2", "cert.x509.subject.common_name-val-2", []any{"cert.x509.subject.country-item3", "cert.x509.subject.country-item4"}, []any{"cert.x509.subject.organization-item3", "cert.x509.subject.organization-item4"}, []any{"cert.x509.subject.organizational_unit-item3", "cert.x509.subject.organizational_unit-item4"}, []any{"cert.x509.subject.san-item3", "cert.x509.subject.san-item4"}, "engine.mount-val-2", "issuer.id-val-2")
 			}
 			defaultMetricsCount++
 			allMetricsCount++
-			mb.RecordPkiengineCertX509NotBeforeDataPoint(ts, 1, AttributeCertTypeIssuer, "cert.x509.issuer.common_name-val", "cert.x509.serial_number-val", "cert.x509.subject.common_name-val", []any{"cert.x509.subject.country-item1", "cert.x509.subject.country-item2"}, []any{"cert.x509.subject.organization-item1", "cert.x509.subject.organization-item2"}, []any{"cert.x509.subject.organizational_unit-item1", "cert.x509.subject.organizational_unit-item2"}, "engine.mount-val", "issuer.id-val")
+			mb.RecordPkiengineCertX509NotBeforeDataPoint(ts, 1, AttributeCertTypeIssuer, "cert.x509.issuer.common_name-val", "cert.x509.serial_number-val", "cert.x509.subject.common_name-val", []any{"cert.x509.subject.country-item1", "cert.x509.subject.country-item2"}, []any{"cert.x509.subject.organization-item1", "cert.x509.subject.organization-item2"}, []any{"cert.x509.subject.organizational_unit-item1", "cert.x509.subject.organizational_unit-item2"}, []any{"cert.x509.subject.san-item1", "cert.x509.subject.san-item2"}, "engine.mount-val", "issuer.id-val")
 			if tt.name == "reaggregate_set" {
-				mb.RecordPkiengineCertX509NotBeforeDataPoint(ts, 3, AttributeCertTypeLeaf, "cert.x509.issuer.common_name-val-2", "cert.x509.serial_number-val-2", "cert.x509.subject.common_name-val-2", []any{"cert.x509.subject.country-item3", "cert.x509.subject.country-item4"}, []any{"cert.x509.subject.organization-item3", "cert.x509.subject.organization-item4"}, []any{"cert.x509.subject.organizational_unit-item3", "cert.x509.subject.organizational_unit-item4"}, "engine.mount-val-2", "issuer.id-val-2")
+				mb.RecordPkiengineCertX509NotBeforeDataPoint(ts, 3, AttributeCertTypeLeaf, "cert.x509.issuer.common_name-val-2", "cert.x509.serial_number-val-2", "cert.x509.subject.common_name-val-2", []any{"cert.x509.subject.country-item3", "cert.x509.subject.country-item4"}, []any{"cert.x509.subject.organization-item3", "cert.x509.subject.organization-item4"}, []any{"cert.x509.subject.organizational_unit-item3", "cert.x509.subject.organizational_unit-item4"}, []any{"cert.x509.subject.san-item3", "cert.x509.subject.san-item4"}, "engine.mount-val-2", "issuer.id-val-2")
 			}
 			defaultMetricsCount++
 			allMetricsCount++
@@ -214,6 +214,9 @@ func TestMetricsBuilder(t *testing.T) {
 						certX509SubjectOrganizationalUnitAttrVal, ok := dp.Attributes().Get("cert.x509.subject.organizational_unit")
 						assert.True(t, ok)
 						assert.Equal(t, []any{"cert.x509.subject.organizational_unit-item1", "cert.x509.subject.organizational_unit-item2"}, certX509SubjectOrganizationalUnitAttrVal.Slice().AsRaw())
+						certX509SubjectSanAttrVal, ok := dp.Attributes().Get("cert.x509.subject.san")
+						assert.True(t, ok)
+						assert.Equal(t, []any{"cert.x509.subject.san-item1", "cert.x509.subject.san-item2"}, certX509SubjectSanAttrVal.Slice().AsRaw())
 						engineMountAttrVal, ok := dp.Attributes().Get("engine.mount")
 						assert.True(t, ok)
 						assert.Equal(t, "engine.mount-val", engineMountAttrVal.Str())
@@ -255,6 +258,8 @@ func TestMetricsBuilder(t *testing.T) {
 						assert.False(t, ok)
 						_, ok = dp.Attributes().Get("cert.x509.subject.organizational_unit")
 						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("cert.x509.subject.san")
+						assert.False(t, ok)
 						_, ok = dp.Attributes().Get("engine.mount")
 						assert.False(t, ok)
 						_, ok = dp.Attributes().Get("issuer.id")
@@ -294,6 +299,9 @@ func TestMetricsBuilder(t *testing.T) {
 						certX509SubjectOrganizationalUnitAttrVal, ok := dp.Attributes().Get("cert.x509.subject.organizational_unit")
 						assert.True(t, ok)
 						assert.Equal(t, []any{"cert.x509.subject.organizational_unit-item1", "cert.x509.subject.organizational_unit-item2"}, certX509SubjectOrganizationalUnitAttrVal.Slice().AsRaw())
+						certX509SubjectSanAttrVal, ok := dp.Attributes().Get("cert.x509.subject.san")
+						assert.True(t, ok)
+						assert.Equal(t, []any{"cert.x509.subject.san-item1", "cert.x509.subject.san-item2"}, certX509SubjectSanAttrVal.Slice().AsRaw())
 						engineMountAttrVal, ok := dp.Attributes().Get("engine.mount")
 						assert.True(t, ok)
 						assert.Equal(t, "engine.mount-val", engineMountAttrVal.Str())
@@ -334,6 +342,8 @@ func TestMetricsBuilder(t *testing.T) {
 						_, ok = dp.Attributes().Get("cert.x509.subject.organization")
 						assert.False(t, ok)
 						_, ok = dp.Attributes().Get("cert.x509.subject.organizational_unit")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("cert.x509.subject.san")
 						assert.False(t, ok)
 						_, ok = dp.Attributes().Get("engine.mount")
 						assert.False(t, ok)

@@ -41,6 +41,15 @@ resourceMetrics:
                         arrayValue:
                           values:
                             - stringValue: Security
+                    - key: cert.x509.subject.san
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: 10.0.0.1
+                            - stringValue: admin@example.org
+                            - stringValue: alt.example.org
+                            - stringValue: example.org CA
+                            - stringValue: https://ca.example.org
                     - key: engine.mount
                       value:
                         stringValue: pki/
@@ -78,6 +87,15 @@ resourceMetrics:
                         arrayValue:
                           values:
                             - stringValue: App
+                    - key: cert.x509.subject.san
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: 10.0.0.1
+                            - stringValue: admin@example.org
+                            - stringValue: alt.example.org
+                            - stringValue: https://ca.example.org
+                            - stringValue: leaf.example.org
                     - key: engine.mount
                       value:
                         stringValue: pki/
@@ -120,6 +138,15 @@ resourceMetrics:
                         arrayValue:
                           values:
                             - stringValue: Security
+                    - key: cert.x509.subject.san
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: 10.0.0.1
+                            - stringValue: admin@example.org
+                            - stringValue: alt.example.org
+                            - stringValue: example.org CA
+                            - stringValue: https://ca.example.org
                     - key: engine.mount
                       value:
                         stringValue: pki/
@@ -157,6 +184,15 @@ resourceMetrics:
                         arrayValue:
                           values:
                             - stringValue: App
+                    - key: cert.x509.subject.san
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: 10.0.0.1
+                            - stringValue: admin@example.org
+                            - stringValue: alt.example.org
+                            - stringValue: https://ca.example.org
+                            - stringValue: leaf.example.org
                     - key: engine.mount
                       value:
                         stringValue: pki/

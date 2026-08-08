@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"sort"
 	"strings"
 	"time"
 
@@ -20,12 +21,21 @@ type certificateMetrics struct {
 	notBeforeMinutes int64
 }
 
+// Subject attributes of the certificate pre-converted to the slice representation used by the metrics builder.
+type certSubjectAttributes struct {
+	country            []any
+	organization       []any
+	organizationalUnit []any
+	san                []any
+}
+
 type certificate struct {
 	mount    string
 	issuerId string
 	raw      string
 	crt      *x509.Certificate
 	metrics  certificateMetrics
+	subject  certSubjectAttributes
 }
 
 func newCertificate(
@@ -53,8 +63,19 @@ func (c *certificate) collect() error {
 	c.crt = crt
 
 	c.metrics = c.collectMetrics()
+	c.subject = c.collectSubjectAttributes()
 
 	return nil
+}
+
+// Converts the subject and SAN fields to the slice attributes used by the cert metrics.
+func (c *certificate) collectSubjectAttributes() certSubjectAttributes {
+	return certSubjectAttributes{
+		country:            toAnySlice(c.crt.Subject.Country),
+		organization:       toAnySlice(c.crt.Subject.Organization),
+		organizationalUnit: toAnySlice(c.crt.Subject.OrganizationalUnit),
+		san:                toAnySlice(c.subjectAlternativeNames()),
+	}
 }
 
 // Converts a certificate serial number to a colon-separated hexadecimal string (e.g. "aa:bb:cc").
@@ -137,9 +158,6 @@ func (c *certificate) serial() string {
 }
 
 func (c *certificate) emitCert(mb *metadata.MetricsBuilder, certType metadata.AttributeCertType) {
-	subjectCountry := toAnySlice(c.crt.Subject.Country)
-	subjectOrganization := toAnySlice(c.crt.Subject.Organization)
-	subjectOrganizationalUnit := toAnySlice(c.crt.Subject.OrganizationalUnit)
 	serialNumber := c.serial()
 
 	mb.RecordPkiengineCertX509NotAfterDataPoint(
@@ -149,9 +167,10 @@ func (c *certificate) emitCert(mb *metadata.MetricsBuilder, certType metadata.At
 		c.crt.Issuer.CommonName,
 		serialNumber,
 		c.crt.Subject.CommonName,
-		subjectCountry,
-		subjectOrganization,
-		subjectOrganizationalUnit,
+		c.subject.country,
+		c.subject.organization,
+		c.subject.organizationalUnit,
+		c.subject.san,
 		c.mount,
 		c.issuerId,
 	)
@@ -163,10 +182,27 @@ func (c *certificate) emitCert(mb *metadata.MetricsBuilder, certType metadata.At
 		c.crt.Issuer.CommonName,
 		serialNumber,
 		c.crt.Subject.CommonName,
-		subjectCountry,
-		subjectOrganization,
-		subjectOrganizationalUnit,
+		c.subject.country,
+		c.subject.organization,
+		c.subject.organizationalUnit,
+		c.subject.san,
 		c.mount,
 		c.issuerId,
 	)
+}
+
+// Returns all Subject Alternative Name (SAN) entries of the certificate as a string slice.
+func (c *certificate) subjectAlternativeNames() []string {
+	san := make([]string, 0, len(c.crt.DNSNames)+len(c.crt.IPAddresses)+len(c.crt.EmailAddresses)+len(c.crt.URIs))
+	san = append(san, c.crt.DNSNames...)
+	for _, ip := range c.crt.IPAddresses {
+		san = append(san, ip.String())
+	}
+	san = append(san, c.crt.EmailAddresses...)
+	for _, u := range c.crt.URIs {
+		san = append(san, u.String())
+	}
+	sort.Strings(san)
+
+	return san
 }

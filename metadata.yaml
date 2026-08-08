@@ -60,6 +60,10 @@ attributes:
     description: Organizational Unit (OU) in the subject field of the certificate.
     type: slice
 
+  cert.x509.subject.san:
+    description: Subject Alternative Name (SAN) entries in the certificate.
+    type: slice
+
   crl.kind:
     description: Type of certificate revocation list.
     type: string
@@ -106,6 +110,7 @@ metrics:
      - cert.x509.subject.country
      - cert.x509.subject.organization
      - cert.x509.subject.organizational_unit
+     - cert.x509.subject.san
      - engine.mount
      - issuer.id
 
@@ -124,6 +129,7 @@ metrics:
      - cert.x509.subject.country
      - cert.x509.subject.organization
      - cert.x509.subject.organizational_unit
+     - cert.x509.subject.san
      - engine.mount
      - issuer.id
 

@@ -7,6 +7,8 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"math/big"
+	"net"
+	"net/url"
 	"testing"
 	"time"
 
@@ -53,6 +55,10 @@ func getTestCertDataWithOU(t *testing.T, cn, ou string, crlURIs ...string) ([]by
 		BasicConstraintsValid: true,
 		IsCA:                  true,
 		CRLDistributionPoints: crlDistributionPoints,
+		DNSNames:              []string{cn, "alt.example.org"},
+		IPAddresses:           []net.IP{net.ParseIP("10.0.0.1")},
+		EmailAddresses:        []string{"admin@example.org"},
+		URIs:                  []*url.URL{{Scheme: "https", Host: "ca.example.org"}},
 	}
 
 	// Create and Sign the certificate (DER format)
@@ -228,6 +234,10 @@ func TestCertificate_Emit(t *testing.T) {
 			subjectOrganizationalUnit, ok := dp.Attributes().Get("cert.x509.subject.organizational_unit")
 			require.True(t, ok)
 			require.Equal(t, []any{"Security"}, subjectOrganizationalUnit.Slice().AsRaw())
+
+			subjectSan, ok := dp.Attributes().Get("cert.x509.subject.san")
+			require.True(t, ok)
+			require.Equal(t, []any{"10.0.0.1", "ACME org", "admin@example.org", "alt.example.org", "https://ca.example.org"}, subjectSan.Slice().AsRaw())
 		}
 	}
 

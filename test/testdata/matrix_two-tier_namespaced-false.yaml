@@ -35,6 +35,11 @@ resourceMetrics:
                     - key: cert.x509.subject.organizational_unit
                       value:
                         arrayValue: {}
+                    - key: cert.x509.subject.san
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: ca-0.ica.example.org
                     - key: engine.mount
                       value:
                         stringValue: pki/ica_0/
@@ -72,6 +77,12 @@ resourceMetrics:
                         arrayValue:
                           values:
                             - stringValue: App
+                    - key: cert.x509.subject.san
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: alt-0.role-0.example.org
+                            - stringValue: leaf-0.role-0.example.org
                     - key: engine.mount
                       value:
                         stringValue: pki/ica_0/
@@ -108,6 +119,11 @@ resourceMetrics:
                     - key: cert.x509.subject.organizational_unit
                       value:
                         arrayValue: {}
+                    - key: cert.x509.subject.san
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: ca-0.ica.example.org
                     - key: engine.mount
                       value:
                         stringValue: pki/ica_0/
@@ -145,6 +161,12 @@ resourceMetrics:
                         arrayValue:
                           values:
                             - stringValue: App
+                    - key: cert.x509.subject.san
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: alt-0.role-0.example.org
+                            - stringValue: leaf-0.role-0.example.org
                     - key: engine.mount
                       value:
                         stringValue: pki/ica_0/

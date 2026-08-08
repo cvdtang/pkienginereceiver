@@ -44,6 +44,7 @@ resource "vault_pki_secret_backend_root_cert" "root" {
   organization = "ACME org"
   ou           = "Security"
   issuer_name  = "root-v1"
+  alt_names    = ["ca-${count.index}.root.example.org"]
 
   not_before_duration = local.not_before
   not_after           = local.not_after
@@ -113,6 +114,7 @@ resource "vault_pki_secret_backend_intermediate_cert_request" "ica" {
   country      = "US"
   organization = "ACME org"
   ou           = "Platform"
+  alt_names    = ["ca-${count.index}.ica.example.org"]
 }
 
 resource "vault_pki_secret_backend_root_sign_intermediate" "ica" {
@@ -125,6 +127,7 @@ resource "vault_pki_secret_backend_root_sign_intermediate" "ica" {
   format      = "pem_bundle"
   ttl         = 154800000
   issuer_ref  = vault_pki_secret_backend_root_cert.root[0].issuer_id
+  alt_names   = ["ca-${count.index}.ica.example.org"]
 }
 
 resource "vault_pki_secret_backend_intermediate_set_signed" "ica" {
@@ -193,4 +196,5 @@ resource "vault_pki_secret_backend_cert" "ica" {
   name = vault_pki_secret_backend_role.ica[each.value.role_idx].name
 
   common_name = "leaf-${each.value.leaf_idx}.role-${each.value.role_idx}.example.org"
+  alt_names   = ["alt-${each.value.leaf_idx}.role-${each.value.role_idx}.example.org"]
 }

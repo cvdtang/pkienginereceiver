@@ -20,6 +20,7 @@ const (
 	PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCountry            PkiengineCertX509NotAfterMetricAttributeKey = "cert.x509.subject.country"
 	PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganization       PkiengineCertX509NotAfterMetricAttributeKey = "cert.x509.subject.organization"
 	PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganizationalUnit PkiengineCertX509NotAfterMetricAttributeKey = "cert.x509.subject.organizational_unit"
+	PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectSan                PkiengineCertX509NotAfterMetricAttributeKey = "cert.x509.subject.san"
 	PkiengineCertX509NotAfterMetricAttributeKeyEngineMount                       PkiengineCertX509NotAfterMetricAttributeKey = "engine.mount"
 	PkiengineCertX509NotAfterMetricAttributeKeyIssuerID                          PkiengineCertX509NotAfterMetricAttributeKey = "issuer.id"
 )
@@ -50,9 +51,9 @@ func (ms *PkiengineCertX509NotAfterMetricConfig) Unmarshal(parser *confmap.Conf)
 func (ms *PkiengineCertX509NotAfterMetricConfig) Validate() error {
 	for _, val := range ms.EnabledAttributes {
 		switch val {
-		case PkiengineCertX509NotAfterMetricAttributeKeyCertType, PkiengineCertX509NotAfterMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotAfterMetricAttributeKeyEngineMount, PkiengineCertX509NotAfterMetricAttributeKeyIssuerID:
+		case PkiengineCertX509NotAfterMetricAttributeKeyCertType, PkiengineCertX509NotAfterMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectSan, PkiengineCertX509NotAfterMetricAttributeKeyEngineMount, PkiengineCertX509NotAfterMetricAttributeKeyIssuerID:
 		default:
-			return fmt.Errorf("metric pkiengine.cert.x509.not_after doesn't have an attribute %v, valid attributes: [cert.type, cert.x509.issuer.common_name, cert.x509.serial_number, cert.x509.subject.common_name, cert.x509.subject.country, cert.x509.subject.organization, cert.x509.subject.organizational_unit, engine.mount, issuer.id]", val)
+			return fmt.Errorf("metric pkiengine.cert.x509.not_after doesn't have an attribute %v, valid attributes: [cert.type, cert.x509.issuer.common_name, cert.x509.serial_number, cert.x509.subject.common_name, cert.x509.subject.country, cert.x509.subject.organization, cert.x509.subject.organizational_unit, cert.x509.subject.san, engine.mount, issuer.id]", val)
 		}
 	}
 
@@ -76,6 +77,7 @@ const (
 	PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCountry            PkiengineCertX509NotBeforeMetricAttributeKey = "cert.x509.subject.country"
 	PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganization       PkiengineCertX509NotBeforeMetricAttributeKey = "cert.x509.subject.organization"
 	PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganizationalUnit PkiengineCertX509NotBeforeMetricAttributeKey = "cert.x509.subject.organizational_unit"
+	PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectSan                PkiengineCertX509NotBeforeMetricAttributeKey = "cert.x509.subject.san"
 	PkiengineCertX509NotBeforeMetricAttributeKeyEngineMount                       PkiengineCertX509NotBeforeMetricAttributeKey = "engine.mount"
 	PkiengineCertX509NotBeforeMetricAttributeKeyIssuerID                          PkiengineCertX509NotBeforeMetricAttributeKey = "issuer.id"
 )
@@ -106,9 +108,9 @@ func (ms *PkiengineCertX509NotBeforeMetricConfig) Unmarshal(parser *confmap.Conf
 func (ms *PkiengineCertX509NotBeforeMetricConfig) Validate() error {
 	for _, val := range ms.EnabledAttributes {
 		switch val {
-		case PkiengineCertX509NotBeforeMetricAttributeKeyCertType, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotBeforeMetricAttributeKeyEngineMount, PkiengineCertX509NotBeforeMetricAttributeKeyIssuerID:
+		case PkiengineCertX509NotBeforeMetricAttributeKeyCertType, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectSan, PkiengineCertX509NotBeforeMetricAttributeKeyEngineMount, PkiengineCertX509NotBeforeMetricAttributeKeyIssuerID:
 		default:
-			return fmt.Errorf("metric pkiengine.cert.x509.not_before doesn't have an attribute %v, valid attributes: [cert.type, cert.x509.issuer.common_name, cert.x509.serial_number, cert.x509.subject.common_name, cert.x509.subject.country, cert.x509.subject.organization, cert.x509.subject.organizational_unit, engine.mount, issuer.id]", val)
+			return fmt.Errorf("metric pkiengine.cert.x509.not_before doesn't have an attribute %v, valid attributes: [cert.type, cert.x509.issuer.common_name, cert.x509.serial_number, cert.x509.subject.common_name, cert.x509.subject.country, cert.x509.subject.organization, cert.x509.subject.organizational_unit, cert.x509.subject.san, engine.mount, issuer.id]", val)
 		}
 	}
 
@@ -493,12 +495,12 @@ func DefaultMetricsConfig() MetricsConfig {
 		PkiengineCertX509NotAfter: PkiengineCertX509NotAfterMetricConfig{
 			Enabled:             true,
 			AggregationStrategy: AggregationStrategyAvg,
-			EnabledAttributes:   []PkiengineCertX509NotAfterMetricAttributeKey{PkiengineCertX509NotAfterMetricAttributeKeyCertType, PkiengineCertX509NotAfterMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotAfterMetricAttributeKeyEngineMount, PkiengineCertX509NotAfterMetricAttributeKeyIssuerID},
+			EnabledAttributes:   []PkiengineCertX509NotAfterMetricAttributeKey{PkiengineCertX509NotAfterMetricAttributeKeyCertType, PkiengineCertX509NotAfterMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectSan, PkiengineCertX509NotAfterMetricAttributeKeyEngineMount, PkiengineCertX509NotAfterMetricAttributeKeyIssuerID},
 		},
 		PkiengineCertX509NotBefore: PkiengineCertX509NotBeforeMetricConfig{
 			Enabled:             true,
 			AggregationStrategy: AggregationStrategyAvg,
-			EnabledAttributes:   []PkiengineCertX509NotBeforeMetricAttributeKey{PkiengineCertX509NotBeforeMetricAttributeKeyCertType, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotBeforeMetricAttributeKeyEngineMount, PkiengineCertX509NotBeforeMetricAttributeKeyIssuerID},
+			EnabledAttributes:   []PkiengineCertX509NotBeforeMetricAttributeKey{PkiengineCertX509NotBeforeMetricAttributeKeyCertType, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectSan, PkiengineCertX509NotBeforeMetricAttributeKeyEngineMount, PkiengineCertX509NotBeforeMetricAttributeKeyIssuerID},
 		},
 		PkiengineCrlCacheEvictions: PkiengineCrlCacheEvictionsMetricConfig{
 			Enabled: true,
