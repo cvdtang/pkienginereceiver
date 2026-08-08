@@ -29,12 +29,12 @@ func TestMetricsBuilderConfig(t *testing.T) {
 					PkiengineCertX509NotAfter: PkiengineCertX509NotAfterMetricConfig{
 						Enabled:             true,
 						AggregationStrategy: AggregationStrategyAvg,
-						EnabledAttributes:   []PkiengineCertX509NotAfterMetricAttributeKey{PkiengineCertX509NotAfterMetricAttributeKeyCertType, PkiengineCertX509NotAfterMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotAfterMetricAttributeKeyEngineMount, PkiengineCertX509NotAfterMetricAttributeKeyIssuerID},
+						EnabledAttributes:   []PkiengineCertX509NotAfterMetricAttributeKey{PkiengineCertX509NotAfterMetricAttributeKeyCertType, PkiengineCertX509NotAfterMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectSan, PkiengineCertX509NotAfterMetricAttributeKeyEngineMount, PkiengineCertX509NotAfterMetricAttributeKeyIssuerID},
 					},
 					PkiengineCertX509NotBefore: PkiengineCertX509NotBeforeMetricConfig{
 						Enabled:             true,
 						AggregationStrategy: AggregationStrategyAvg,
-						EnabledAttributes:   []PkiengineCertX509NotBeforeMetricAttributeKey{PkiengineCertX509NotBeforeMetricAttributeKeyCertType, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotBeforeMetricAttributeKeyEngineMount, PkiengineCertX509NotBeforeMetricAttributeKeyIssuerID},
+						EnabledAttributes:   []PkiengineCertX509NotBeforeMetricAttributeKey{PkiengineCertX509NotBeforeMetricAttributeKeyCertType, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectSan, PkiengineCertX509NotBeforeMetricAttributeKeyEngineMount, PkiengineCertX509NotBeforeMetricAttributeKeyIssuerID},
 					},
 					PkiengineCrlCacheEvictions: PkiengineCrlCacheEvictionsMetricConfig{
 						Enabled: true,
@@ -90,12 +90,12 @@ func TestMetricsBuilderConfig(t *testing.T) {
 					PkiengineCertX509NotAfter: PkiengineCertX509NotAfterMetricConfig{
 						Enabled:             false,
 						AggregationStrategy: AggregationStrategyAvg,
-						EnabledAttributes:   []PkiengineCertX509NotAfterMetricAttributeKey{PkiengineCertX509NotAfterMetricAttributeKeyCertType, PkiengineCertX509NotAfterMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotAfterMetricAttributeKeyEngineMount, PkiengineCertX509NotAfterMetricAttributeKeyIssuerID},
+						EnabledAttributes:   []PkiengineCertX509NotAfterMetricAttributeKey{PkiengineCertX509NotAfterMetricAttributeKeyCertType, PkiengineCertX509NotAfterMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectSan, PkiengineCertX509NotAfterMetricAttributeKeyEngineMount, PkiengineCertX509NotAfterMetricAttributeKeyIssuerID},
 					},
 					PkiengineCertX509NotBefore: PkiengineCertX509NotBeforeMetricConfig{
 						Enabled:             false,
 						AggregationStrategy: AggregationStrategyAvg,
-						EnabledAttributes:   []PkiengineCertX509NotBeforeMetricAttributeKey{PkiengineCertX509NotBeforeMetricAttributeKeyCertType, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotBeforeMetricAttributeKeyEngineMount, PkiengineCertX509NotBeforeMetricAttributeKeyIssuerID},
+						EnabledAttributes:   []PkiengineCertX509NotBeforeMetricAttributeKey{PkiengineCertX509NotBeforeMetricAttributeKeyCertType, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectSan, PkiengineCertX509NotBeforeMetricAttributeKeyEngineMount, PkiengineCertX509NotBeforeMetricAttributeKeyIssuerID},
 					},
 					PkiengineCrlCacheEvictions: PkiengineCrlCacheEvictionsMetricConfig{
 						Enabled: false,
@@ -158,7 +158,7 @@ func TestPkiengineCertX509NotAfterMetricsConfig_Validate(t *testing.T) {
 	require.NoError(t, cfg.Validate())
 
 	cfg.EnabledAttributes = []PkiengineCertX509NotAfterMetricAttributeKey{"invalid"}
-	require.ErrorContains(t, cfg.Validate(), "metric pkiengine.cert.x509.not_after doesn't have an attribute invalid, valid attributes: [cert.type, cert.x509.issuer.common_name, cert.x509.serial_number, cert.x509.subject.common_name, cert.x509.subject.country, cert.x509.subject.organization, cert.x509.subject.organizational_unit, engine.mount, issuer.id]")
+	require.ErrorContains(t, cfg.Validate(), "metric pkiengine.cert.x509.not_after doesn't have an attribute invalid, valid attributes: [cert.type, cert.x509.issuer.common_name, cert.x509.serial_number, cert.x509.subject.common_name, cert.x509.subject.country, cert.x509.subject.organization, cert.x509.subject.organizational_unit, cert.x509.subject.san, engine.mount, issuer.id]")
 
 	cfg = DefaultMetricsConfig().PkiengineCertX509NotAfter
 	cfg.AggregationStrategy = "invalid"
@@ -170,7 +170,7 @@ func TestPkiengineCertX509NotBeforeMetricsConfig_Validate(t *testing.T) {
 	require.NoError(t, cfg.Validate())
 
 	cfg.EnabledAttributes = []PkiengineCertX509NotBeforeMetricAttributeKey{"invalid"}
-	require.ErrorContains(t, cfg.Validate(), "metric pkiengine.cert.x509.not_before doesn't have an attribute invalid, valid attributes: [cert.type, cert.x509.issuer.common_name, cert.x509.serial_number, cert.x509.subject.common_name, cert.x509.subject.country, cert.x509.subject.organization, cert.x509.subject.organizational_unit, engine.mount, issuer.id]")
+	require.ErrorContains(t, cfg.Validate(), "metric pkiengine.cert.x509.not_before doesn't have an attribute invalid, valid attributes: [cert.type, cert.x509.issuer.common_name, cert.x509.serial_number, cert.x509.subject.common_name, cert.x509.subject.country, cert.x509.subject.organization, cert.x509.subject.organizational_unit, cert.x509.subject.san, engine.mount, issuer.id]")
 
 	cfg = DefaultMetricsConfig().PkiengineCertX509NotBefore
 	cfg.AggregationStrategy = "invalid"

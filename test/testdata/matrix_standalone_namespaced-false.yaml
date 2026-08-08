@@ -41,6 +41,11 @@ resourceMetrics:
                         arrayValue:
                           values:
                             - stringValue: Security
+                    - key: cert.x509.subject.san
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: ca-0.standalone.example.org
                     - key: engine.mount
                       value:
                         stringValue: pki/standalone/
@@ -78,6 +83,12 @@ resourceMetrics:
                         arrayValue:
                           values:
                             - stringValue: App
+                    - key: cert.x509.subject.san
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: alt-0.role-0.example.org
+                            - stringValue: leaf-0.role-0.example.org
                     - key: engine.mount
                       value:
                         stringValue: pki/standalone/
@@ -120,6 +131,11 @@ resourceMetrics:
                         arrayValue:
                           values:
                             - stringValue: Security
+                    - key: cert.x509.subject.san
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: ca-0.standalone.example.org
                     - key: engine.mount
                       value:
                         stringValue: pki/standalone/
@@ -157,6 +173,12 @@ resourceMetrics:
                         arrayValue:
                           values:
                             - stringValue: App
+                    - key: cert.x509.subject.san
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: alt-0.role-0.example.org
+                            - stringValue: leaf-0.role-0.example.org
                     - key: engine.mount
                       value:
                         stringValue: pki/standalone/

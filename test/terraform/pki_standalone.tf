@@ -39,6 +39,7 @@ resource "vault_pki_secret_backend_root_cert" "standalone" {
   format       = "pem"
   key_type     = "ec"
   key_bits     = 224
+  alt_names    = ["ca-${count.index}.standalone.example.org"]
 
   not_before_duration = local.not_before
   not_after           = local.not_after
@@ -101,4 +102,5 @@ resource "vault_pki_secret_backend_cert" "standalone" {
   name = vault_pki_secret_backend_role.standalone[each.value.role_idx].name
 
   common_name = "leaf-${each.value.leaf_idx}.role-${each.value.role_idx}.example.org"
+  alt_names   = ["alt-${each.value.leaf_idx}.role-${each.value.role_idx}.example.org"]
 }

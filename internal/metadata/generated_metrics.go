@@ -100,11 +100,11 @@ var MapAttributeCrlRole = map[string]AttributeCrlRole{
 var MetricsInfo = metricsInfo{
 	PkiengineCertX509NotAfter: metricInfo{
 		Name:       "pkiengine.cert.x509.not_after",
-		Attributes: []string{"cert.type", "cert.x509.issuer.common_name", "cert.x509.serial_number", "cert.x509.subject.common_name", "cert.x509.subject.country", "cert.x509.subject.organization", "cert.x509.subject.organizational_unit", "engine.mount", "issuer.id"},
+		Attributes: []string{"cert.type", "cert.x509.issuer.common_name", "cert.x509.serial_number", "cert.x509.subject.common_name", "cert.x509.subject.country", "cert.x509.subject.organization", "cert.x509.subject.organizational_unit", "cert.x509.subject.san", "engine.mount", "issuer.id"},
 	},
 	PkiengineCertX509NotBefore: metricInfo{
 		Name:       "pkiengine.cert.x509.not_before",
-		Attributes: []string{"cert.type", "cert.x509.issuer.common_name", "cert.x509.serial_number", "cert.x509.subject.common_name", "cert.x509.subject.country", "cert.x509.subject.organization", "cert.x509.subject.organizational_unit", "engine.mount", "issuer.id"},
+		Attributes: []string{"cert.type", "cert.x509.issuer.common_name", "cert.x509.serial_number", "cert.x509.subject.common_name", "cert.x509.subject.country", "cert.x509.subject.organization", "cert.x509.subject.organizational_unit", "cert.x509.subject.san", "engine.mount", "issuer.id"},
 	},
 	PkiengineCrlCacheEvictions: metricInfo{
 		Name: "pkiengine.crl.cache.evictions",
@@ -180,7 +180,7 @@ func (m *metricPkiengineCertX509NotAfter) init() {
 	m.aggDataPoints = m.aggDataPoints[:0]
 }
 
-func (m *metricPkiengineCertX509NotAfter) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64, certTypeAttributeValue string, certX509IssuerCommonNameAttributeValue string, certX509SerialNumberAttributeValue string, certX509SubjectCommonNameAttributeValue string, certX509SubjectCountryAttributeValue []any, certX509SubjectOrganizationAttributeValue []any, certX509SubjectOrganizationalUnitAttributeValue []any, engineMountAttributeValue string, issuerIDAttributeValue string) {
+func (m *metricPkiengineCertX509NotAfter) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64, certTypeAttributeValue string, certX509IssuerCommonNameAttributeValue string, certX509SerialNumberAttributeValue string, certX509SubjectCommonNameAttributeValue string, certX509SubjectCountryAttributeValue []any, certX509SubjectOrganizationAttributeValue []any, certX509SubjectOrganizationalUnitAttributeValue []any, certX509SubjectSanAttributeValue []any, engineMountAttributeValue string, issuerIDAttributeValue string) {
 	if !m.config.Enabled {
 		return
 	}
@@ -208,6 +208,9 @@ func (m *metricPkiengineCertX509NotAfter) recordDataPoint(start pcommon.Timestam
 	}
 	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectOrganizationalUnit) {
 		dp.Attributes().PutEmptySlice("cert.x509.subject.organizational_unit").FromRaw(certX509SubjectOrganizationalUnitAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotAfterMetricAttributeKeyCertX509SubjectSan) {
+		dp.Attributes().PutEmptySlice("cert.x509.subject.san").FromRaw(certX509SubjectSanAttributeValue)
 	}
 	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotAfterMetricAttributeKeyEngineMount) {
 		dp.Attributes().PutStr("engine.mount", engineMountAttributeValue)
@@ -293,7 +296,7 @@ func (m *metricPkiengineCertX509NotBefore) init() {
 	m.aggDataPoints = m.aggDataPoints[:0]
 }
 
-func (m *metricPkiengineCertX509NotBefore) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64, certTypeAttributeValue string, certX509IssuerCommonNameAttributeValue string, certX509SerialNumberAttributeValue string, certX509SubjectCommonNameAttributeValue string, certX509SubjectCountryAttributeValue []any, certX509SubjectOrganizationAttributeValue []any, certX509SubjectOrganizationalUnitAttributeValue []any, engineMountAttributeValue string, issuerIDAttributeValue string) {
+func (m *metricPkiengineCertX509NotBefore) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64, certTypeAttributeValue string, certX509IssuerCommonNameAttributeValue string, certX509SerialNumberAttributeValue string, certX509SubjectCommonNameAttributeValue string, certX509SubjectCountryAttributeValue []any, certX509SubjectOrganizationAttributeValue []any, certX509SubjectOrganizationalUnitAttributeValue []any, certX509SubjectSanAttributeValue []any, engineMountAttributeValue string, issuerIDAttributeValue string) {
 	if !m.config.Enabled {
 		return
 	}
@@ -321,6 +324,9 @@ func (m *metricPkiengineCertX509NotBefore) recordDataPoint(start pcommon.Timesta
 	}
 	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganizationalUnit) {
 		dp.Attributes().PutEmptySlice("cert.x509.subject.organizational_unit").FromRaw(certX509SubjectOrganizationalUnitAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectSan) {
+		dp.Attributes().PutEmptySlice("cert.x509.subject.san").FromRaw(certX509SubjectSanAttributeValue)
 	}
 	if slices.Contains(m.config.EnabledAttributes, PkiengineCertX509NotBeforeMetricAttributeKeyEngineMount) {
 		dp.Attributes().PutStr("engine.mount", engineMountAttributeValue)
@@ -1308,13 +1314,13 @@ func (mb *MetricsBuilder) Emit(options ...ResourceMetricsOption) pmetric.Metrics
 }
 
 // RecordPkiengineCertX509NotAfterDataPoint adds a data point to pkiengine.cert.x509.not_after metric.
-func (mb *MetricsBuilder) RecordPkiengineCertX509NotAfterDataPoint(ts pcommon.Timestamp, val int64, certTypeAttributeValue AttributeCertType, certX509IssuerCommonNameAttributeValue string, certX509SerialNumberAttributeValue string, certX509SubjectCommonNameAttributeValue string, certX509SubjectCountryAttributeValue []any, certX509SubjectOrganizationAttributeValue []any, certX509SubjectOrganizationalUnitAttributeValue []any, engineMountAttributeValue string, issuerIDAttributeValue string) {
-	mb.metricPkiengineCertX509NotAfter.recordDataPoint(mb.startTime, ts, val, certTypeAttributeValue.String(), certX509IssuerCommonNameAttributeValue, certX509SerialNumberAttributeValue, certX509SubjectCommonNameAttributeValue, certX509SubjectCountryAttributeValue, certX509SubjectOrganizationAttributeValue, certX509SubjectOrganizationalUnitAttributeValue, engineMountAttributeValue, issuerIDAttributeValue)
+func (mb *MetricsBuilder) RecordPkiengineCertX509NotAfterDataPoint(ts pcommon.Timestamp, val int64, certTypeAttributeValue AttributeCertType, certX509IssuerCommonNameAttributeValue string, certX509SerialNumberAttributeValue string, certX509SubjectCommonNameAttributeValue string, certX509SubjectCountryAttributeValue []any, certX509SubjectOrganizationAttributeValue []any, certX509SubjectOrganizationalUnitAttributeValue []any, certX509SubjectSanAttributeValue []any, engineMountAttributeValue string, issuerIDAttributeValue string) {
+	mb.metricPkiengineCertX509NotAfter.recordDataPoint(mb.startTime, ts, val, certTypeAttributeValue.String(), certX509IssuerCommonNameAttributeValue, certX509SerialNumberAttributeValue, certX509SubjectCommonNameAttributeValue, certX509SubjectCountryAttributeValue, certX509SubjectOrganizationAttributeValue, certX509SubjectOrganizationalUnitAttributeValue, certX509SubjectSanAttributeValue, engineMountAttributeValue, issuerIDAttributeValue)
 }
 
 // RecordPkiengineCertX509NotBeforeDataPoint adds a data point to pkiengine.cert.x509.not_before metric.
-func (mb *MetricsBuilder) RecordPkiengineCertX509NotBeforeDataPoint(ts pcommon.Timestamp, val int64, certTypeAttributeValue AttributeCertType, certX509IssuerCommonNameAttributeValue string, certX509SerialNumberAttributeValue string, certX509SubjectCommonNameAttributeValue string, certX509SubjectCountryAttributeValue []any, certX509SubjectOrganizationAttributeValue []any, certX509SubjectOrganizationalUnitAttributeValue []any, engineMountAttributeValue string, issuerIDAttributeValue string) {
-	mb.metricPkiengineCertX509NotBefore.recordDataPoint(mb.startTime, ts, val, certTypeAttributeValue.String(), certX509IssuerCommonNameAttributeValue, certX509SerialNumberAttributeValue, certX509SubjectCommonNameAttributeValue, certX509SubjectCountryAttributeValue, certX509SubjectOrganizationAttributeValue, certX509SubjectOrganizationalUnitAttributeValue, engineMountAttributeValue, issuerIDAttributeValue)
+func (mb *MetricsBuilder) RecordPkiengineCertX509NotBeforeDataPoint(ts pcommon.Timestamp, val int64, certTypeAttributeValue AttributeCertType, certX509IssuerCommonNameAttributeValue string, certX509SerialNumberAttributeValue string, certX509SubjectCommonNameAttributeValue string, certX509SubjectCountryAttributeValue []any, certX509SubjectOrganizationAttributeValue []any, certX509SubjectOrganizationalUnitAttributeValue []any, certX509SubjectSanAttributeValue []any, engineMountAttributeValue string, issuerIDAttributeValue string) {
+	mb.metricPkiengineCertX509NotBefore.recordDataPoint(mb.startTime, ts, val, certTypeAttributeValue.String(), certX509IssuerCommonNameAttributeValue, certX509SerialNumberAttributeValue, certX509SubjectCommonNameAttributeValue, certX509SubjectCountryAttributeValue, certX509SubjectOrganizationAttributeValue, certX509SubjectOrganizationalUnitAttributeValue, certX509SubjectSanAttributeValue, engineMountAttributeValue, issuerIDAttributeValue)
 }
 
 // RecordPkiengineCrlCacheEvictionsDataPoint adds a data point to pkiengine.crl.cache.evictions metric.

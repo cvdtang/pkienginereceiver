@@ -51,7 +51,7 @@ flowchart LR
 For collected metrics and attributes, see [documentation.md](documentation.md).
 
 ## Considerations
-- Collection of leaf certificates is disabled by default. It's recommended to monitor leaf certificates where they are actively used via e.g. [tlscheckreceiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/tlscheckreceiver). When using cert-manager on Kubernetes consider collecting `Certificate` resources via the [k8sobjectsreceiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/k8sobjectsreceiver).
+- Collection of leaf certificates is disabled by default and can be enabled when desired. It's recommended to monitor leaf certificates where they are actively used via e.g. [tlscheckreceiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/tlscheckreceiver) rather than tracking down each certificate's location after the fact.
 
 - Tidy metrics which includes counters for issued and revoked certificates can be collected via the exposed telemetry endpoints by the secret store and scraped via e.g. Prometheus jobs. See `secrets.pki.tidy.*` metrics ([OpenBao](https://openbao.org/docs/internals/telemetry/metrics/all/) | [Vault](https://developer.hashicorp.com/vault/docs/internals/telemetry/metrics/all)). For extra large deployments consider disabling metric `pkiengine.mount.certificates_stored` and rely on Tidy metrics as secret stores efficiently track changes to maintain internal counters.
 
