@@ -104,19 +104,19 @@ func (ie *issuer) collect(ctx context.Context) (issuerResult, error) {
 		return ie.newSkippedIssuerResult(issuer, isParent), nil
 	}
 
-	certSecret, err := parseCertificateSecret(issuer)
+	certData, err := parseCertificateData(issuer)
 	if err != nil {
 		return issuerResult{}, err
 	}
 
-	crt := newCertificate(ie.mountPath, metadata.AttributeCertTypeIssuer, ie.id, certSecret.certificateData)
-	if err := crt.collect(); err != nil {
+	crt, err := newCertificate(certData)
+	if err != nil {
 		return issuerResult{}, fmt.Errorf("failed processing certificate: %w", err)
 	}
 
 	issuerLogger := ie.logger.With(
-		zap.String("cert.subject.common_name", crt.crt.Subject.CommonName),
-		zap.String("cert.issuer.common_name", crt.crt.Issuer.CommonName),
+		zap.String("cert.subject.common_name", crt.subjectCN),
+		zap.String("cert.issuer.common_name", crt.issuerCN),
 	)
 
 	crlTasks := ie.buildCRLTasks(issuer, crt, issuerLogger)
@@ -126,7 +126,7 @@ func (ie *issuer) collect(ctx context.Context) (issuerResult, error) {
 		id:                ie.id,
 		logger:            issuerLogger,
 		certificate:       crt,
-		certificateSerial: crt.serial(),
+		certificateSerial: crt.serial,
 		crlTasks:          crlTasks,
 	}, nil
 }
@@ -154,19 +154,19 @@ func (ie *issuer) shouldSkip(issuer *api.Secret) (bool, bool) {
 
 // Extracts the certificate serial from a copied parent issuer secret.
 func (ie *issuer) parentSerialFromIssuerSecret(issuer *api.Secret) string {
-	certSecret, err := parseCertificateSecret(issuer)
+	certData, err := parseCertificateData(issuer)
 	if err != nil {
 		return ""
 	}
 
-	crt := newCertificate(ie.mountPath, metadata.AttributeCertTypeIssuer, ie.id, certSecret.certificateData)
-	if err := crt.collect(); err != nil {
+	crt, err := newCertificate(certData)
+	if err != nil {
 		ie.logger.Debug("failed parsing copied parent issuer certificate serial", zap.Error(err))
 
 		return ""
 	}
 
-	return crt.serial()
+	return crt.serial
 }
 
 func (ie *issuer) newSkippedIssuerResult(issuer *api.Secret, isParent bool) issuerResult {

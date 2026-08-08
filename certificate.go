@@ -30,51 +30,82 @@ type certSubjectAttributes struct {
 }
 
 type certificate struct {
-	mount    string
-	issuerId string
-	raw      string
-	crt      *x509.Certificate
-	metrics  certificateMetrics
-	subject  certSubjectAttributes
+	cert      *x509.Certificate
+	serial    string
+	issuerCN  string
+	subjectCN string
+	metrics   certificateMetrics
+	subject   certSubjectAttributes
 }
 
-func newCertificate(
-	mount string,
-	certType metadata.AttributeCertType,
-	issuerId string,
-	certificateData string,
-) certificate {
-	if certType == metadata.AttributeCertTypeLeaf {
-		issuerId = ""
+// Parses PEM/DER certificate data and builds an immutable, ready-to-emit value.
+func newCertificate(certData string) (certificate, error) {
+	cert, err := parseCertificate([]byte(certData))
+	if err != nil {
+		return certificate{}, err
 	}
 
 	return certificate{
-		mount:    mount,
-		issuerId: issuerId,
-		raw:      certificateData,
-	}
+		cert:      cert,
+		serial:    serialToColonHex(cert.SerialNumber),
+		issuerCN:  cert.Issuer.CommonName,
+		subjectCN: cert.Subject.CommonName,
+		metrics:   collectCertificateMetrics(cert),
+		subject:   collectSubjectAttributes(cert),
+	}, nil
 }
 
-func (c *certificate) collect() error {
-	crt, err := c.parse()
-	if err != nil {
-		return err
+// Decodes certificate data, supporting PEM and DER encoding.
+func parseCertificate(data []byte) (*x509.Certificate, error) {
+	block, _ := pem.Decode(data)
+	if block != nil {
+		data = block.Bytes
 	}
-	c.crt = crt
 
-	c.metrics = c.collectMetrics()
-	c.subject = c.collectSubjectAttributes()
+	cert, err := x509.ParseCertificate(data)
+	if err != nil {
+		return nil, err
+	}
 
-	return nil
+	return cert, nil
+}
+
+// Returns all Subject Alternative Name (SAN) entries of the certificate as a sorted string slice.
+func certSANs(crt *x509.Certificate) []string {
+	san := make([]string, 0, len(crt.DNSNames)+len(crt.IPAddresses)+len(crt.EmailAddresses)+len(crt.URIs))
+	san = append(san, crt.DNSNames...)
+	for _, ip := range crt.IPAddresses {
+		san = append(san, ip.String())
+	}
+	san = append(san, crt.EmailAddresses...)
+	for _, u := range crt.URIs {
+		san = append(san, u.String())
+	}
+	sort.Strings(san)
+
+	return san
+}
+
+// Computes the emit-time metric values from the parsed certificate.
+func collectCertificateMetrics(crt *x509.Certificate) certificateMetrics {
+	now := pcommon.NewTimestampFromTime(time.Now())
+	notAfterMinutes := int64(math.Floor(time.Until(crt.NotAfter).Minutes()))
+	notBeforeMinutes := int64(math.Floor(time.Until(crt.NotBefore).Minutes()))
+
+	return certificateMetrics{
+		ts:               now,
+		notAfterMinutes:  notAfterMinutes,
+		notBeforeMinutes: notBeforeMinutes,
+	}
 }
 
 // Converts the subject and SAN fields to the slice attributes used by the cert metrics.
-func (c *certificate) collectSubjectAttributes() certSubjectAttributes {
+func collectSubjectAttributes(crt *x509.Certificate) certSubjectAttributes {
 	return certSubjectAttributes{
-		country:            toAnySlice(c.crt.Subject.Country),
-		organization:       toAnySlice(c.crt.Subject.Organization),
-		organizationalUnit: toAnySlice(c.crt.Subject.OrganizationalUnit),
-		san:                toAnySlice(c.subjectAlternativeNames()),
+		country:            toAnySlice(crt.Subject.Country),
+		organization:       toAnySlice(crt.Subject.Organization),
+		organizationalUnit: toAnySlice(crt.Subject.OrganizationalUnit),
+		san:                toAnySlice(certSANs(crt)),
 	}
 }
 
@@ -89,15 +120,6 @@ func serialToColonHex(serial *big.Int) string {
 	return strings.Join(hex, ":")
 }
 
-// Returns issuer type and ID when the serial belongs to a known issuer, otherwise it returns leaf type.
-func classifyCertificateType(normalizedSerial string, issuerBySerial map[string]string) (metadata.AttributeCertType, string) {
-	if issuerID, ok := issuerBySerial[normalizedSerial]; ok {
-		return metadata.AttributeCertTypeIssuer, issuerID
-	}
-
-	return metadata.AttributeCertTypeLeaf, ""
-}
-
 // Parses a serial string as hexadecimal and returns it in colon-separated lowercase form.
 func normalizeCertificateSerial(serial string) (string, bool) {
 	parsed := strings.TrimSpace(serial)
@@ -110,99 +132,45 @@ func normalizeCertificateSerial(serial string) (string, bool) {
 	return serialToColonHex(serialInt), true
 }
 
-// Parse certificate data, supports PEM and DER encoding.
-func (c *certificate) parse() (*x509.Certificate, error) {
-	data := []byte(c.raw)
-
-	block, _ := pem.Decode(data)
-	if block != nil {
-		data = block.Bytes
-	}
-
-	cert, err := x509.ParseCertificate(data)
-	if err != nil {
-		return nil, err
-	}
-
-	return cert, nil
-}
-
-func (c *certificate) listBaseCrlDistributionPoints() []string {
-	return c.crt.CRLDistributionPoints
-}
-
-func (c *certificate) listDeltaCrlDistributionPoints() ([]string, error) {
-	return certutil.ParseDeltaCRLExtension(c.crt)
-}
-
-func (c *certificate) collectMetrics() certificateMetrics {
-	now := pcommon.NewTimestampFromTime(time.Now())
-	notAfterMinutes := int64(math.Floor(time.Until(c.crt.NotAfter).Minutes()))
-	notBeforeMinutes := int64(math.Floor(time.Until(c.crt.NotBefore).Minutes()))
-
-	metrics := certificateMetrics{
-		ts:               now,
-		notAfterMinutes:  notAfterMinutes,
-		notBeforeMinutes: notBeforeMinutes,
-	}
-
-	return metrics
-}
-
-func (c *certificate) serial() string {
-	if c.crt == nil || c.crt.SerialNumber == nil {
-		return ""
-	}
-
-	return serialToColonHex(c.crt.SerialNumber)
-}
-
-func (c *certificate) emitCert(mb *metadata.MetricsBuilder, certType metadata.AttributeCertType) {
-	serialNumber := c.serial()
-
+// Emits the metrics for this certificate.
+//
+// When certType is AttributeCertTypeLeaf, callers must pass an empty issuerId.
+func (c certificate) emit(mb *metadata.MetricsBuilder, certType metadata.AttributeCertType, mount, issuerId string) {
 	mb.RecordPkiengineCertX509NotAfterDataPoint(
 		c.metrics.ts,
 		c.metrics.notAfterMinutes,
 		certType,
-		c.crt.Issuer.CommonName,
-		serialNumber,
-		c.crt.Subject.CommonName,
+		c.issuerCN,
+		c.serial,
+		c.subjectCN,
 		c.subject.country,
 		c.subject.organization,
 		c.subject.organizationalUnit,
 		c.subject.san,
-		c.mount,
-		c.issuerId,
+		mount,
+		issuerId,
 	)
 
 	mb.RecordPkiengineCertX509NotBeforeDataPoint(
 		c.metrics.ts,
 		c.metrics.notBeforeMinutes,
 		certType,
-		c.crt.Issuer.CommonName,
-		serialNumber,
-		c.crt.Subject.CommonName,
+		c.issuerCN,
+		c.serial,
+		c.subjectCN,
 		c.subject.country,
 		c.subject.organization,
 		c.subject.organizationalUnit,
 		c.subject.san,
-		c.mount,
-		c.issuerId,
+		mount,
+		issuerId,
 	)
 }
 
-// Returns all Subject Alternative Name (SAN) entries of the certificate as a string slice.
-func (c *certificate) subjectAlternativeNames() []string {
-	san := make([]string, 0, len(c.crt.DNSNames)+len(c.crt.IPAddresses)+len(c.crt.EmailAddresses)+len(c.crt.URIs))
-	san = append(san, c.crt.DNSNames...)
-	for _, ip := range c.crt.IPAddresses {
-		san = append(san, ip.String())
-	}
-	san = append(san, c.crt.EmailAddresses...)
-	for _, u := range c.crt.URIs {
-		san = append(san, u.String())
-	}
-	sort.Strings(san)
+func (c certificate) listBaseCrlDistributionPoints() []string {
+	return c.cert.CRLDistributionPoints
+}
 
-	return san
+func (c certificate) listDeltaCrlDistributionPoints() ([]string, error) {
+	return certutil.ParseDeltaCRLExtension(c.cert)
 }

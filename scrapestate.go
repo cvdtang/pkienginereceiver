@@ -76,13 +76,13 @@ func (s *scrapeShared) emitIssuer(result issuerResult) {
 		return
 	}
 	s.withMetricsLock(func() {
-		result.certificate.emitCert(s.mb, metadata.AttributeCertTypeIssuer)
+		result.certificate.emit(s.mb, metadata.AttributeCertTypeIssuer, result.mountPath, result.id)
 	})
 }
 
-func (s *scrapeShared) emitCert(cert certificate, certType metadata.AttributeCertType) {
+func (s *scrapeShared) emitCert(cert certificate, certType metadata.AttributeCertType, mount, issuerId string) {
 	s.withMetricsLock(func() {
-		cert.emitCert(s.mb, certType)
+		cert.emit(s.mb, certType, mount, issuerId)
 	})
 }
 

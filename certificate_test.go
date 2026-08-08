@@ -16,6 +16,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/collector/pdata/pcommon"
+	"go.opentelemetry.io/collector/pdata/pmetric"
 )
 
 // Creates test certificate, return DER and PEM format.
@@ -83,12 +85,13 @@ func getTestCertDataWithOU(t *testing.T, cn, ou string, crlURIs ...string) ([]by
 func createTestCertificate(t *testing.T) certificate {
 	t.Helper()
 
-	issuerId := "58390ed4-aaab-488f-8cc1-cc006df63e37"
-
 	commonName := "ACME org"
 	derCert, _ := getTestCertDataWithOU(t, commonName, "Security")
 
-	return newCertificate("pki/", metadata.AttributeCertTypeIssuer, issuerId, string(derCert))
+	crt, err := newCertificate(string(derCert))
+	require.NoError(t, err)
+
+	return crt
 }
 
 func TestCertificate_Parse(t *testing.T) {
@@ -127,10 +130,7 @@ func TestCertificate_Parse(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			crt := createTestCertificate(t)
-			crt.raw = string(tt.certData)
-
-			cert, err := crt.parse()
+			cert, err := parseCertificate(tt.certData)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -142,33 +142,30 @@ func TestCertificate_Parse(t *testing.T) {
 	}
 }
 
-func TestCertificate_Collect(t *testing.T) {
+func TestCertificate_New(t *testing.T) {
 	t.Parallel()
 
 	crt := createTestCertificate(t)
-	err := crt.collect()
-	assert.NoError(t, err)
+	require.Equal(t, "30:39", crt.serial)
+	require.Equal(t, "ACME org", crt.subjectCN)
+	require.Equal(t, "ACME org", crt.issuerCN)
 }
 
-func TestCertificate_Collect_ParseErr(t *testing.T) {
+func TestCertificate_New_ParseErr(t *testing.T) {
 	t.Parallel()
 
-	crt := createTestCertificate(t)
-	crt.raw = "junk"
-
-	err := crt.collect()
+	_, err := newCertificate("junk")
 	assert.Error(t, err)
 }
 
 func TestCertificate_CollectMetrics(t *testing.T) {
 	t.Parallel()
 
-	crt := createTestCertificate(t)
-	err := crt.collect()
-	require.NoError(t, err)
-
 	startTime := time.Now()
-	metrics := crt.collectMetrics()
+	_, certDER := getTestCertData(t, "ACME org")
+	cert, err := parseCertificate(certDER)
+	require.NoError(t, err)
+	metrics := collectCertificateMetrics(cert)
 
 	assert.GreaterOrEqual(t, metrics.ts.AsTime(), startTime)
 
@@ -182,12 +179,10 @@ func TestCertificate_Emit(t *testing.T) {
 	startTime := time.Now()
 
 	crt := createTestCertificate(t)
-	err := crt.collect()
-	require.NoError(t, err)
 
 	state := createTestScrapeState(t)
 	rb := state.mb.NewResourceBuilder()
-	crt.emitCert(state.mb, metadata.AttributeCertTypeIssuer)
+	crt.emit(state.mb, metadata.AttributeCertTypeIssuer, "pki/", "58390ed4-aaab-488f-8cc1-cc006df63e37")
 
 	res := rb.Emit()
 	md := state.mb.Emit(metadata.WithResource(res))
@@ -218,30 +213,86 @@ func TestCertificate_Emit(t *testing.T) {
 		assert.GreaterOrEqual(t, dp.Timestamp().AsTime(), startTime)
 		validator(t, dp.IntValue())
 
-		if name == "pkiengine.cert.x509.not_after" || name == "pkiengine.cert.x509.not_before" {
-			serial, ok := dp.Attributes().Get("cert.x509.serial_number")
-			require.True(t, ok)
-			require.Equal(t, "30:39", serial.Str())
-
-			subjectCountry, ok := dp.Attributes().Get("cert.x509.subject.country")
-			require.True(t, ok)
-			require.Equal(t, []any{"US"}, subjectCountry.Slice().AsRaw())
-
-			subjectOrganization, ok := dp.Attributes().Get("cert.x509.subject.organization")
-			require.True(t, ok)
-			require.Equal(t, []any{"ACME org"}, subjectOrganization.Slice().AsRaw())
-
-			subjectOrganizationalUnit, ok := dp.Attributes().Get("cert.x509.subject.organizational_unit")
-			require.True(t, ok)
-			require.Equal(t, []any{"Security"}, subjectOrganizationalUnit.Slice().AsRaw())
-
-			subjectSan, ok := dp.Attributes().Get("cert.x509.subject.san")
-			require.True(t, ok)
-			require.Equal(t, []any{"10.0.0.1", "ACME org", "admin@example.org", "alt.example.org", "https://ca.example.org"}, subjectSan.Slice().AsRaw())
-		}
+		assertCertEmitAttributes(t, dp,
+			"issuer",
+			"ACME org",
+			"30:39",
+			"pki/",
+			"58390ed4-aaab-488f-8cc1-cc006df63e37",
+			[]any{"US"},
+			[]any{"ACME org"},
+			[]any{"Security"},
+			[]any{"10.0.0.1", "ACME org", "admin@example.org", "alt.example.org", "https://ca.example.org"},
+		)
 	}
 
 	assert.Equal(t, len(expectedMetrics), metrics.Len())
+}
+
+func TestCertificate_Emit_Leaf(t *testing.T) {
+	t.Parallel()
+
+	crt := createTestCertificate(t)
+
+	state := createTestScrapeState(t)
+	rb := state.mb.NewResourceBuilder()
+	crt.emit(state.mb, metadata.AttributeCertTypeLeaf, "pki/", "")
+
+	res := rb.Emit()
+	md := state.mb.Emit(metadata.WithResource(res))
+	require.Equal(t, 1, md.ResourceMetrics().Len())
+	metrics := md.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics()
+
+	// Leaf certificates carry no local issuer, so issuer.id must be present and empty.
+	assert.Equal(t, 2, metrics.Len())
+	for i := range metrics.Len() {
+		metric := metrics.At(i)
+		require.Equal(t, 1, metric.Gauge().DataPoints().Len())
+
+		assertCertEmitAttributes(t, metric.Gauge().DataPoints().At(0),
+			"leaf",
+			"ACME org",
+			"30:39",
+			"pki/",
+			"",
+			[]any{"US"},
+			[]any{"ACME org"},
+			[]any{"Security"},
+			[]any{"10.0.0.1", "ACME org", "admin@example.org", "alt.example.org", "https://ca.example.org"},
+		)
+	}
+}
+
+// Asserts the attribute values shared by both x509 certificate metrics on a data point.
+func assertCertEmitAttributes(t *testing.T, dp pmetric.NumberDataPoint, certType, issuerCN, serial, mount, issuerID string, country, organization, organizationalUnit, san []any) {
+	t.Helper()
+
+	attrs := dp.Attributes()
+
+	assert.Equal(t, certType, requireAttr(t, attrs, "cert.type").Str())
+	assert.Equal(t, issuerCN, requireAttr(t, attrs, "cert.x509.issuer.common_name").Str())
+	assert.Equal(t, serial, requireAttr(t, attrs, "cert.x509.serial_number").Str())
+	assert.Equal(t, mount, requireAttr(t, attrs, "engine.mount").Str())
+
+	if issuerID == "" {
+		assert.Empty(t, requireAttr(t, attrs, "issuer.id").Str())
+	} else {
+		assert.Equal(t, issuerID, requireAttr(t, attrs, "issuer.id").Str())
+	}
+
+	assert.Equal(t, country, requireAttr(t, attrs, "cert.x509.subject.country").Slice().AsRaw())
+	assert.Equal(t, organization, requireAttr(t, attrs, "cert.x509.subject.organization").Slice().AsRaw())
+	assert.Equal(t, organizationalUnit, requireAttr(t, attrs, "cert.x509.subject.organizational_unit").Slice().AsRaw())
+	assert.Equal(t, san, requireAttr(t, attrs, "cert.x509.subject.san").Slice().AsRaw())
+}
+
+func requireAttr(t *testing.T, attrs pcommon.Map, key string) pcommon.Value {
+	t.Helper()
+
+	v, ok := attrs.Get(key)
+	require.True(t, ok, "missing attribute %s", key)
+
+	return v
 }
 
 func TestNormalizeCertificateSerial(t *testing.T) {
@@ -281,20 +332,4 @@ func TestNormalizeCertificateSerial(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
-}
-
-func TestClassifyCertificateType(t *testing.T) {
-	t.Parallel()
-
-	certType, issuerID := classifyCertificateType("aa:bb", map[string]string{
-		"aa:bb": "issuer-1",
-	})
-	assert.Equal(t, metadata.AttributeCertTypeIssuer, certType)
-	assert.Equal(t, "issuer-1", issuerID)
-
-	certType, issuerID = classifyCertificateType("cc:dd", map[string]string{
-		"aa:bb": "issuer-1",
-	})
-	assert.Equal(t, metadata.AttributeCertTypeLeaf, certType)
-	assert.Empty(t, issuerID)
 }

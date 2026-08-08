@@ -359,8 +359,8 @@ func TestIssuerBuildCRLTasksScrapeParent(t *testing.T) {
 			}
 
 			_, certPEM := getTestCertData(t, "example.org CA", parentCrlUri)
-			cert := newCertificate("pki/", metadata.AttributeCertTypeIssuer, issuer.id, string(certPEM))
-			require.NoError(t, cert.collect())
+			cert, err := newCertificate(string(certPEM))
+			require.NoError(t, err)
 
 			tasks := issuer.buildCRLTasks(issuerSecret, cert, zap.NewNop())
 

@@ -205,8 +205,7 @@ func TestCRL_Parse(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			crl, _ := createTestCRL(t)
-			gotCrl, err := crl.parse(tc.input)
+			gotCrl, err := parseCRL(tc.input)
 
 			if tc.expectError {
 				require.Error(t, err)
