@@ -5,15 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cvdtang/pkienginereceiver/internal/metadata"
 	"github.com/hashicorp/vault/api"
 	"go.uber.org/zap"
 )
-
-type certificateSecret struct {
-	certificateData string
-	issuerID        string
-}
 
 type storedCert struct {
 	logger      *zap.Logger
@@ -52,13 +46,13 @@ func (l *storedCert) collect(ctx context.Context) (storedCertResult, error) {
 		return storedCertResult{}, err
 	}
 
-	certSecret, err := parseCertificateSecret(secret)
+	certData, err := parseCertificateData(secret)
 	if err != nil {
 		return storedCertResult{}, err
 	}
 
-	crt := newCertificate(l.mountPath, metadata.AttributeCertTypeLeaf, certSecret.issuerID, certSecret.certificateData)
-	if err := crt.collect(); err != nil {
+	crt, err := newCertificate(certData)
+	if err != nil {
 		return storedCertResult{}, fmt.Errorf("failed processing stored certificate: %w", err)
 	}
 
@@ -67,23 +61,19 @@ func (l *storedCert) collect(ctx context.Context) (storedCertResult, error) {
 	}, nil
 }
 
-func parseCertificateSecret(secret *api.Secret) (certificateSecret, error) {
+// Extracts the raw certificate data from a certificate secret.
+func parseCertificateData(secret *api.Secret) (string, error) {
 	if secret == nil {
-		return certificateSecret{}, errors.New("certificate not found")
+		return "", errors.New("certificate not found")
 	}
 	if secret.Data == nil {
-		return certificateSecret{}, errors.New("certificate exists but has no data")
+		return "", errors.New("certificate exists but has no data")
 	}
 
 	certificateData, ok := secret.Data["certificate"].(string)
 	if !ok || certificateData == "" {
-		return certificateSecret{}, errors.New("certificate attribute is empty or invalid")
+		return "", errors.New("certificate attribute is empty or invalid")
 	}
 
-	issuerID, _ := secret.Data["issuer_id"].(string)
-
-	return certificateSecret{
-		certificateData: certificateData,
-		issuerID:        issuerID,
-	}, nil
+	return certificateData, nil
 }

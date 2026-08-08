@@ -200,8 +200,7 @@ func (r *scrapeRun) processCertificate(stageMount mount, serial string) {
 		return
 	}
 
-	storedCertResult.certificate.issuerId = ""
-	r.shared.emitCert(storedCertResult.certificate, metadata.AttributeCertTypeLeaf)
+	r.shared.emitCert(storedCertResult.certificate, metadata.AttributeCertTypeLeaf, stageMount.path, "")
 }
 
 type mountWorkState struct {

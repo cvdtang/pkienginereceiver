@@ -41,7 +41,7 @@ func TestParseCertificateSecret(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			certSecret, err := parseCertificateSecret(tt.secret)
+			certData, err := parseCertificateData(tt.secret)
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 
@@ -49,7 +49,7 @@ func TestParseCertificateSecret(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			assert.NotEmpty(t, certSecret.certificateData)
+			assert.NotEmpty(t, certData)
 		})
 	}
 }
@@ -70,6 +70,5 @@ func TestStoredCertCollect(t *testing.T) {
 
 	result, err := storedCert.collect(ctx)
 	require.NoError(t, err)
-	require.NotNil(t, result.certificate.crt)
-	assert.Empty(t, result.certificate.issuerId)
+	require.Equal(t, "30:39", result.certificate.serial)
 }

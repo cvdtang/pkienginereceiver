@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/vault/api"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.uber.org/zap"
 )
@@ -60,35 +61,39 @@ type clusterConfig struct {
 }
 
 // Get AIA templating values.
-func (m *mount) getClusterConfiguration(ctx context.Context) (*clusterConfig, error) {
+func (m *mount) getClusterConfiguration(ctx context.Context) (clusterConfig, error) {
 	if ctx.Err() != nil {
-		return nil, ctx.Err()
+		return clusterConfig{}, ctx.Err()
 	}
 
 	secret, err := m.secretStore.readClusterConfiguration(ctx, m.path)
 	if err != nil {
-		return nil, err
+		return clusterConfig{}, err
 	}
+
+	return parseClusterConfig(secret)
+}
+
+// Extracts AIA templating values from the cluster configuration.
+func parseClusterConfig(secret *api.Secret) (clusterConfig, error) {
 	if secret == nil || secret.Data == nil {
-		return nil, fmt.Errorf("empty secret or data")
+		return clusterConfig{}, fmt.Errorf("empty secret or data")
 	}
 
 	path, ok := secret.Data["path"].(string)
 	if !ok {
-		return nil, fmt.Errorf("missing or invalid path in cluster config")
+		return clusterConfig{}, fmt.Errorf("missing or invalid path in cluster config")
 	}
 
 	aiaPath, ok := secret.Data["aia_path"].(string)
 	if !ok {
-		return nil, fmt.Errorf("missing or invalid aia_path in cluster config")
+		return clusterConfig{}, fmt.Errorf("missing or invalid aia_path in cluster config")
 	}
 
-	clusterConfig := clusterConfig{
+	return clusterConfig{
 		path:    path,
 		aiaPath: aiaPath,
-	}
-
-	return &clusterConfig, nil
+	}, nil
 }
 
 // Lists issuer IDs for the current mount path.
@@ -154,7 +159,7 @@ func (m *mount) collect(ctx context.Context) (mountResult, error) {
 
 	return mountResult{
 		path:               m.path,
-		clusterConfig:      *clusterConfig,
+		clusterConfig:      clusterConfig,
 		issuerIDs:          issuers,
 		certificateSerials: leafs,
 		metrics:            metrics,

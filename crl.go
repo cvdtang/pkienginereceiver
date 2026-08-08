@@ -59,10 +59,6 @@ func (e *crlFetchError) Unwrap() error {
 }
 
 func newFetchError(err error, retryable bool) error {
-	if err == nil {
-		return nil
-	}
-
 	return &crlFetchError{
 		err:       err,
 		retryable: retryable,
@@ -342,10 +338,6 @@ func (c *crl) fetchWithRetries(ctx context.Context, previousETag string, previou
 }
 
 func shouldRetryFetchError(err error) bool {
-	if err == nil {
-		return false
-	}
-
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return false
 	}
@@ -427,7 +419,7 @@ func (c *crl) cacheFetchError(cacheKey string, now time.Time, fetchErr error) cr
 
 // Stores successful fetch metrics and validators in cache.
 func (c *crl) cacheFetchSuccess(cacheKey string, now time.Time, res fetchResult) crlMetrics {
-	metrics, parseErr := c.createMetrics(res)
+	metrics, parseErr := createCRLMetrics(res)
 	if parseErr != nil {
 		metrics.err = parseErr
 	}
@@ -463,13 +455,13 @@ func (e crlCacheEntry) isFreshFor(scrapeStart time.Time) bool {
 }
 
 // Parses fetched CRL data and maps it to metric values.
-func (c *crl) createMetrics(res fetchResult) (crlMetrics, error) {
+func createCRLMetrics(res fetchResult) (crlMetrics, error) {
 	metrics := newCrlMetrics()
 	if res.Fetchable == 0 {
 		return metrics, nil
 	}
 
-	crl, err := c.parse(res.Data)
+	crl, err := parseCRL(res.Data)
 	if err != nil {
 		metrics.processingStatus = crlProcessingStatusParseFailed
 
@@ -486,7 +478,7 @@ func (c *crl) createMetrics(res fetchResult) (crlMetrics, error) {
 }
 
 // Decodes and parses CRL bytes from PEM or DER format.
-func (c *crl) parse(data []byte) (*x509.RevocationList, error) {
+func parseCRL(data []byte) (*x509.RevocationList, error) {
 	block, _ := pem.Decode(data)
 	if block != nil {
 		data = block.Bytes
