@@ -9,10 +9,12 @@ terraform {
       source  = "hashicorp/vault"
       version = "5.10.1"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "3.2.1"
+    }
   }
 }
-
-provider "vault" {}
 
 provider "kubernetes" {
   config_path    = "../../kubeconfig.yaml"
