@@ -154,7 +154,7 @@ type ldapParams struct {
 }
 
 // Parses an LDAP URI and converts it to validated LDAP search params.
-func (f *realCrlFetcher) parseAndPrepare(uri string) (*ldapParams, error) {
+func prepareLdapParams(uri string) (*ldapParams, error) {
 	parsed, err := parseLdapUri(uri)
 	if err != nil {
 		return nil, fmt.Errorf("failed parsing URI: %w", err)
@@ -218,7 +218,7 @@ func (f *realCrlFetcher) parseAndPrepare(uri string) (*ldapParams, error) {
 // Fetches CRL bytes from an LDAP endpoint.
 func (f *realCrlFetcher) fetchLDAP(ctx context.Context, dialer ldapDialer, uri string, timeout time.Duration) (int64, []byte, error) {
 	var fetchable int64 = 0
-	params, err := f.parseAndPrepare(uri)
+	params, err := prepareLdapParams(uri)
 	if err != nil {
 		return fetchable, nil, newPermanentFetchError(fmt.Errorf("failed to parse ldap uri: %w", err))
 	}

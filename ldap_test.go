@@ -120,6 +120,91 @@ func TestParseLdapUri(t *testing.T) {
 	}
 }
 
+func TestPrepareLdapParams(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		input    string
+		want     *ldapParams
+		wantErr  bool
+		errMatch string
+	}{
+		{
+			name:  "Full URI with scope and filter wrapping",
+			input: "ldap://host:123/ou=People,dc=example,dc=com?certificaterevocationlist?one?objectClass=person",
+			want: &ldapParams{
+				host:      "ldap://host:123",
+				dn:        "ou=People,dc=example,dc=com",
+				filter:    "(objectClass=person)",
+				attribute: "certificaterevocationlist;binary",
+				scope:     ldap.ScopeSingleLevel,
+			},
+			wantErr: false,
+		},
+		{
+			name:  "LDAPS with binary attribute and sub scope",
+			input: "ldaps://example.com/dc=example,dc=com?certificaterevocationlist;binary?sub",
+			want: &ldapParams{
+				host:      "ldaps://example.com",
+				dn:        "dc=example,dc=com",
+				filter:    "(objectClass=*)",
+				attribute: "certificaterevocationlist;binary",
+				scope:     ldap.ScopeWholeSubtree,
+			},
+			wantErr: false,
+		},
+		{
+			name:  "Default base scope",
+			input: "ldap://localhost/dc=example,dc=com?certificaterevocationlist",
+			want: &ldapParams{
+				host:      "ldap://localhost",
+				dn:        "dc=example,dc=com",
+				filter:    "(objectClass=*)",
+				attribute: "certificaterevocationlist;binary",
+				scope:     ldap.ScopeBaseObject,
+			},
+			wantErr: false,
+		},
+		{
+			name:     "No attributes",
+			input:    "ldap://localhost/dc=example,dc=com",
+			wantErr:  true,
+			errMatch: "no LDAP object attribute in URI",
+		},
+		{
+			name:     "Multiple attributes",
+			input:    "ldap://localhost/dc=example,dc=com?cn,mail",
+			wantErr:  true,
+			errMatch: "got multiple LDAP object attributes in URI, expected 1",
+		},
+		{
+			name:     "Invalid scope",
+			input:    "ldap://localhost/dc=example,dc=com?certificaterevocationlist?invalid",
+			wantErr:  true,
+			errMatch: "invalid 'scope' parameter value",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := prepareLdapParams(tt.input)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.errMatch != "" {
+					assert.Contains(t, err.Error(), tt.errMatch)
+				}
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+		})
+	}
+}
+
 func Test_fetchCrlLdap_Success(t *testing.T) {
 	t.Parallel()
 
