@@ -54,68 +54,57 @@ var (
 	testCrlDataOnce sync.Once
 	testCrlDER      []byte
 	testCrlPEM      []byte
-	testCrlDataErr  error
 )
 
-// Helper to generate a real, cryptographically valid CRL
-// and return it in both DER and PEM formats.
+// Generates a real, cryptographically valid CRL DER signed by a CA with the given Common Name.
+func createTestCrlForIssuer(t *testing.T, cn string) []byte {
+	t.Helper()
+
+	caKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	caTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: cn,
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+
+	caCertDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
+	require.NoError(t, err)
+
+	caCert, err := x509.ParseCertificate(caCertDER)
+	require.NoError(t, err)
+
+	crlTemplate := &x509.RevocationList{
+		Number:     big.NewInt(1),
+		ThisUpdate: time.Now(),
+		NextUpdate: time.Now().Add(3 * 24 * time.Hour),
+		RevokedCertificateEntries: []x509.RevocationListEntry{
+			{
+				SerialNumber:   big.NewInt(2),
+				RevocationTime: time.Now(),
+			},
+		},
+	}
+
+	der, err := x509.CreateRevocationList(rand.Reader, crlTemplate, caCert, caKey)
+	require.NoError(t, err)
+
+	return der
+}
+
+// Helper to generate a real, cryptographically valid CRL and return it in both DER and PEM formats.
 func createTestCrlData(t *testing.T) ([]byte, []byte) {
 	t.Helper()
 
 	testCrlDataOnce.Do(func() {
-		// Generate a CA private key.
-		caKey, err := rsa.GenerateKey(rand.Reader, 2048)
-		if err != nil {
-			testCrlDataErr = err
-
-			return
-		}
-
-		// Create a dummy CA certificate template.
-		caTemplate := &x509.Certificate{
-			SerialNumber: big.NewInt(1),
-			Subject: pkix.Name{
-				CommonName: "Test CA",
-			},
-			NotBefore:             time.Now(),
-			NotAfter:              time.Now().Add(time.Hour),
-			KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
-			BasicConstraintsValid: true,
-			IsCA:                  true,
-		}
-
-		// Create the CA certificate.
-		caCertDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
-		if err != nil {
-			testCrlDataErr = err
-
-			return
-		}
-		caCert, err := x509.ParseCertificate(caCertDER)
-		if err != nil {
-			testCrlDataErr = err
-
-			return
-		}
-
-		// Create the revocation list template.
-		crlTemplate := &x509.RevocationList{
-			Number:     big.NewInt(1),
-			ThisUpdate: time.Now(),
-			NextUpdate: time.Now().Add(3 * 24 * time.Hour),
-			RevokedCertificateEntries: []x509.RevocationListEntry{
-				{
-					SerialNumber:   big.NewInt(2),
-					RevocationTime: time.Now(),
-				},
-			},
-		}
-
-		// Sign the CRL with the CA key.
-		testCrlDER, testCrlDataErr = x509.CreateRevocationList(rand.Reader, crlTemplate, caCert, caKey)
-		if testCrlDataErr != nil {
-			return
-		}
+		testCrlDER = createTestCrlForIssuer(t, "Test CA")
 
 		// Encode to PEM.
 		testCrlPEM = pem.EncodeToMemory(&pem.Block{
@@ -124,7 +113,6 @@ func createTestCrlData(t *testing.T) ([]byte, []byte) {
 		})
 	})
 
-	require.NoError(t, testCrlDataErr)
 	require.NotEmpty(t, testCrlDER)
 	require.NotEmpty(t, testCrlPEM)
 

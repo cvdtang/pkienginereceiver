@@ -83,7 +83,7 @@ Vault supports LDAP URIs ([PR](https://github.com/hashicorp/vault/pull/26477)).
 
 Although LDAP is less common for CRLs these days, it's still commonly used in Windows Active Directory Certificate Services and EJBCA deployments.
 
-LDAP is not integration tested but instead mocked via [mockery](https://vektra.github.io/mockery/) due to the lack of maintained LDAP container images that support configurable object classes and anonymous access.
+Due to the lack of maintained LDAP container images that support configurable object classes and anonymous access, LDAP is integration-tested against a self-built OpenLDAP image in `test/ldap/`. The test image runs a real `slapd` with a static `slapd.conf` and anonymous read access. The image is only built from a Dockerfile at test time, not published.
 
 The LDAP package used ([go-ldap/ldap/v3](https://pkg.go.dev/github.com/go-ldap/ldap/v3)), doesn't support propagating Go Context ([#326](https://github.com/go-ldap/ldap/issues/326)/[#551](https://github.com/go-ldap/ldap/issues/551)). The config value of `crl.timeout` is shared between `net.Dialer` (DNS resolving, local binding and connecting) and `ldap.conn.Search`, the latter only supports full seconds which requires the leftover time of the dialer to be rounded up for the search operation.
 
