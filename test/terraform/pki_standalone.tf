@@ -23,6 +23,7 @@ resource "vault_pki_secret_backend_crl_config" "standalone" {
   expiry       = "72h"
   disable      = false
   auto_rebuild = true
+  enable_delta = true
 }
 
 resource "vault_pki_secret_backend_root_cert" "standalone" {
@@ -65,10 +66,8 @@ resource "vault_pki_secret_backend_issuer" "standalone" {
     "{{cluster_path}}/issuer/{{issuer_id}}/json",
   ]
 
-  ## https://github.com/hashicorp/terraform-provider-vault/pull/2761
-  # delta_crl_distribution_points = [
-  #   "{{cluster_path}}/issuer/{{issuer_id}}/crl/delta/der",
-  # ]
+  # delta_crl_distribution_points is configured in delta_crl.tf
+  # https://github.com/hashicorp/terraform-provider-vault/pull/2761
 }
 resource "vault_pki_secret_backend_role" "standalone" {
   count     = var.num_standalone
