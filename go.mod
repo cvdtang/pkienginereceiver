@@ -13,7 +13,7 @@ require (
 	github.com/moby/moby/api v1.55.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/golden v0.159.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatatest v0.159.0
-	github.com/stretchr/testify v1.12.0
+	github.com/stretchr/testify v1.12.1
 	github.com/testcontainers/testcontainers-go v0.44.0
 	github.com/testcontainers/testcontainers-go/modules/k3s v0.44.0
 	go.opentelemetry.io/collector/component v1.65.0
@@ -30,9 +30,9 @@ require (
 	go.uber.org/goleak v1.3.0
 	go.uber.org/zap v1.28.0
 	golang.org/x/sync v0.22.0
-	k8s.io/api v0.36.3
-	k8s.io/apimachinery v0.36.3
-	k8s.io/client-go v0.36.3
+	k8s.io/api v0.36.4
+	k8s.io/apimachinery v0.36.4
+	k8s.io/client-go v0.36.4
 )
 
 require (
