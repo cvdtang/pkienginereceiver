@@ -5,6 +5,7 @@ linters:
     - asasalint
     - asciicheck
     - bidichk
+    - bodyclose
     - contextcheck
     - copyloopvar
     - decorder

@@ -139,6 +139,9 @@ func TestMetricsBuilder(t *testing.T) {
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineMountErrorsDataPoint(ts, 1)
+			defaultMetricsCount++
+			allMetricsCount++
+			mb.RecordPkiengineRateLimitThrottledDataPoint(ts, 1)
 
 			rb := mb.NewResourceBuilder()
 			rb.SetEngineAddress("engine.address-val")
@@ -662,6 +665,20 @@ func TestMetricsBuilder(t *testing.T) {
 					assert.Equal(t, 1, mi.Sum().DataPoints().Len())
 					assert.Equal(t, "Number of errors that occurred while processing mounts.", mi.Description())
 					assert.Equal(t, "{errors}", mi.Unit())
+					assert.False(t, mi.Sum().IsMonotonic())
+					assert.Equal(t, pmetric.AggregationTemporalityUnspecified, mi.Sum().AggregationTemporality())
+					dp := mi.Sum().DataPoints().At(0)
+					assert.Equal(t, start, dp.StartTimestamp())
+					assert.Equal(t, ts, dp.Timestamp())
+					assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
+					assert.Equal(t, int64(1), dp.IntValue())
+				case "pkiengine.rate_limit.throttled":
+					assert.False(t, validatedMetrics["pkiengine.rate_limit.throttled"], "Found a duplicate in the metrics slice: pkiengine.rate_limit.throttled")
+					validatedMetrics["pkiengine.rate_limit.throttled"] = true
+					assert.Equal(t, pmetric.MetricTypeSum, mi.Type())
+					assert.Equal(t, 1, mi.Sum().DataPoints().Len())
+					assert.Equal(t, "Number of requests rejected by the secret store rate limit quota.", mi.Description())
+					assert.Equal(t, "{requests}", mi.Unit())
 					assert.False(t, mi.Sum().IsMonotonic())
 					assert.Equal(t, pmetric.AggregationTemporalityUnspecified, mi.Sum().AggregationTemporality())
 					dp := mi.Sum().DataPoints().At(0)

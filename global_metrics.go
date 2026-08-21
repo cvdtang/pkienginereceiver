@@ -19,6 +19,9 @@ func (s *pkiEngineScraper) recordGlobalMetrics(
 	sharedState.mb.RecordPkiengineCrlCacheHitsDataPoint(ts, sharedState.crlCacheHits.Load())
 	sharedState.mb.RecordPkiengineCrlCacheMissesDataPoint(ts, sharedState.crlCacheMisses.Load())
 	sharedState.mb.RecordPkiengineCrlCacheEvictionsDataPoint(ts, s.crlEvictionsTotal.Load())
+
 	sharedState.mb.RecordPkiengineMountErrorsDataPoint(ts, errorTotals.mountErrors.Load())
 	sharedState.mb.RecordPkiengineIssuerErrorsDataPoint(ts, errorTotals.issuerErrors.Load())
+
+	sharedState.mb.RecordPkiengineRateLimitThrottledDataPoint(ts, sharedState.rateObserver.throttled.Load())
 }

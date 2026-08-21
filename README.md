@@ -34,6 +34,7 @@ flowchart LR
 - Collect referenced CRLs hosted outside of the secret store.
 - Tested against OpenBao and Vault.
 - Support for [namespaces](https://openbao.org/docs/concepts/namespaces/).
+- Honors `Retry-After` rate limiting header for API calls.
 - Resolve AIA URL templating.
 - Implemented CRL protocols:
   - HTTP

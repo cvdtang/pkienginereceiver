@@ -76,6 +76,9 @@ func TestMetricsBuilderConfig(t *testing.T) {
 					PkiengineMountErrors: PkiengineMountErrorsMetricConfig{
 						Enabled: true,
 					},
+					PkiengineRateLimitThrottled: PkiengineRateLimitThrottledMetricConfig{
+						Enabled: true,
+					},
 				},
 				ResourceAttributes: ResourceAttributesConfig{
 					EngineAddress:   ResourceAttributeConfig{Enabled: true},
@@ -137,6 +140,9 @@ func TestMetricsBuilderConfig(t *testing.T) {
 					PkiengineMountErrors: PkiengineMountErrorsMetricConfig{
 						Enabled: false,
 					},
+					PkiengineRateLimitThrottled: PkiengineRateLimitThrottledMetricConfig{
+						Enabled: false,
+					},
 				},
 				ResourceAttributes: ResourceAttributesConfig{
 					EngineAddress:   ResourceAttributeConfig{Enabled: false},
@@ -148,7 +154,7 @@ func TestMetricsBuilderConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := loadMetricsBuilderConfig(t, tt.name)
-			diff := cmp.Diff(tt.want, cfg, cmpopts.IgnoreUnexported(PkiengineCertX509NotAfterMetricConfig{}, PkiengineCertX509NotBeforeMetricConfig{}, PkiengineCrlCacheEvictionsMetricConfig{}, PkiengineCrlCacheHitsMetricConfig{}, PkiengineCrlCacheMissesMetricConfig{}, PkiengineCrlProcessingStatusMetricConfig{}, PkiengineCrlX509NextUpdateMetricConfig{}, PkiengineCrlX509RevokedCertificatesMetricConfig{}, PkiengineCrlX509ThisUpdateMetricConfig{}, PkiengineIssuerErrorsMetricConfig{}, PkiengineMountCertificatesStoredMetricConfig{}, PkiengineMountErrorsMetricConfig{}, ResourceAttributeConfig{}))
+			diff := cmp.Diff(tt.want, cfg, cmpopts.IgnoreUnexported(PkiengineCertX509NotAfterMetricConfig{}, PkiengineCertX509NotBeforeMetricConfig{}, PkiengineCrlCacheEvictionsMetricConfig{}, PkiengineCrlCacheHitsMetricConfig{}, PkiengineCrlCacheMissesMetricConfig{}, PkiengineCrlProcessingStatusMetricConfig{}, PkiengineCrlX509NextUpdateMetricConfig{}, PkiengineCrlX509RevokedCertificatesMetricConfig{}, PkiengineCrlX509ThisUpdateMetricConfig{}, PkiengineIssuerErrorsMetricConfig{}, PkiengineMountCertificatesStoredMetricConfig{}, PkiengineMountErrorsMetricConfig{}, PkiengineRateLimitThrottledMetricConfig{}, ResourceAttributeConfig{}))
 			require.Emptyf(t, diff, "Config mismatch (-expected +actual):\n%s", diff)
 		})
 	}
