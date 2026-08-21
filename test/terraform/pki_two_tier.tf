@@ -18,7 +18,7 @@ resource "vault_pki_secret_backend_config_urls" "root" {
 
   backend                 = vault_mount.pki_root[0].path
   crl_distribution_points = ["${var.secret_store_host}/v1/${local.ns_path}${vault_mount.pki_root[0].path}/crl"]
-  # delta_crl_distribution_points = ["${var.secret_store_host}/v1/${vault_mount.pki_root[0].path}/crl/delta"]
+  # delta_crl_distribution_points is configured in delta_crl.tf
 }
 
 resource "vault_pki_secret_backend_crl_config" "root" {
@@ -89,7 +89,7 @@ resource "vault_pki_secret_backend_config_urls" "ica" {
 
   backend                 = vault_mount.pki_ica[count.index].path
   crl_distribution_points = ["${var.secret_store_host}/v1/${local.ns_path}${vault_mount.pki_ica[count.index].path}/crl"]
-  # delta_crl_distribution_points = ["${var.secret_store_host}/v1/${local.ns_path}${vault_mount.pki_ica[count.index].path}/crl/delta"]
+  # delta_crl_distribution_points is configured in delta_crl.tf
 }
 
 resource "vault_pki_secret_backend_crl_config" "ica" {
@@ -120,6 +120,9 @@ resource "vault_pki_secret_backend_intermediate_cert_request" "ica" {
 resource "vault_pki_secret_backend_root_sign_intermediate" "ica" {
   count     = var.num_two_tier
   namespace = local.namespace
+  # The root issuer's base and delta CRL distribution points must be
+  # configured before signing so the ICA certificate carries both CDP extensions.
+  depends_on = [terraform_data.delta_crl_root]
 
   backend     = vault_mount.pki_root[0].path
   common_name = "ACME intermediate ${count.index}"
@@ -158,10 +161,8 @@ resource "vault_pki_secret_backend_issuer" "ica" {
     "{{cluster_path}}/issuer/{{issuer_id}}/json",
   ]
 
-  ## https://github.com/hashicorp/terraform-provider-vault/pull/2761
-  # delta_crl_distribution_points = [
-  #   "{{cluster_path}}/issuer/{{issuer_id}}/crl/delta/der",
-  # ]
+  # delta_crl_distribution_points is configured in delta_crl.tf
+  # https://github.com/hashicorp/terraform-provider-vault/pull/2761
 }
 
 resource "vault_pki_secret_backend_role" "ica" {

@@ -52,6 +52,48 @@ resourceMetrics:
                   attributes:
                     - key: cert.type
                       value:
+                        stringValue: issuer
+                    - key: cert.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                    - key: cert.x509.serial_number
+                      value:
+                        stringValue: "00:00:00:00:00:00:00:00"
+                    - key: cert.x509.subject.common_name
+                      value:
+                        stringValue: ACME root v1
+                    - key: cert.x509.subject.country
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: US
+                    - key: cert.x509.subject.organization
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: ACME org
+                    - key: cert.x509.subject.organizational_unit
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: Security
+                    - key: cert.x509.subject.san
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: ca-0.root.example.org
+                    - key: engine.mount
+                      value:
+                        stringValue: pki/root/
+                    - key: issuer.id
+                      value:
+                        stringValue: 00000000-0000-0000-0000-000000000000
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "123456"
+                  attributes:
+                    - key: cert.type
+                      value:
                         stringValue: leaf
                     - key: cert.x509.issuer.common_name
                       value:
@@ -86,6 +128,42 @@ resourceMetrics:
                     - key: engine.mount
                       value:
                         stringValue: pki/ica_0/
+                    - key: issuer.id
+                      value:
+                        stringValue: ""
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "123456"
+                  attributes:
+                    - key: cert.type
+                      value:
+                        stringValue: leaf
+                    - key: cert.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                    - key: cert.x509.serial_number
+                      value:
+                        stringValue: "00:00:00:00:00:00:00:00"
+                    - key: cert.x509.subject.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                    - key: cert.x509.subject.country
+                      value:
+                        arrayValue: {}
+                    - key: cert.x509.subject.organization
+                      value:
+                        arrayValue: {}
+                    - key: cert.x509.subject.organizational_unit
+                      value:
+                        arrayValue: {}
+                    - key: cert.x509.subject.san
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: ca-0.ica.example.org
+                    - key: engine.mount
+                      value:
+                        stringValue: pki/root/
                     - key: issuer.id
                       value:
                         stringValue: ""
@@ -127,6 +205,48 @@ resourceMetrics:
                     - key: engine.mount
                       value:
                         stringValue: pki/ica_0/
+                    - key: issuer.id
+                      value:
+                        stringValue: 00000000-0000-0000-0000-000000000000
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "-11"
+                  attributes:
+                    - key: cert.type
+                      value:
+                        stringValue: issuer
+                    - key: cert.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                    - key: cert.x509.serial_number
+                      value:
+                        stringValue: "00:00:00:00:00:00:00:00"
+                    - key: cert.x509.subject.common_name
+                      value:
+                        stringValue: ACME root v1
+                    - key: cert.x509.subject.country
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: US
+                    - key: cert.x509.subject.organization
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: ACME org
+                    - key: cert.x509.subject.organizational_unit
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: Security
+                    - key: cert.x509.subject.san
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: ca-0.root.example.org
+                    - key: engine.mount
+                      value:
+                        stringValue: pki/root/
                     - key: issuer.id
                       value:
                         stringValue: 00000000-0000-0000-0000-000000000000
@@ -175,6 +295,42 @@ resourceMetrics:
                         stringValue: ""
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
+                - asInt: "-1"
+                  attributes:
+                    - key: cert.type
+                      value:
+                        stringValue: leaf
+                    - key: cert.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                    - key: cert.x509.serial_number
+                      value:
+                        stringValue: "00:00:00:00:00:00:00:00"
+                    - key: cert.x509.subject.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                    - key: cert.x509.subject.country
+                      value:
+                        arrayValue: {}
+                    - key: cert.x509.subject.organization
+                      value:
+                        arrayValue: {}
+                    - key: cert.x509.subject.organizational_unit
+                      value:
+                        arrayValue: {}
+                    - key: cert.x509.subject.san
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: ca-0.ica.example.org
+                    - key: engine.mount
+                      value:
+                        stringValue: pki/root/
+                    - key: issuer.id
+                      value:
+                        stringValue: ""
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
             name: pkiengine.cert.x509.not_before
             unit: min
           - description: Number of CRL cache evictions.
@@ -188,7 +344,7 @@ resourceMetrics:
           - description: Number of CRL cache hits.
             gauge:
               dataPoints:
-                - asInt: "0"
+                - asInt: "4"
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
             name: pkiengine.crl.cache.hits
@@ -196,7 +352,7 @@ resourceMetrics:
           - description: Number of CRL cache misses.
             gauge:
               dataPoints:
-                - asInt: "5"
+                - asInt: "11"
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
             name: pkiengine.crl.cache.misses
@@ -215,6 +371,32 @@ resourceMetrics:
                     - key: crl.uri
                       value:
                         stringValue: http://localhost:8200/v1/tenant-a/pki/root/crl
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "2"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: issuer
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/der
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "2"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: issuer
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/pem
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
                 - asInt: "2"
@@ -269,6 +451,110 @@ resourceMetrics:
                         stringValue: http://localhost:8200/v1/tenant-a/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/json
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
+                - asInt: "2"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/der
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "2"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/pem
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "2"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: issuer
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/delta/der
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "2"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: issuer
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/delta/pem
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "2"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/crl/delta/der
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "2"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/crl/delta/pem
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "2"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/delta/der
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "2"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/delta/pem
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
             name: pkiengine.crl.processing_status
             unit: '{status}'
           - description: Time until the CRL `nextUpdate` field.
@@ -285,6 +571,38 @@ resourceMetrics:
                     - key: crl.uri
                       value:
                         stringValue: http://localhost:8200/v1/tenant-a/pki/root/crl
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "4319"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: issuer
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/der
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "4319"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: issuer
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/pem
                     - key: crl.x509.issuer.common_name
                       value:
                         stringValue: ACME root v1
@@ -320,6 +638,134 @@ resourceMetrics:
                     - key: crl.x509.issuer.common_name
                       value:
                         stringValue: ACME intermediate 0
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "4319"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/der
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "4319"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/pem
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "4319"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: issuer
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/delta/der
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "4319"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: issuer
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/delta/pem
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "4319"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/crl/delta/der
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "4319"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/crl/delta/pem
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "4319"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/delta/der
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "4319"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/delta/pem
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
             name: pkiengine.crl.x509.next_update
@@ -350,6 +796,38 @@ resourceMetrics:
                         stringValue: base
                     - key: crl.role
                       value:
+                        stringValue: issuer
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/der
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "0"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: issuer
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/pem
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "0"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
                         stringValue: subject
                     - key: crl.uri
                       value:
@@ -375,6 +853,134 @@ resourceMetrics:
                         stringValue: ACME intermediate 0
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
+                - asInt: "0"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/der
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "0"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/pem
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "0"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: issuer
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/delta/der
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "0"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: issuer
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/delta/pem
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "0"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/crl/delta/der
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "0"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/crl/delta/pem
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "0"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/delta/der
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "0"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/delta/pem
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
             name: pkiengine.crl.x509.revoked_certificates
             unit: '{count}'
           - description: Time since the CRL `thisUpdate` field.
@@ -391,6 +997,38 @@ resourceMetrics:
                     - key: crl.uri
                       value:
                         stringValue: http://localhost:8200/v1/tenant-a/pki/root/crl
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "-1"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: issuer
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/der
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "-1"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: issuer
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/pem
                     - key: crl.x509.issuer.common_name
                       value:
                         stringValue: ACME root v1
@@ -428,6 +1066,134 @@ resourceMetrics:
                         stringValue: ACME intermediate 0
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
+                - asInt: "-1"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/der
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "-1"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/pem
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "-1"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: issuer
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/delta/der
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "-1"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: issuer
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/delta/pem
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "-1"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/crl/delta/der
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "-1"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/crl/delta/pem
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "-1"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/delta/der
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "-1"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/root/issuer/root-v1/crl/delta/pem
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME root v1
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
             name: pkiengine.crl.x509.this_update
             unit: min
           - description: Number of errors that occurred while processing issuers.
@@ -446,6 +1212,13 @@ resourceMetrics:
                     - key: engine.mount
                       value:
                         stringValue: pki/ica_0/
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "2"
+                  attributes:
+                    - key: engine.mount
+                      value:
+                        stringValue: pki/root/
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
             name: pkiengine.mount.certificates_stored

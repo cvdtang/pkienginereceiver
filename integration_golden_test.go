@@ -18,7 +18,7 @@ var integrationMatrixScenarios = []integrationScenario{
 	},
 	{
 		name:          "two-tier",
-		cfgMatchRegex: "^pki/ica_0/$",
+		cfgMatchRegex: "^(pki/root/|pki/ica_0/)$",
 	},
 }
 
