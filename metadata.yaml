@@ -243,3 +243,12 @@ metrics:
       value_type: int
     unit: "{errors}"
     attributes: []
+
+  pkiengine.rate_limit.throttled:
+    description: Number of requests rejected by the secret store rate limit quota.
+    enabled: true
+    stability: development
+    sum:
+      value_type: int
+    unit: "{requests}"
+    attributes: []

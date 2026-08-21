@@ -88,3 +88,9 @@ variable "num_leaf" {
   type        = number
   default     = 1
 }
+
+variable "rate_limit_standalone" {
+  description = "Apply a 1 request/s rate limit quota to the standalone PKI mount for rate-limit testing"
+  type        = bool
+  default     = false
+}

@@ -42,6 +42,26 @@ CRL fetch requests are protected by a [singleflight](https://pkg.go.dev/golang.o
 The metric builder is not concurrency-safe and requires a lock during operation. Resource attributes are scrape-scoped (`engine.address`, `engine.namespace`) while `engine.mount` is carried as a metric attribute on mount-scoped metrics to support scrape-global error metrics.
 The Terraform variables `num_two_tier`, `num_standalone` and `num_leaf` can be adjusted to test different deployment sizes. It's recommended to use a mount per issuer ([reference](https://developer.hashicorp.com/vault/docs/secrets/pki/considerations#one-ca-certificate-one-secrets-engine)), however this is not enforced.
 
+# Rate limiting
+Vault and OpenBao can return rate-limit response headers when `enable_rate_limit_response_headers` is enabled (default: `false`) via `/sys/quotas/config`. Quotas can be scoped globally, per namespace, mount, path suffix (glob), or role. When a request exceeds the applicable quota, the store responds with `429` and, when the headers are enabled, a `Retry-After` header giving the seconds remaining before that quota resets. The headers never identify which quota throttled a request, so clients cannot group `429` responses by responsible quota.
+
+The Vault Go SDK cannot handle this on its own. Its retry budget (`MaxRetries`, default 2) is a flat, status-blind attempt counter, so it cannot separate "retry 429 until the quota resets" from "retry 5xx a few times". A count cap is also the wrong bound for rate limiting: a `Retry-After: 0` hot-loop would exhaust the budget right before the reset. This is why the receiver keeps the SDK's internal retries but adds a small custom loop in `vault.rawLogical`.
+
+The approach is a stateless blocking retry. The client never paces requests proactively. Instead, a 429 is retried until it succeeds or the request deadline expires, honoring the server's `Retry-After` and blocking only the throttled worker, so the bounded worker pool keeps processing other requests and naturally runs at the rate the store allows.
+
+The logic flow for each request:
+
+1. The SDK first retries up to two times with its default policy (`VAULT_MAX_RETRIES`, default 2); these retries honor `Retry-After` when present.
+2. If the request is still rate limited, the loop in `vault.rawLogical` re-issues it after waiting `Retry-After`, floored at one second plus up to 500ms of jitter.
+3. Re-issue until success or the deadline expires — time-bounded, not attempt-bounded.
+
+Retry timing depends on whether the response headers are enabled:
+
+- Enabled (`enable_rate_limit_response_headers=true`, default `false`): the 429 carries `Retry-After` (seconds until the quota resets); both the SDK's retries and the loop honor it.
+- Disabled: the 429 is returned without `Retry-After`; the SDK waits 1s–1.5s per internal retry (scaled by attempt number), and the loop falls back to the one-second floor plus jitter.
+
+The whole sequence is bounded by the client's request timeout (default 60s, overridable via `VAULT_CLIENT_TIMEOUT`), which each raw request also applies to the individual call. The SDK's retry count is governed by `VAULT_MAX_RETRIES` and is not overridden by the receiver. Every `429` the scraper receives is counted in the `pkiengine.rate_limit.throttled` metric.
+
 ## Issuer/Certificate API/classification flow
 The `<mount>/certs` endpoint returns stored certificate serials without a certificate-type flag. The list can include both issuer and leaf certificates, so issuer serials are used for classification when leaf scraping is enabled.
 
@@ -89,7 +109,6 @@ The LDAP package used ([go-ldap/ldap/v3](https://pkg.go.dev/github.com/go-ldap/l
 
 # Other notes:
 - The `sys/health` endpoint, which provides the cluster name and cluster version, cannot be called from within namespaces.
-- The secret stores support rate-limiting, however there is no client side implementation based on the [optionally](https://developer.hashicorp.com/vault/api-docs/system/quotas-config#enable_rate_limit_response_headers) returned headers in the SDK besides passing a [`*rate.Limiter`](https://pkg.go.dev/github.com/hashicorp/vault-client-go#WithRateLimiter).
 - OpenBao supports Delta CRLs but is not yet fully configurable (tested with v2.5.0). Vault supports configuring Delta CRLs ([PR](https://github.com/hashicorp/vault/pull/30319)).
 - Tracking CRL fetch duration could be interesting but can be misleading with the current caching and retrying logic.
 - The `/pki/cert/:serial` endpoint returns the `issuer_id` attribute, however, this is only set when the certificate is revoked.

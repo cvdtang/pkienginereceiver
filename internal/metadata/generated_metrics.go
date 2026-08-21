@@ -141,6 +141,9 @@ var MetricsInfo = metricsInfo{
 	PkiengineMountErrors: metricInfo{
 		Name: "pkiengine.mount.errors",
 	},
+	PkiengineRateLimitThrottled: metricInfo{
+		Name: "pkiengine.rate_limit.throttled",
+	},
 }
 
 type metricsInfo struct {
@@ -156,6 +159,7 @@ type metricsInfo struct {
 	PkiengineIssuerErrors               metricInfo
 	PkiengineMountCertificatesStored    metricInfo
 	PkiengineMountErrors                metricInfo
+	PkiengineRateLimitThrottled         metricInfo
 }
 
 type metricInfo struct {
@@ -1127,6 +1131,58 @@ func newMetricPkiengineMountErrors(cfg PkiengineMountErrorsMetricConfig) metricP
 	return m
 }
 
+type metricPkiengineRateLimitThrottled struct {
+	data     pmetric.Metric                          // data buffer for generated metric.
+	config   PkiengineRateLimitThrottledMetricConfig // metric config provided by user.
+	capacity int                                     // max observed number of data points added to the metric.
+}
+
+// init fills pkiengine.rate_limit.throttled metric with initial data.
+func (m *metricPkiengineRateLimitThrottled) init() {
+	m.data.SetName("pkiengine.rate_limit.throttled")
+	m.data.SetDescription("Number of requests rejected by the secret store rate limit quota.")
+	m.data.SetUnit("{requests}")
+	m.data.SetEmptySum()
+	m.data.Sum().SetIsMonotonic(false)
+	m.data.Sum().SetAggregationTemporality(pmetric.AggregationTemporalityUnspecified)
+}
+
+func (m *metricPkiengineRateLimitThrottled) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64) {
+	if !m.config.Enabled {
+		return
+	}
+	dp := m.data.Sum().DataPoints().AppendEmpty()
+	dp.SetStartTimestamp(start)
+	dp.SetTimestamp(ts)
+	dp.SetIntValue(val)
+}
+
+// updateCapacity saves max length of data point slices that will be used for the slice capacity.
+func (m *metricPkiengineRateLimitThrottled) updateCapacity() {
+	if m.data.Sum().DataPoints().Len() > m.capacity {
+		m.capacity = m.data.Sum().DataPoints().Len()
+	}
+}
+
+// emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
+func (m *metricPkiengineRateLimitThrottled) emit(metrics pmetric.MetricSlice) {
+	if m.config.Enabled && m.data.Sum().DataPoints().Len() > 0 {
+		m.updateCapacity()
+		m.data.MoveTo(metrics.AppendEmpty())
+		m.init()
+	}
+}
+
+func newMetricPkiengineRateLimitThrottled(cfg PkiengineRateLimitThrottledMetricConfig) metricPkiengineRateLimitThrottled {
+	m := metricPkiengineRateLimitThrottled{config: cfg}
+
+	if cfg.Enabled {
+		m.data = pmetric.NewMetric()
+		m.init()
+	}
+	return m
+}
+
 // MetricsBuilder provides an interface for scrapers to report metrics while taking care of all the transformations
 // required to produce metric representation defined in metadata and user config.
 type MetricsBuilder struct {
@@ -1149,6 +1205,7 @@ type MetricsBuilder struct {
 	metricPkiengineIssuerErrors               metricPkiengineIssuerErrors
 	metricPkiengineMountCertificatesStored    metricPkiengineMountCertificatesStored
 	metricPkiengineMountErrors                metricPkiengineMountErrors
+	metricPkiengineRateLimitThrottled         metricPkiengineRateLimitThrottled
 }
 
 // MetricBuilderOption applies changes to default metrics builder.
@@ -1186,6 +1243,7 @@ func NewMetricsBuilder(mbc MetricsBuilderConfig, settings receiver.Settings, opt
 		metricPkiengineIssuerErrors:               newMetricPkiengineIssuerErrors(mbc.Metrics.PkiengineIssuerErrors),
 		metricPkiengineMountCertificatesStored:    newMetricPkiengineMountCertificatesStored(mbc.Metrics.PkiengineMountCertificatesStored),
 		metricPkiengineMountErrors:                newMetricPkiengineMountErrors(mbc.Metrics.PkiengineMountErrors),
+		metricPkiengineRateLimitThrottled:         newMetricPkiengineRateLimitThrottled(mbc.Metrics.PkiengineRateLimitThrottled),
 		resourceAttributeIncludeFilter:            make(map[string]filter.Filter),
 		resourceAttributeExcludeFilter:            make(map[string]filter.Filter),
 	}
@@ -1282,6 +1340,7 @@ func (mb *MetricsBuilder) EmitForResource(options ...ResourceMetricsOption) {
 	mb.metricPkiengineIssuerErrors.emit(ils.Metrics())
 	mb.metricPkiengineMountCertificatesStored.emit(ils.Metrics())
 	mb.metricPkiengineMountErrors.emit(ils.Metrics())
+	mb.metricPkiengineRateLimitThrottled.emit(ils.Metrics())
 
 	for _, op := range options {
 		op.apply(rm)
@@ -1371,6 +1430,11 @@ func (mb *MetricsBuilder) RecordPkiengineMountCertificatesStoredDataPoint(ts pco
 // RecordPkiengineMountErrorsDataPoint adds a data point to pkiengine.mount.errors metric.
 func (mb *MetricsBuilder) RecordPkiengineMountErrorsDataPoint(ts pcommon.Timestamp, val int64) {
 	mb.metricPkiengineMountErrors.recordDataPoint(mb.startTime, ts, val)
+}
+
+// RecordPkiengineRateLimitThrottledDataPoint adds a data point to pkiengine.rate_limit.throttled metric.
+func (mb *MetricsBuilder) RecordPkiengineRateLimitThrottledDataPoint(ts pcommon.Timestamp, val int64) {
+	mb.metricPkiengineRateLimitThrottled.recordDataPoint(mb.startTime, ts, val)
 }
 
 // Reset resets metrics builder to its initial state. It should be used when external metrics source is restarted,

@@ -474,6 +474,26 @@ func (ms *PkiengineMountErrorsMetricConfig) Unmarshal(parser *confmap.Conf) erro
 	return nil
 }
 
+// PkiengineRateLimitThrottledMetricConfig provides config for the pkiengine.rate_limit.throttled metric.
+type PkiengineRateLimitThrottledMetricConfig struct {
+	Enabled          bool `mapstructure:"enabled"`
+	enabledSetByUser bool
+}
+
+func (ms *PkiengineRateLimitThrottledMetricConfig) Unmarshal(parser *confmap.Conf) error {
+	if parser == nil {
+		return nil
+	}
+
+	err := parser.Unmarshal(ms)
+	if err != nil {
+		return err
+	}
+
+	ms.enabledSetByUser = parser.IsSet("enabled")
+	return nil
+}
+
 // MetricsConfig provides config for pkiengine metrics.
 type MetricsConfig struct {
 	PkiengineCertX509NotAfter           PkiengineCertX509NotAfterMetricConfig           `mapstructure:"pkiengine.cert.x509.not_after"`
@@ -488,6 +508,7 @@ type MetricsConfig struct {
 	PkiengineIssuerErrors               PkiengineIssuerErrorsMetricConfig               `mapstructure:"pkiengine.issuer.errors"`
 	PkiengineMountCertificatesStored    PkiengineMountCertificatesStoredMetricConfig    `mapstructure:"pkiengine.mount.certificates_stored"`
 	PkiengineMountErrors                PkiengineMountErrorsMetricConfig                `mapstructure:"pkiengine.mount.errors"`
+	PkiengineRateLimitThrottled         PkiengineRateLimitThrottledMetricConfig         `mapstructure:"pkiengine.rate_limit.throttled"`
 }
 
 func DefaultMetricsConfig() MetricsConfig {
@@ -540,6 +561,9 @@ func DefaultMetricsConfig() MetricsConfig {
 			EnabledAttributes:   []PkiengineMountCertificatesStoredMetricAttributeKey{PkiengineMountCertificatesStoredMetricAttributeKeyEngineMount},
 		},
 		PkiengineMountErrors: PkiengineMountErrorsMetricConfig{
+			Enabled: true,
+		},
+		PkiengineRateLimitThrottled: PkiengineRateLimitThrottledMetricConfig{
 			Enabled: true,
 		},
 	}

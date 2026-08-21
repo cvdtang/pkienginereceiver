@@ -1,6 +1,7 @@
 package pkienginereceiver
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -57,6 +58,15 @@ func createTestScraperWithConfig(t *testing.T, configure func(cfg *config)) (*pk
 	return scraper, mockSecretStore
 }
 
+// Returns a context carrying a throttled counter, mirroring the
+// per-scrape context that scrape() attaches, so mock expectations match the
+// context passed to the secret store methods.
+func scrapeTestCtx(t *testing.T) context.Context {
+	t.Helper()
+
+	return withRateLimitCounter(t.Context(), &newRateObserver().throttled)
+}
+
 func assertEquivalentScrapeMetrics(t *testing.T, expectedMetrics pmetric.Metrics, actualMetrics pmetric.Metrics) {
 	t.Helper()
 
@@ -72,7 +82,7 @@ func assertEquivalentScrapeMetrics(t *testing.T, expectedMetrics pmetric.Metrics
 
 func TestScrapeErrListingMounts(t *testing.T) {
 	t.Parallel()
-	ctx := t.Context()
+	ctx := scrapeTestCtx(t)
 
 	scraper, mockSecretStore := createTestScraper(t)
 	mockSecretStore.On("listMountPathsTypePki", ctx).Return(nil, errTest)
@@ -88,7 +98,7 @@ func TestScrapeErrListingMounts(t *testing.T) {
 
 func TestScrapeNoMounts(t *testing.T) {
 	t.Parallel()
-	ctx := t.Context()
+	ctx := scrapeTestCtx(t)
 
 	scraper, mockSecretStore := createTestScraper(t)
 
@@ -108,7 +118,7 @@ func TestScrapeNoMounts(t *testing.T) {
 //
 //nolint:paralleltest // Uses shared golden update mode and integration-style setup not intended for parallel runs.
 func TestScrape(t *testing.T) {
-	ctx := t.Context()
+	ctx := scrapeTestCtx(t)
 
 	scraper, mockSecretStore := createTestScraperWithConfig(t, func(cfg *config) {
 		cfg.Leaf.Enabled = true
@@ -177,7 +187,7 @@ func TestScrape(t *testing.T) {
 
 func TestScrapeMountErrorMetric(t *testing.T) {
 	t.Parallel()
-	ctx := t.Context()
+	ctx := scrapeTestCtx(t)
 
 	scraper, mockSecretStore := createTestScraper(t)
 	expectedFile := filepath.Join("test", "testdata", "mock_mount_error.yaml")
@@ -207,7 +217,7 @@ func TestScrapeMountErrorMetric(t *testing.T) {
 
 func TestScrapeIssuerErrorMetric(t *testing.T) {
 	t.Parallel()
-	ctx := t.Context()
+	ctx := scrapeTestCtx(t)
 
 	scraper, mockSecretStore := createTestScraper(t)
 	expectedFile := filepath.Join("test", "testdata", "mock_issuer_error.yaml")
@@ -257,7 +267,7 @@ func TestScrapeIssuerErrorMetric(t *testing.T) {
 
 func TestScrapeMountErrorMetricOnListCertificatesFailure(t *testing.T) {
 	t.Parallel()
-	ctx := t.Context()
+	ctx := scrapeTestCtx(t)
 
 	scraper, mockSecretStore := createTestScraperWithConfig(t, func(cfg *config) {
 		cfg.Leaf.Enabled = true
@@ -296,7 +306,7 @@ func TestScrapeMountErrorMetricOnListCertificatesFailure(t *testing.T) {
 
 func TestScrapeCRLCacheHitMissMetrics(t *testing.T) {
 	t.Parallel()
-	ctx := t.Context()
+	ctx := scrapeTestCtx(t)
 
 	expectedFile := filepath.Join("test", "testdata", "mock_crl_cache_hit_miss.yaml")
 	_, crlData := createTestCrlData(t)
@@ -356,7 +366,7 @@ func TestScrapeCRLCacheHitMissMetrics(t *testing.T) {
 
 func TestScrapeCRLCacheEvictionsMetric(t *testing.T) {
 	t.Parallel()
-	ctx := t.Context()
+	ctx := scrapeTestCtx(t)
 
 	expectedFile := filepath.Join("test", "testdata", "mock_crl_cache_evictions.yaml")
 	_, crlData := createTestCrlData(t)
@@ -469,7 +479,7 @@ func TestNewPkiEngineScraperCRLCacheSelection(t *testing.T) {
 // Verifies cert endpoints are not called when both leaf collection and mount certificate metric are disabled.
 func TestScrapeSkipsCertificateListWhenDisabled(t *testing.T) {
 	t.Parallel()
-	ctx := t.Context()
+	ctx := scrapeTestCtx(t)
 
 	scraper, mockSecretStore := createTestScraperWithConfig(t, func(cfg *config) {
 		cfg.Leaf.Enabled = false
@@ -497,7 +507,7 @@ func TestScrapeSkipsCertificateListWhenDisabled(t *testing.T) {
 // scrape does not treat them as leaf certificates or call readCertificate for them.
 func TestScrapeSkipsIssuerCertificatesFromCertificateList(t *testing.T) {
 	t.Parallel()
-	ctx := t.Context()
+	ctx := scrapeTestCtx(t)
 
 	issuerSerialRef := "30:39"
 	scraper, mockSecretStore := createTestScraperWithConfig(t, func(cfg *config) {

@@ -118,6 +118,8 @@ func (s *pkiEngineScraper) scrape(ctx context.Context) (pmetric.Metrics, error) 
 		s.crlCache,
 	)
 
+	ctx = withRateLimitCounter(ctx, &sharedState.rateObserver.throttled)
+
 	// Exit early when no mounts match current filters.
 	filteredMountPaths, err := getFilteredMounts(ctx, s.logger, s.secretStore, s.cfg)
 	if err != nil || len(filteredMountPaths) == 0 {

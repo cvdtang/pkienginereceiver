@@ -32,6 +32,8 @@ all_set:
       attributes: ["engine.mount"]
     pkiengine.mount.errors:
       enabled: true
+    pkiengine.rate_limit.throttled:
+      enabled: true
   resource_attributes:
     engine.address:
       enabled: true
@@ -70,6 +72,8 @@ reaggregate_set:
       attributes: []
     pkiengine.mount.errors:
       enabled: true
+    pkiengine.rate_limit.throttled:
+      enabled: true
   resource_attributes:
     engine.address:
       enabled: true
@@ -107,6 +111,8 @@ none_set:
       enabled: false
       attributes: ["engine.mount"]
     pkiengine.mount.errors:
+      enabled: false
+    pkiengine.rate_limit.throttled:
       enabled: false
   resource_attributes:
     engine.address:

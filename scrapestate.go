@@ -21,6 +21,8 @@ type scrapeShared struct {
 	crlCacheHits    atomic.Int64
 	crlCacheMisses  atomic.Int64
 
+	rateObserver *rateObserver
+
 	mb      *metadata.MetricsBuilder
 	mbMutex *sync.Mutex
 
@@ -38,6 +40,7 @@ func newScrapeShared(
 		crlFetchSfg:     &singleflight.Group{},
 		crlCache:        crlCache,
 		scrapeStartTime: time.Now(),
+		rateObserver:    newRateObserver(),
 		mb: metadata.NewMetricsBuilder(
 			cfg.MetricsBuilderConfig,
 			settings,

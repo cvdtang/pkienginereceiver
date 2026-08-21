@@ -181,6 +181,14 @@ Number of errors that occurred while processing mounts.
 | ---- | ----------- | ---------- | ----------------------- | --------- | --------- |
 | {errors} | Sum | Int | Unspecified | false | Development |
 
+### pkiengine.rate_limit.throttled
+
+Number of requests rejected by the secret store rate limit quota.
+
+| Unit | Metric Type | Value Type | Aggregation Temporality | Monotonic | Stability |
+| ---- | ----------- | ---------- | ----------------------- | --------- | --------- |
+| {requests} | Sum | Int | Unspecified | false | Development |
+
 ## Resource Attributes
 
 | Name | Description | Values | Enabled | Semantic Convention | Stability |

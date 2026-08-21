@@ -26,7 +26,6 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/golden"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatatest/pmetrictest"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
@@ -80,6 +79,10 @@ const (
 	testRenewalTimeout     = 60 * time.Second
 	testRenewalInterval    = 200 * time.Millisecond
 	testTfParallelism      = 100
+
+	// Rate limited requests wait at least one second plus jitter before being
+	// re-issued, so a full scrape of the throttled mount takes several seconds.
+	testRateLimitTimeout = 120 * time.Second
 )
 
 type tfProjectVars struct {
@@ -97,6 +100,7 @@ type tfProjectVars struct {
 	numStandalone              int
 	numTwoTier                 int
 	numLeaf                    int
+	rateLimitStandalone        bool
 }
 
 type authScenario struct {
@@ -112,97 +116,63 @@ type integrationImage struct {
 	runNamespacedTests bool
 }
 
-type integrationScenario struct {
-	name          string
-	cfgMatchRegex string
+var vaultImage = integrationImage{
+	subtestImageName: "vault",
+	repo:             "hashicorp/vault",
+	envVars: map[string]string{
+		"VAULT_DEV_ROOT_TOKEN_ID": devRootToken,
+		"VAULT_LOG_LEVEL":         "debug",
+	},
+	tags: []string{
+		vaultVersion,
+		// "1.20.4",
+		// "1.19.5", // LTS
+		// "1.18.5",
+		// "1.17.6",
+		// "1.16.3", // LTS
+		// "1.15.6",
+		// "1.14.10",
+		// "1.13.13",
+	},
+}
+
+var openBaoImage = integrationImage{
+	subtestImageName: "openbao",
+	repo:             "openbao/openbao",
+	envVars: map[string]string{
+		"BAO_DEV_ROOT_TOKEN_ID": devRootToken,
+		"BAO_LOG_LEVEL":         "debug",
+	},
+	tags: []string{
+		openBaoVersion,
+		// "2.4.4",
+		// "2.3.2",
+	},
+	runNamespacedTests: true,
 }
 
 var integrationMatrixImages = []integrationImage{
-	{
-		subtestImageName: "vault",
-		repo:             "hashicorp/vault",
-		envVars: map[string]string{
-			"VAULT_DEV_ROOT_TOKEN_ID": devRootToken,
-			"VAULT_LOG_LEVEL":         "debug",
-		},
-		tags: []string{
-			vaultVersion,
-			// "1.20.4",
-			// "1.19.5", // LTS
-			// "1.18.5",
-			// "1.17.6",
-			// "1.16.3", // LTS
-			// "1.15.6",
-			// "1.14.10",
-			// "1.13.13",
-		},
-	},
-	{
-		subtestImageName: "openbao",
-		repo:             "openbao/openbao",
-		envVars: map[string]string{
-			"BAO_DEV_ROOT_TOKEN_ID": devRootToken,
-			"BAO_LOG_LEVEL":         "debug",
-		},
-		tags: []string{
-			openBaoVersion,
-			// "2.4.4",
-			// "2.3.2",
-		},
-		runNamespacedTests: true,
-	},
+	vaultImage,
+	openBaoImage,
 }
 
-var integrationMatrixAuthScenarios = []authScenario{
-	{
-		name: "token",
-		configFunc: func(cfg *config, _ *IntegrationSuite, vars tfProjectVars) {
-			cfg.Auth.AuthType = "token"
-			cfg.Auth.AuthToken.Token = configopaque.String(vars.renewableToken)
-		},
-	},
-	{
-		name: "approle",
-		configFunc: func(cfg *config, _ *IntegrationSuite, _ tfProjectVars) {
-			cfg.Auth.AuthType = "approle"
-			cfg.Auth.AuthAppRole.RoleID = "my-role-id"
-			cfg.Auth.AuthAppRole.SecretID = "my-secret-id"
-		},
-	},
-	{
-		name: "kubernetes_bound_service_account_token",
-		configFunc: func(cfg *config, suite *IntegrationSuite, _ tfProjectVars) {
-			cfg.Auth.AuthType = "kubernetes"
-			cfg.Auth.AuthKubernetes.RoleName = saName
-			cfg.Auth.AuthKubernetes.ServiceAccountTokenPath = suite.boundTokenPath
-		},
-	},
-	{
-		name: "kubernetes_long_lived_secret_token",
-		configFunc: func(cfg *config, suite *IntegrationSuite, _ tfProjectVars) {
-			cfg.Auth.AuthType = "kubernetes"
-			cfg.Auth.AuthKubernetes.RoleName = saName
-			cfg.Auth.AuthKubernetes.ServiceAccountToken = configopaque.String(suite.longLivedServiceAccountToken)
-		},
-	},
-	{
-		name: "jwt",
-		configFunc: func(cfg *config, suite *IntegrationSuite, _ tfProjectVars) {
-			cfg.Auth.AuthType = "jwt"
-			cfg.Auth.AuthJWT.RoleName = saName
-			cfg.Auth.AuthJWT.TokenPath = suite.boundTokenPath
-		},
-	},
+type integrationTestCase struct {
+	name          string
+	expectedFile  string
+	cfgMatchRegex string
+	tfVars        tfProjectVars
+	auth          authScenario
 }
 
-var integrationMatrixScenarios = []integrationScenario{
-	{
-		name:          "standalone",
-		cfgMatchRegex: "^pki/standalone/$",
-	},
-	{
-		name:          "two-tier",
-		cfgMatchRegex: "^pki/ica_0/$",
+// The canonical auth method used by the golden flight record matrix. Scraped
+// metrics are independent of the auth method (it only runs at login), so the
+// golden matrix uses the renewable token and the auth method matrix covers the
+// remaining methods separately.
+var tokenAuth = authScenario{
+	name: "token",
+	configFunc: func(cfg *config, _ *IntegrationSuite, vars tfProjectVars) {
+		cfg.Auth.AuthType = "token"
+		cfg.Auth.AuthToken.Token = configopaque.String(vars.renewableToken)
 	},
 }
 
@@ -276,14 +246,6 @@ func TestIntegrationTestSuite(t *testing.T) {
 	}
 	t.Parallel()
 	suite.Run(t, new(IntegrationSuite))
-}
-
-type integrationTestCase struct {
-	name          string
-	expectedFile  string
-	cfgMatchRegex string
-	tfVars        tfProjectVars
-	auth          authScenario
 }
 
 var scrapeMetricsCompareOptions = []pmetrictest.CompareMetricsOption{
@@ -364,6 +326,7 @@ func (suite *IntegrationSuite) baseTFVars() tfProjectVars {
 		numStandalone:              1,
 		numTwoTier:                 1,
 		numLeaf:                    1,
+		rateLimitStandalone:        false,
 	}
 }
 
@@ -376,46 +339,27 @@ func (suite *IntegrationSuite) runImageVersion(t *testing.T, img integrationImag
 		t.Logf("image matrix completed in %s", time.Since(start))
 	}()
 
-	imageURI := fmt.Sprintf("%s:%s", img.repo, tag)
-	req := testcontainers.ContainerRequest{
-		WaitingFor: wait.ForListeningPort(enginePort),
-		Image:      imageURI,
-		Env:        img.envVars,
-		ExposedPorts: []string{
-			enginePort,
-		},
-		Networks: []string{
-			suite.nw.Name,
-		},
-		HostConfigModifier: func(hc *container.HostConfig) {
-			hc.CapAdd = []string{"IPC_LOCK"}
-		},
-	}
-	secretStoreContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	require.NoError(t, err)
-	defer func() { _ = secretStoreContainer.Terminate(ctx) }()
+	secretStoreContainer := startSecretStoreContainer(t, ctx, img, tag, suite.nw)
 
 	tf := setupTerraform(t, ctx, t.TempDir(), secretStoreContainer)
 	secretStoreAddr := resolveSecretStoreAddress(t, ctx, secretStoreContainer)
 	k3dAddr := "https://" + net.JoinHostPort(suite.k3s.GetContainerID()[:12], "6443")
 
-	suite.runNamespacedMatrix(t, ctx, tf, false, baseVars, secretStoreAddr, k3dAddr)
+	suite.runNamespacedMode(t, ctx, tf, false, baseVars, secretStoreAddr, k3dAddr)
 	if img.runNamespacedTests {
-		suite.runNamespacedMatrix(t, ctx, tf, true, baseVars, secretStoreAddr, k3dAddr)
+		suite.runNamespacedMode(t, ctx, tf, true, baseVars, secretStoreAddr, k3dAddr)
 	}
 }
 
-func (suite *IntegrationSuite) runNamespacedMatrix(
+// Applies the terraform project once for the given namespaced mode and runs the
+// golden flight record and auth method matrices against the resulting state.
+func (suite *IntegrationSuite) runNamespacedMode(
 	t *testing.T,
 	ctx context.Context,
 	tf *tfexec.Terraform,
 	namespaced bool,
 	baseVars tfProjectVars,
-	secretStoreAddr,
-	k3dAddr string,
+	secretStoreAddr, k3dAddr string,
 ) {
 	t.Helper()
 
@@ -424,29 +368,39 @@ func (suite *IntegrationSuite) runNamespacedMatrix(
 	applyTerraform(t, ctx, tf, vars, secretStoreAddr, k3dAddr)
 	vars.renewableToken = terraformOutputString(t, ctx, tf, "renewable_token")
 
-	testCases := buildIntegrationCases(namespaced, vars, integrationMatrixAuthScenarios, integrationMatrixScenarios)
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			suite.runIntegrationCase(t, ctx, tc, secretStoreAddr)
-		})
-	}
+	suite.runGoldenMatrix(t, ctx, vars, secretStoreAddr)
+	suite.runAuthMatrix(t, ctx, vars, secretStoreAddr)
 }
 
-func (suite *IntegrationSuite) runIntegrationCase(t *testing.T, ctx context.Context, tc integrationTestCase, secretStoreAddr string) {
+// Starts the secret store engine container for an image/version on the given
+// docker network (nil for the default network).
+func startSecretStoreContainer(t *testing.T, ctx context.Context, img integrationImage, tag string, nw *testcontainers.DockerNetwork) testcontainers.Container {
 	t.Helper()
 
-	sink, observedLogs, shutdown := startScraperReceiver(t, ctx, suite, tc, secretStoreAddr)
-	defer shutdown()
+	imageURI := fmt.Sprintf("%s:%s", img.repo, tag)
+	req := testcontainers.ContainerRequest{
+		WaitingFor: wait.ForListeningPort(enginePort),
+		Image:      imageURI,
+		Env:        img.envVars,
+		ExposedPorts: []string{
+			enginePort,
+		},
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.CapAdd = []string{"IPC_LOCK"}
+		},
+	}
+	if nw != nil {
+		req.Networks = []string{nw.Name}
+	}
 
-	t.Run("scrape", func(t *testing.T) {
-		assertScrapeMetrics(t, sink, tc.expectedFile)
+	secretStoreContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
 	})
+	require.NoError(t, err)
+	testcontainers.CleanupContainer(t, secretStoreContainer)
 
-	t.Run("token_renewal", func(t *testing.T) {
-		assert.Eventually(t, func() bool {
-			return observedLogs.FilterMessage("token successfully renewed").Len() > 0
-		}, testRenewalTimeout, testRenewalInterval)
-	})
+	return secretStoreContainer
 }
 
 func resolveSecretStoreAddress(t *testing.T, ctx context.Context, container testcontainers.Container) string {
@@ -458,30 +412,6 @@ func resolveSecretStoreAddress(t *testing.T, ctx context.Context, container test
 	require.NoError(t, err)
 
 	return "http://" + net.JoinHostPort(host, natPort.Port())
-}
-
-func buildIntegrationCases(
-	namespaced bool,
-	vars tfProjectVars,
-	authMethods []authScenario,
-	scenarios []integrationScenario,
-) []integrationTestCase {
-	cases := make([]integrationTestCase, 0, len(authMethods)*len(scenarios))
-	for _, scenario := range scenarios {
-		expectedFile := fmt.Sprintf("matrix_%s_namespaced-%t.yaml", scenario.name, namespaced)
-		for _, auth := range authMethods {
-			name := fmt.Sprintf("namespaced=%t/scenario=%s/auth=%s", namespaced, scenario.name, auth.name)
-			cases = append(cases, integrationTestCase{
-				name:          name,
-				expectedFile:  expectedFile,
-				cfgMatchRegex: scenario.cfgMatchRegex,
-				tfVars:        vars,
-				auth:          auth,
-			})
-		}
-	}
-
-	return cases
 }
 
 func setupTerraform(t *testing.T, ctx context.Context, tfDir string, secretStoreContainer testcontainers.Container) *tfexec.Terraform {
@@ -504,10 +434,16 @@ func setupTerraform(t *testing.T, ctx context.Context, tfDir string, secretStore
 
 	secretStoreAddr := resolveSecretStoreAddress(t, ctx, secretStoreContainer)
 
-	err = tf.SetEnv(map[string]string{
+	// SetEnv replaces the whole environment, so only pass the bare minimum:
+	// PATH for the local-exec provisioners (curl, ...),
+	// plus the secret store connection settings.
+	env := map[string]string{
+		"PATH":        os.Getenv("PATH"),
 		"VAULT_ADDR":  secretStoreAddr,
 		"VAULT_TOKEN": devRootToken,
-	})
+	}
+
+	err = tf.SetEnv(env)
 	require.NoError(t, err)
 
 	return tf
@@ -538,6 +474,7 @@ func terraformApplyOptions(vars tfProjectVars, secretStoreAddr, k3dAddr string) 
 		tfexec.Var(fmt.Sprintf("num_standalone=%d", vars.numStandalone)),
 		tfexec.Var(fmt.Sprintf("num_two_tier=%d", vars.numTwoTier)),
 		tfexec.Var(fmt.Sprintf("num_leaf=%d", vars.numLeaf)),
+		tfexec.Var(fmt.Sprintf("rate_limit_standalone=%t", vars.rateLimitStandalone)),
 	}
 }
 
@@ -558,7 +495,7 @@ func terraformOutputString(t *testing.T, ctx context.Context, tf *tfexec.Terrafo
 	return value
 }
 
-func startScraperReceiver(t *testing.T, ctx context.Context, suite *IntegrationSuite, tc integrationTestCase, secretStoreAddr string) (*consumertest.MetricsSink, *observer.ObservedLogs, func()) {
+func startScraperReceiver(t *testing.T, ctx context.Context, suite *IntegrationSuite, tc integrationTestCase, secretStoreAddr string, crlEnabled bool) (*consumertest.MetricsSink, *observer.ObservedLogs, func()) {
 	t.Helper()
 
 	// Configure Receiver
@@ -569,6 +506,7 @@ func startScraperReceiver(t *testing.T, ctx context.Context, suite *IntegrationS
 	cfg.MatchRegex = tc.cfgMatchRegex
 	cfg.InitialDelay = 0
 	cfg.CollectionInterval = testCollectionInterval
+	cfg.Crl.Enabled = crlEnabled
 	cfg.Leaf.Enabled = true
 
 	if tc.tfVars.namespaced {
@@ -599,11 +537,14 @@ func startScraperReceiver(t *testing.T, ctx context.Context, suite *IntegrationS
 	return sink, observedLogs, shutdown
 }
 
-func assertScrapeMetrics(t *testing.T, sink *consumertest.MetricsSink, expectedFile string) {
+func assertScrapeMetrics(t *testing.T, sink *consumertest.MetricsSink, expectedFile string, timeout time.Duration, opts ...pmetrictest.CompareMetricsOption) {
 	t.Helper()
 
 	expectedPath := filepath.Join("test", "testdata", expectedFile)
 	lock := goldenPathLock(expectedPath)
+	compareOpts := make([]pmetrictest.CompareMetricsOption, 0, len(scrapeMetricsCompareOptions)+len(opts))
+	compareOpts = append(compareOpts, scrapeMetricsCompareOptions...)
+	compareOpts = append(compareOpts, opts...)
 
 	if *update {
 		require.Eventually(t, func() bool {
@@ -619,7 +560,7 @@ func assertScrapeMetrics(t *testing.T, sink *consumertest.MetricsSink, expectedF
 			require.NoError(t, err)
 
 			return true
-		}, testScrapeTimeout, testScrapeInterval)
+		}, timeout, testScrapeInterval)
 
 		return
 	}
@@ -637,8 +578,8 @@ func assertScrapeMetrics(t *testing.T, sink *consumertest.MetricsSink, expectedF
 		}
 		normalizeMetrics(lastMetrics)
 
-		return pmetrictest.CompareMetrics(expected, lastMetrics, scrapeMetricsCompareOptions...) == nil
-	}, testScrapeTimeout, testScrapeInterval)
+		return pmetrictest.CompareMetrics(expected, lastMetrics, compareOpts...) == nil
+	}, timeout, testScrapeInterval)
 }
 
 func latestMetricsSnapshot(sink *consumertest.MetricsSink) (pmetric.Metrics, bool) {
@@ -975,4 +916,41 @@ func normalizeMetrics(metrics pmetric.Metrics) {
 			}
 		}
 	}
+}
+
+// Returns the sum of the int values of the named metric across all data points
+// in a snapshot.
+func metricValue(metrics pmetric.Metrics, name string) int64 {
+	var total int64
+
+	rms := metrics.ResourceMetrics()
+	for i := range rms.Len() {
+		sms := rms.At(i).ScopeMetrics()
+		for j := range sms.Len() {
+			ms := sms.At(j).Metrics()
+			for k := range ms.Len() {
+				m := ms.At(k)
+				if m.Name() != name {
+					continue
+				}
+
+				var dps pmetric.NumberDataPointSlice
+				switch m.Type() {
+				case pmetric.MetricTypeGauge:
+					dps = m.Gauge().DataPoints()
+				case pmetric.MetricTypeSum:
+					dps = m.Sum().DataPoints()
+				}
+
+				for l := range dps.Len() {
+					dp := dps.At(l)
+					if dp.ValueType() == pmetric.NumberDataPointValueTypeInt {
+						total += dp.IntValue()
+					}
+				}
+			}
+		}
+	}
+
+	return total
 }
