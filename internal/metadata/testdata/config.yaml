@@ -22,6 +22,9 @@ all_set:
     pkiengine.crl.x509.revoked_certificates:
       enabled: true
       attributes: ["crl.uri","crl.role","crl.kind","crl.x509.issuer.common_name"]
+    pkiengine.crl.x509.revoked_certificates.reason:
+      enabled: true
+      attributes: ["crl.uri","crl.role","crl.kind","crl.x509.issuer.common_name","crl.x509.revoked_certificate.reason"]
     pkiengine.crl.x509.this_update:
       enabled: true
       attributes: ["crl.uri","crl.role","crl.kind","crl.x509.issuer.common_name"]
@@ -62,6 +65,9 @@ reaggregate_set:
     pkiengine.crl.x509.revoked_certificates:
       enabled: true
       attributes: []
+    pkiengine.crl.x509.revoked_certificates.reason:
+      enabled: true
+      attributes: ["crl.x509.revoked_certificate.reason"]
     pkiengine.crl.x509.this_update:
       enabled: true
       attributes: []
@@ -102,6 +108,9 @@ none_set:
     pkiengine.crl.x509.revoked_certificates:
       enabled: false
       attributes: ["crl.uri","crl.role","crl.kind","crl.x509.issuer.common_name"]
+    pkiengine.crl.x509.revoked_certificates.reason:
+      enabled: false
+      attributes: ["crl.uri","crl.role","crl.kind","crl.x509.issuer.common_name","crl.x509.revoked_certificate.reason"]
     pkiengine.crl.x509.this_update:
       enabled: false
       attributes: ["crl.uri","crl.role","crl.kind","crl.x509.issuer.common_name"]

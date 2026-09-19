@@ -113,14 +113,53 @@ func (f *realCrlFetcher) fetch(ctx context.Context, uri string, timeout time.Dur
 	}
 }
 
+// RFC 5280 Section 5.3.1 CRLReason values.
+const (
+	crlReasonUnspecified          = 0
+	crlReasonKeyCompromise        = 1
+	crlReasonCACompromise         = 2
+	crlReasonAffiliationChanged   = 3
+	crlReasonSuperseded           = 4
+	crlReasonCessationOfOperation = 5
+	crlReasonCertificateHold      = 6
+	// RFC 5280 "unused" code, folded into unspecified (no metric attribute).
+	crlReasonUnused             = 7
+	crlReasonRemoveFromCRL      = 8
+	crlReasonPrivilegeWithdrawn = 9
+	crlReasonAACompromise       = 10
+
+	// Bounds the per-reason counters indexed by RFC 5280 reason code.
+	crlRevocationReasonSlots = 11
+)
+
 type crlMetrics struct {
-	ts                  pcommon.Timestamp
-	issuerCommonName    string
-	processingStatus    int64
-	thisUpdateMinutes   int64
-	nextUpdateMinutes   int64
-	revokedCertificates int64
-	err                 error
+	ts                          pcommon.Timestamp
+	issuerCommonName            string
+	processingStatus            int64
+	thisUpdateMinutes           int64
+	nextUpdateMinutes           int64
+	revokedCertificates         int64
+	revokedCertificatesByReason [crlRevocationReasonSlots]int64
+	err                         error
+}
+
+// Maps an RFC 5280 Section 5.3.1 reason code to its metric attribute value.
+type crlRevocationReason struct {
+	code int
+	attr metadata.AttributeCrlX509RevokedCertificateReason
+}
+
+var crlRevocationReasons = []crlRevocationReason{
+	{crlReasonUnspecified, metadata.AttributeCrlX509RevokedCertificateReasonUnspecified},
+	{crlReasonKeyCompromise, metadata.AttributeCrlX509RevokedCertificateReasonKeyCompromise},
+	{crlReasonCACompromise, metadata.AttributeCrlX509RevokedCertificateReasonCACompromise},
+	{crlReasonAffiliationChanged, metadata.AttributeCrlX509RevokedCertificateReasonAffiliationChanged},
+	{crlReasonSuperseded, metadata.AttributeCrlX509RevokedCertificateReasonSuperseded},
+	{crlReasonCessationOfOperation, metadata.AttributeCrlX509RevokedCertificateReasonCessationOfOperation},
+	{crlReasonCertificateHold, metadata.AttributeCrlX509RevokedCertificateReasonCertificateHold},
+	{crlReasonRemoveFromCRL, metadata.AttributeCrlX509RevokedCertificateReasonRemoveFromCRL},
+	{crlReasonPrivilegeWithdrawn, metadata.AttributeCrlX509RevokedCertificateReasonPrivilegeWithdrawn},
+	{crlReasonAACompromise, metadata.AttributeCrlX509RevokedCertificateReasonAACompromise},
 }
 
 type crlCacheEntry struct {
@@ -473,8 +512,25 @@ func createCRLMetrics(res fetchResult) (crlMetrics, error) {
 	metrics.nextUpdateMinutes = int64(math.Floor(time.Until(crl.NextUpdate).Minutes()))
 	metrics.thisUpdateMinutes = int64(math.Floor(time.Until(crl.ThisUpdate).Minutes()))
 	metrics.revokedCertificates = int64(len(crl.RevokedCertificateEntries))
+	metrics.revokedCertificatesByReason = countCRLRevokedCertificatesByReason(crl.RevokedCertificateEntries)
 
 	return metrics, nil
+}
+
+// Counts CRL `revokedCertificates` entries per RFC 5280 Section 5.3.1 reason.
+// Codes outside the RFC table fold into `unspecified`.
+func countCRLRevokedCertificatesByReason(entries []x509.RevocationListEntry) [crlRevocationReasonSlots]int64 {
+	var byReason [crlRevocationReasonSlots]int64
+
+	for i := range entries {
+		code := entries[i].ReasonCode
+		if code < 0 || code >= crlRevocationReasonSlots || code == crlReasonUnused {
+			code = crlReasonUnspecified
+		}
+		byReason[code]++ //nolint:gosec // code is bounded to [0, crlRevocationReasonSlots) by the guard above.
+	}
+
+	return byReason
 }
 
 // Decodes and parses CRL bytes from PEM or DER format.
@@ -531,6 +587,13 @@ func (c *crl) emit(mb *metadata.MetricsBuilder, metrics crlMetrics) {
 		metrics.issuerCommonName,
 	)
 
+	c.emitRevokedCertificates(mb, metrics)
+	c.emitRevokedCertificatesByReason(mb, metrics)
+}
+
+// Emits the total number of certificates listed in the CRL,
+// including entries with reason `removeFromCRL`.
+func (c *crl) emitRevokedCertificates(mb *metadata.MetricsBuilder, metrics crlMetrics) {
 	mb.RecordPkiengineCrlX509RevokedCertificatesDataPoint(
 		metrics.ts,
 		metrics.revokedCertificates,
@@ -539,4 +602,23 @@ func (c *crl) emit(mb *metadata.MetricsBuilder, metrics crlMetrics) {
 		c.kind,
 		metrics.issuerCommonName,
 	)
+}
+
+func (c *crl) emitRevokedCertificatesByReason(mb *metadata.MetricsBuilder, metrics crlMetrics) {
+	for _, reason := range crlRevocationReasons {
+		count := metrics.revokedCertificatesByReason[reason.code]
+		if count == 0 {
+			continue
+		}
+
+		mb.RecordPkiengineCrlX509RevokedCertificatesReasonDataPoint(
+			metrics.ts,
+			count,
+			c.uri,
+			c.role,
+			c.kind,
+			metrics.issuerCommonName,
+			reason.attr,
+		)
+	}
 }
