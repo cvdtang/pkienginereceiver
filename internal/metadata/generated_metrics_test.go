@@ -72,6 +72,7 @@ func TestMetricsBuilder(t *testing.T) {
 			aggMap["pkiengine.crl.processing_status"] = mb.metricPkiengineCrlProcessingStatus.config.AggregationStrategy
 			aggMap["pkiengine.crl.x509.next_update"] = mb.metricPkiengineCrlX509NextUpdate.config.AggregationStrategy
 			aggMap["pkiengine.crl.x509.revoked_certificates"] = mb.metricPkiengineCrlX509RevokedCertificates.config.AggregationStrategy
+			aggMap["pkiengine.crl.x509.revoked_certificates.reason"] = mb.metricPkiengineCrlX509RevokedCertificatesReason.config.AggregationStrategy
 			aggMap["pkiengine.crl.x509.this_update"] = mb.metricPkiengineCrlX509ThisUpdate.config.AggregationStrategy
 			aggMap["pkiengine.mount.certificates_stored"] = mb.metricPkiengineMountCertificatesStored.config.AggregationStrategy
 
@@ -123,6 +124,12 @@ func TestMetricsBuilder(t *testing.T) {
 			}
 			defaultMetricsCount++
 			allMetricsCount++
+			mb.RecordPkiengineCrlX509RevokedCertificatesReasonDataPoint(ts, 1, "crl.uri-val", AttributeCrlRoleSubject, AttributeCrlKindBase, "crl.x509.issuer.common_name-val", AttributeCrlX509RevokedCertificateReasonUnspecified)
+			if tt.name == "reaggregate_set" {
+				mb.RecordPkiengineCrlX509RevokedCertificatesReasonDataPoint(ts, 3, "crl.uri-val-2", AttributeCrlRoleIssuer, AttributeCrlKindDelta, "crl.x509.issuer.common_name-val-2", AttributeCrlX509RevokedCertificateReasonUnspecified)
+			}
+			defaultMetricsCount++
+			allMetricsCount++
 			mb.RecordPkiengineCrlX509ThisUpdateDataPoint(ts, 1, "crl.uri-val", AttributeCrlRoleSubject, AttributeCrlKindBase, "crl.x509.issuer.common_name-val")
 			if tt.name == "reaggregate_set" {
 				mb.RecordPkiengineCrlX509ThisUpdateDataPoint(ts, 3, "crl.uri-val-2", AttributeCrlRoleIssuer, AttributeCrlKindDelta, "crl.x509.issuer.common_name-val-2")
@@ -154,6 +161,7 @@ func TestMetricsBuilder(t *testing.T) {
 				assert.Empty(t, mb.metricPkiengineCrlProcessingStatus.aggDataPoints)
 				assert.Empty(t, mb.metricPkiengineCrlX509NextUpdate.aggDataPoints)
 				assert.Empty(t, mb.metricPkiengineCrlX509RevokedCertificates.aggDataPoints)
+				assert.Empty(t, mb.metricPkiengineCrlX509RevokedCertificatesReason.aggDataPoints)
 				assert.Empty(t, mb.metricPkiengineCrlX509ThisUpdate.aggDataPoints)
 				assert.Empty(t, mb.metricPkiengineMountCertificatesStored.aggDataPoints)
 			}
@@ -548,6 +556,66 @@ func TestMetricsBuilder(t *testing.T) {
 						assert.False(t, ok)
 						_, ok = dp.Attributes().Get("crl.x509.issuer.common_name")
 						assert.False(t, ok)
+					}
+				case "pkiengine.crl.x509.revoked_certificates.reason":
+					if tt.name != "reaggregate_set" {
+						assert.False(t, validatedMetrics["pkiengine.crl.x509.revoked_certificates.reason"], "Found a duplicate in the metrics slice: pkiengine.crl.x509.revoked_certificates.reason")
+						validatedMetrics["pkiengine.crl.x509.revoked_certificates.reason"] = true
+						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
+						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, "Number of entries in the CRL `revokedCertificates` field, by RFC 5280 revocation reason.", mi.Description())
+						assert.Equal(t, "{entry}", mi.Unit())
+						dp := mi.Gauge().DataPoints().At(0)
+						assert.Equal(t, start, dp.StartTimestamp())
+						assert.Equal(t, ts, dp.Timestamp())
+						assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
+						assert.Equal(t, int64(1), dp.IntValue())
+						crlURIAttrVal, ok := dp.Attributes().Get("crl.uri")
+						assert.True(t, ok)
+						assert.Equal(t, "crl.uri-val", crlURIAttrVal.Str())
+						crlRoleAttrVal, ok := dp.Attributes().Get("crl.role")
+						assert.True(t, ok)
+						assert.Equal(t, "subject", crlRoleAttrVal.Str())
+						crlKindAttrVal, ok := dp.Attributes().Get("crl.kind")
+						assert.True(t, ok)
+						assert.Equal(t, "base", crlKindAttrVal.Str())
+						crlX509IssuerCommonNameAttrVal, ok := dp.Attributes().Get("crl.x509.issuer.common_name")
+						assert.True(t, ok)
+						assert.Equal(t, "crl.x509.issuer.common_name-val", crlX509IssuerCommonNameAttrVal.Str())
+						crlX509RevokedCertificateReasonAttrVal, ok := dp.Attributes().Get("crl.x509.revoked_certificate.reason")
+						assert.True(t, ok)
+						assert.Equal(t, "unspecified", crlX509RevokedCertificateReasonAttrVal.Str())
+					} else {
+						assert.False(t, validatedMetrics["pkiengine.crl.x509.revoked_certificates.reason"], "Found a duplicate in the metrics slice: pkiengine.crl.x509.revoked_certificates.reason")
+						validatedMetrics["pkiengine.crl.x509.revoked_certificates.reason"] = true
+						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
+						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, "Number of entries in the CRL `revokedCertificates` field, by RFC 5280 revocation reason.", mi.Description())
+						assert.Equal(t, "{entry}", mi.Unit())
+						dp := mi.Gauge().DataPoints().At(0)
+						assert.Equal(t, start, dp.StartTimestamp())
+						assert.Equal(t, ts, dp.Timestamp())
+						assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
+						switch aggMap["pkiengine.crl.x509.revoked_certificates.reason"] {
+						case "sum":
+							assert.Equal(t, int64(4), dp.IntValue())
+						case "avg":
+							assert.Equal(t, int64(2), dp.IntValue())
+						case "min":
+							assert.Equal(t, int64(1), dp.IntValue())
+						case "max":
+							assert.Equal(t, int64(3), dp.IntValue())
+						}
+						_, ok := dp.Attributes().Get("crl.uri")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("crl.role")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("crl.kind")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("crl.x509.issuer.common_name")
+						assert.False(t, ok)
+						_, ok = dp.Attributes().Get("crl.x509.revoked_certificate.reason")
+						assert.True(t, ok)
 					}
 				case "pkiengine.crl.x509.this_update":
 					if tt.name != "reaggregate_set" {

@@ -86,6 +86,22 @@ attributes:
     description: Common Name (CN) in the CRL issuer field.
     type: string
 
+  crl.x509.revoked_certificate.reason:
+    description: RFC 5280 Section 5.3.1 reason of the CRL entry.
+    type: string
+    requirement_level: required
+    enum:
+      - unspecified
+      - keyCompromise
+      - cACompromise
+      - affiliationChanged
+      - superseded
+      - cessationOfOperation
+      - certificateHold
+      - removeFromCRL
+      - privilegeWithdrawn
+      - aACompromise
+
   engine.mount:
     description: Mount path of the secret store PKI engine.
     type: string
@@ -202,6 +218,20 @@ metrics:
      - crl.role
      - crl.kind
      - crl.x509.issuer.common_name
+
+  pkiengine.crl.x509.revoked_certificates.reason:
+    description: Number of entries in the CRL `revokedCertificates` field, by RFC 5280 revocation reason.
+    enabled: true
+    stability: development
+    gauge:
+      value_type: int
+    unit: "{entry}"
+    attributes:
+     - crl.uri
+     - crl.role
+     - crl.kind
+     - crl.x509.issuer.common_name
+     - crl.x509.revoked_certificate.reason
 
   pkiengine.crl.x509.this_update:
     description: Time since the CRL `thisUpdate` field.

@@ -322,6 +322,10 @@ func TestLDAPIntegrationTest(t *testing.T) {
 				t.Helper()
 				assert.Equal(t, int64(1), val)
 			},
+			"pkiengine.crl.x509.revoked_certificates.reason": func(t *testing.T, val int64) {
+				t.Helper()
+				assert.Equal(t, int64(1), val)
+			},
 		}
 		require.Equal(t, len(expected), metricSlice.Len())
 
@@ -335,6 +339,9 @@ func TestLDAPIntegrationTest(t *testing.T) {
 			assert.Equal(t, uri, requireAttr(t, dp.Attributes(), "crl.uri").Str())
 			if metric.Name() != "pkiengine.crl.processing_status" {
 				assert.Equal(t, "Test CA", requireAttr(t, dp.Attributes(), "crl.x509.issuer.common_name").Str())
+			}
+			if metric.Name() == "pkiengine.crl.x509.revoked_certificates.reason" {
+				assert.Equal(t, "unspecified", requireAttr(t, dp.Attributes(), "crl.x509.revoked_certificate.reason").Str())
 			}
 			validator(t, dp.IntValue())
 		}

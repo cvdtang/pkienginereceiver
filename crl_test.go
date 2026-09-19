@@ -99,6 +99,42 @@ func createTestCrlForIssuer(t *testing.T, cn string) []byte {
 	return der
 }
 
+// Generates a CRL DER signed by a throwaway CA with the given revoked entries.
+func createTestCrlWithEntries(t *testing.T, entries []x509.RevocationListEntry) []byte {
+	t.Helper()
+
+	caKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	caTemplate := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "Test CA"},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+
+	caCertDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
+	require.NoError(t, err)
+
+	caCert, err := x509.ParseCertificate(caCertDER)
+	require.NoError(t, err)
+
+	crlTemplate := &x509.RevocationList{
+		Number:                    big.NewInt(1),
+		ThisUpdate:                time.Now(),
+		NextUpdate:                time.Now().Add(3 * 24 * time.Hour),
+		RevokedCertificateEntries: entries,
+	}
+
+	der, err := x509.CreateRevocationList(rand.Reader, crlTemplate, caCert, caKey)
+	require.NoError(t, err)
+
+	return der
+}
+
 // Helper to generate a real, cryptographically valid CRL and return it in both DER and PEM formats.
 func createTestCrlData(t *testing.T) ([]byte, []byte) {
 	t.Helper()
@@ -411,6 +447,82 @@ func TestCRL_Fetch_UnsupportedProtocols(t *testing.T) {
 	}
 }
 
+func TestCreateCRLMetrics_RevokedCertificatesByReason(t *testing.T) {
+	t.Parallel()
+
+	der := createTestCrlWithEntries(t, []x509.RevocationListEntry{
+		{SerialNumber: big.NewInt(2), RevocationTime: time.Now()},
+		{SerialNumber: big.NewInt(3), RevocationTime: time.Now(), ReasonCode: crlReasonKeyCompromise},
+		{SerialNumber: big.NewInt(4), RevocationTime: time.Now(), ReasonCode: crlReasonKeyCompromise},
+		{SerialNumber: big.NewInt(5), RevocationTime: time.Now(), ReasonCode: crlReasonRemoveFromCRL},
+	})
+
+	metrics, err := createCRLMetrics(fetchResult{Fetchable: 1, Data: der})
+	require.NoError(t, err)
+	// The total metric counts every listed entry, including removeFromCRL.
+	assert.Equal(t, int64(4), metrics.revokedCertificates)
+	// Every entry is attributed to a reason, including removeFromCRL.
+	assert.Equal(t, int64(1), metrics.revokedCertificatesByReason[crlReasonUnspecified])
+	assert.Equal(t, int64(2), metrics.revokedCertificatesByReason[crlReasonKeyCompromise])
+	assert.Equal(t, int64(1), metrics.revokedCertificatesByReason[crlReasonRemoveFromCRL])
+}
+
+func TestCountCRLRevokedCertificatesByReason(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		entries      []x509.RevocationListEntry
+		wantByReason map[int]int64
+	}{
+		{
+			name: "folds explicit and unused unspecified codes",
+			entries: []x509.RevocationListEntry{
+				{ReasonCode: crlReasonUnspecified},
+				{ReasonCode: crlReasonUnused},
+				{ReasonCode: crlReasonPrivilegeWithdrawn},
+				{ReasonCode: crlReasonRemoveFromCRL},
+			},
+			wantByReason: map[int]int64{
+				crlReasonUnspecified:        2,
+				crlReasonPrivilegeWithdrawn: 1,
+				crlReasonRemoveFromCRL:      1,
+			},
+		},
+		{
+			name: "folds out-of-range codes into unspecified",
+			entries: []x509.RevocationListEntry{
+				{ReasonCode: -1},
+				{ReasonCode: crlRevocationReasonSlots},
+			},
+			wantByReason: map[int]int64{crlReasonUnspecified: 2},
+		},
+		{
+			name:         "no entries yields no counts",
+			entries:      nil,
+			wantByReason: map[int]int64{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			byReason := countCRLRevokedCertificatesByReason(tt.entries)
+
+			var got, want int64
+			for code, count := range byReason {
+				got += count
+				assert.Equal(t, tt.wantByReason[code], count, "reason code %d", code)
+			}
+			for _, count := range tt.wantByReason {
+				want += count
+			}
+			assert.Equal(t, want, got, "unexpected extra reason counts")
+		})
+	}
+}
+
 func TestCRL_Emit(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -506,6 +618,50 @@ func TestCRL_Emit(t *testing.T) {
 			assert.Equal(t, len(tt.expectedMetrics), metricSlice.Len(), "different number of metrics reported than expected")
 		})
 	}
+}
+
+func TestCRL_Emit_RevokedCertificatesByReason(t *testing.T) {
+	t.Parallel()
+
+	crl, state := createTestCRL(t)
+	metrics := newCrlMetrics()
+	metrics.processingStatus = crlProcessingStatusSuccess
+	metrics.revokedCertificates = 4
+	metrics.revokedCertificatesByReason[crlReasonUnspecified] = 1
+	metrics.revokedCertificatesByReason[crlReasonKeyCompromise] = 2
+	metrics.revokedCertificatesByReason[crlReasonRemoveFromCRL] = 1
+
+	rb := state.mb.NewResourceBuilder()
+	crl.emit(state.mb, metrics)
+	res := rb.Emit()
+	md := state.mb.Emit(metadata.WithResource(res))
+
+	metricSlice := md.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics()
+
+	var (
+		total  int64
+		counts = map[string]int64{}
+	)
+	for i := range metricSlice.Len() {
+		metric := metricSlice.At(i)
+		switch metric.Name() {
+		case "pkiengine.crl.x509.revoked_certificates":
+			total = metric.Gauge().DataPoints().At(0).IntValue()
+		case "pkiengine.crl.x509.revoked_certificates.reason":
+			for j := range metric.Gauge().DataPoints().Len() {
+				dp := metric.Gauge().DataPoints().At(j)
+				reason := requireAttr(t, dp.Attributes(), "crl.x509.revoked_certificate.reason").Str()
+				counts[reason] = dp.IntValue()
+			}
+		}
+	}
+
+	assert.Equal(t, int64(4), total)
+	assert.Equal(t, map[string]int64{
+		"unspecified":   1,
+		"keyCompromise": 2,
+		"removeFromCRL": 1,
+	}, counts)
 }
 
 func TestCRL_Collect_Concurrency(t *testing.T) {

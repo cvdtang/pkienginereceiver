@@ -4,6 +4,7 @@ package metadata
 
 import (
 	"fmt"
+	"slices"
 
 	"go.opentelemetry.io/collector/confmap"
 	"go.opentelemetry.io/collector/filter"
@@ -335,6 +336,61 @@ func (ms *PkiengineCrlX509RevokedCertificatesMetricConfig) Validate() error {
 	return nil
 }
 
+// PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKey specifies the key of an attribute for the pkiengine.crl.x509.revoked_certificates.reason metric.
+type PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKey string
+
+const (
+	PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlURI                          PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKey = "crl.uri"
+	PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlRole                         PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKey = "crl.role"
+	PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlKind                         PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKey = "crl.kind"
+	PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlX509IssuerCommonName         PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKey = "crl.x509.issuer.common_name"
+	PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlX509RevokedCertificateReason PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKey = "crl.x509.revoked_certificate.reason"
+)
+
+// PkiengineCrlX509RevokedCertificatesReasonMetricConfig provides config for the pkiengine.crl.x509.revoked_certificates.reason metric.
+type PkiengineCrlX509RevokedCertificatesReasonMetricConfig struct {
+	Enabled          bool `mapstructure:"enabled"`
+	enabledSetByUser bool
+
+	AggregationStrategy string                                                        `mapstructure:"aggregation_strategy"`
+	EnabledAttributes   []PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKey `mapstructure:"attributes"`
+}
+
+func (ms *PkiengineCrlX509RevokedCertificatesReasonMetricConfig) Unmarshal(parser *confmap.Conf) error {
+	if parser == nil {
+		return nil
+	}
+
+	err := parser.Unmarshal(ms)
+	if err != nil {
+		return err
+	}
+
+	ms.enabledSetByUser = parser.IsSet("enabled")
+	return nil
+}
+
+func (ms *PkiengineCrlX509RevokedCertificatesReasonMetricConfig) Validate() error {
+	for _, val := range ms.EnabledAttributes {
+		switch val {
+		case PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlURI, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlRole, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlKind, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlX509IssuerCommonName, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlX509RevokedCertificateReason:
+		default:
+			return fmt.Errorf("metric pkiengine.crl.x509.revoked_certificates.reason doesn't have an attribute %v, valid attributes: [crl.uri, crl.role, crl.kind, crl.x509.issuer.common_name, crl.x509.revoked_certificate.reason]", val)
+		}
+	}
+	if !slices.Contains(ms.EnabledAttributes, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlX509RevokedCertificateReason) {
+		return fmt.Errorf("crl.x509.revoked_certificate.reason is a required attribute for pkiengine.crl.x509.revoked_certificates.reason metric and must be included")
+	}
+
+	switch ms.AggregationStrategy {
+	case AggregationStrategySum, AggregationStrategyAvg, AggregationStrategyMin, AggregationStrategyMax:
+	default:
+		return fmt.Errorf("invalid aggregation strategy %q, valid strategies: [%s, %s, %s, %s]", ms.AggregationStrategy, AggregationStrategySum, AggregationStrategyAvg, AggregationStrategyMin, AggregationStrategyMax)
+	}
+
+	return nil
+}
+
 // PkiengineCrlX509ThisUpdateMetricAttributeKey specifies the key of an attribute for the pkiengine.crl.x509.this_update metric.
 type PkiengineCrlX509ThisUpdateMetricAttributeKey string
 
@@ -496,19 +552,20 @@ func (ms *PkiengineRateLimitThrottledMetricConfig) Unmarshal(parser *confmap.Con
 
 // MetricsConfig provides config for pkiengine metrics.
 type MetricsConfig struct {
-	PkiengineCertX509NotAfter           PkiengineCertX509NotAfterMetricConfig           `mapstructure:"pkiengine.cert.x509.not_after"`
-	PkiengineCertX509NotBefore          PkiengineCertX509NotBeforeMetricConfig          `mapstructure:"pkiengine.cert.x509.not_before"`
-	PkiengineCrlCacheEvictions          PkiengineCrlCacheEvictionsMetricConfig          `mapstructure:"pkiengine.crl.cache.evictions"`
-	PkiengineCrlCacheHits               PkiengineCrlCacheHitsMetricConfig               `mapstructure:"pkiengine.crl.cache.hits"`
-	PkiengineCrlCacheMisses             PkiengineCrlCacheMissesMetricConfig             `mapstructure:"pkiengine.crl.cache.misses"`
-	PkiengineCrlProcessingStatus        PkiengineCrlProcessingStatusMetricConfig        `mapstructure:"pkiengine.crl.processing_status"`
-	PkiengineCrlX509NextUpdate          PkiengineCrlX509NextUpdateMetricConfig          `mapstructure:"pkiengine.crl.x509.next_update"`
-	PkiengineCrlX509RevokedCertificates PkiengineCrlX509RevokedCertificatesMetricConfig `mapstructure:"pkiengine.crl.x509.revoked_certificates"`
-	PkiengineCrlX509ThisUpdate          PkiengineCrlX509ThisUpdateMetricConfig          `mapstructure:"pkiengine.crl.x509.this_update"`
-	PkiengineIssuerErrors               PkiengineIssuerErrorsMetricConfig               `mapstructure:"pkiengine.issuer.errors"`
-	PkiengineMountCertificatesStored    PkiengineMountCertificatesStoredMetricConfig    `mapstructure:"pkiengine.mount.certificates_stored"`
-	PkiengineMountErrors                PkiengineMountErrorsMetricConfig                `mapstructure:"pkiengine.mount.errors"`
-	PkiengineRateLimitThrottled         PkiengineRateLimitThrottledMetricConfig         `mapstructure:"pkiengine.rate_limit.throttled"`
+	PkiengineCertX509NotAfter                 PkiengineCertX509NotAfterMetricConfig                 `mapstructure:"pkiengine.cert.x509.not_after"`
+	PkiengineCertX509NotBefore                PkiengineCertX509NotBeforeMetricConfig                `mapstructure:"pkiengine.cert.x509.not_before"`
+	PkiengineCrlCacheEvictions                PkiengineCrlCacheEvictionsMetricConfig                `mapstructure:"pkiengine.crl.cache.evictions"`
+	PkiengineCrlCacheHits                     PkiengineCrlCacheHitsMetricConfig                     `mapstructure:"pkiengine.crl.cache.hits"`
+	PkiengineCrlCacheMisses                   PkiengineCrlCacheMissesMetricConfig                   `mapstructure:"pkiengine.crl.cache.misses"`
+	PkiengineCrlProcessingStatus              PkiengineCrlProcessingStatusMetricConfig              `mapstructure:"pkiengine.crl.processing_status"`
+	PkiengineCrlX509NextUpdate                PkiengineCrlX509NextUpdateMetricConfig                `mapstructure:"pkiengine.crl.x509.next_update"`
+	PkiengineCrlX509RevokedCertificates       PkiengineCrlX509RevokedCertificatesMetricConfig       `mapstructure:"pkiengine.crl.x509.revoked_certificates"`
+	PkiengineCrlX509RevokedCertificatesReason PkiengineCrlX509RevokedCertificatesReasonMetricConfig `mapstructure:"pkiengine.crl.x509.revoked_certificates.reason"`
+	PkiengineCrlX509ThisUpdate                PkiengineCrlX509ThisUpdateMetricConfig                `mapstructure:"pkiengine.crl.x509.this_update"`
+	PkiengineIssuerErrors                     PkiengineIssuerErrorsMetricConfig                     `mapstructure:"pkiengine.issuer.errors"`
+	PkiengineMountCertificatesStored          PkiengineMountCertificatesStoredMetricConfig          `mapstructure:"pkiengine.mount.certificates_stored"`
+	PkiengineMountErrors                      PkiengineMountErrorsMetricConfig                      `mapstructure:"pkiengine.mount.errors"`
+	PkiengineRateLimitThrottled               PkiengineRateLimitThrottledMetricConfig               `mapstructure:"pkiengine.rate_limit.throttled"`
 }
 
 func DefaultMetricsConfig() MetricsConfig {
@@ -546,6 +603,11 @@ func DefaultMetricsConfig() MetricsConfig {
 			Enabled:             true,
 			AggregationStrategy: AggregationStrategyAvg,
 			EnabledAttributes:   []PkiengineCrlX509RevokedCertificatesMetricAttributeKey{PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlURI, PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlRole, PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlKind, PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlX509IssuerCommonName},
+		},
+		PkiengineCrlX509RevokedCertificatesReason: PkiengineCrlX509RevokedCertificatesReasonMetricConfig{
+			Enabled:             true,
+			AggregationStrategy: AggregationStrategyAvg,
+			EnabledAttributes:   []PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKey{PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlURI, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlRole, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlKind, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlX509IssuerCommonName, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlX509RevokedCertificateReason},
 		},
 		PkiengineCrlX509ThisUpdate: PkiengineCrlX509ThisUpdateMetricConfig{
 			Enabled:             true,

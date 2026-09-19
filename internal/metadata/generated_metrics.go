@@ -97,6 +97,64 @@ var MapAttributeCrlRole = map[string]AttributeCrlRole{
 	"issuer":  AttributeCrlRoleIssuer,
 }
 
+// AttributeCrlX509RevokedCertificateReason specifies the value crl.x509.revoked_certificate.reason attribute.
+type AttributeCrlX509RevokedCertificateReason int
+
+const (
+	_ AttributeCrlX509RevokedCertificateReason = iota
+	AttributeCrlX509RevokedCertificateReasonUnspecified
+	AttributeCrlX509RevokedCertificateReasonKeyCompromise
+	AttributeCrlX509RevokedCertificateReasonCACompromise
+	AttributeCrlX509RevokedCertificateReasonAffiliationChanged
+	AttributeCrlX509RevokedCertificateReasonSuperseded
+	AttributeCrlX509RevokedCertificateReasonCessationOfOperation
+	AttributeCrlX509RevokedCertificateReasonCertificateHold
+	AttributeCrlX509RevokedCertificateReasonRemoveFromCRL
+	AttributeCrlX509RevokedCertificateReasonPrivilegeWithdrawn
+	AttributeCrlX509RevokedCertificateReasonAACompromise
+)
+
+// String returns the string representation of the AttributeCrlX509RevokedCertificateReason.
+func (av AttributeCrlX509RevokedCertificateReason) String() string {
+	switch av {
+	case AttributeCrlX509RevokedCertificateReasonUnspecified:
+		return "unspecified"
+	case AttributeCrlX509RevokedCertificateReasonKeyCompromise:
+		return "keyCompromise"
+	case AttributeCrlX509RevokedCertificateReasonCACompromise:
+		return "cACompromise"
+	case AttributeCrlX509RevokedCertificateReasonAffiliationChanged:
+		return "affiliationChanged"
+	case AttributeCrlX509RevokedCertificateReasonSuperseded:
+		return "superseded"
+	case AttributeCrlX509RevokedCertificateReasonCessationOfOperation:
+		return "cessationOfOperation"
+	case AttributeCrlX509RevokedCertificateReasonCertificateHold:
+		return "certificateHold"
+	case AttributeCrlX509RevokedCertificateReasonRemoveFromCRL:
+		return "removeFromCRL"
+	case AttributeCrlX509RevokedCertificateReasonPrivilegeWithdrawn:
+		return "privilegeWithdrawn"
+	case AttributeCrlX509RevokedCertificateReasonAACompromise:
+		return "aACompromise"
+	}
+	return ""
+}
+
+// MapAttributeCrlX509RevokedCertificateReason is a helper map of string to AttributeCrlX509RevokedCertificateReason attribute value.
+var MapAttributeCrlX509RevokedCertificateReason = map[string]AttributeCrlX509RevokedCertificateReason{
+	"unspecified":          AttributeCrlX509RevokedCertificateReasonUnspecified,
+	"keyCompromise":        AttributeCrlX509RevokedCertificateReasonKeyCompromise,
+	"cACompromise":         AttributeCrlX509RevokedCertificateReasonCACompromise,
+	"affiliationChanged":   AttributeCrlX509RevokedCertificateReasonAffiliationChanged,
+	"superseded":           AttributeCrlX509RevokedCertificateReasonSuperseded,
+	"cessationOfOperation": AttributeCrlX509RevokedCertificateReasonCessationOfOperation,
+	"certificateHold":      AttributeCrlX509RevokedCertificateReasonCertificateHold,
+	"removeFromCRL":        AttributeCrlX509RevokedCertificateReasonRemoveFromCRL,
+	"privilegeWithdrawn":   AttributeCrlX509RevokedCertificateReasonPrivilegeWithdrawn,
+	"aACompromise":         AttributeCrlX509RevokedCertificateReasonAACompromise,
+}
+
 var MetricsInfo = metricsInfo{
 	PkiengineCertX509NotAfter: metricInfo{
 		Name:       "pkiengine.cert.x509.not_after",
@@ -127,6 +185,10 @@ var MetricsInfo = metricsInfo{
 		Name:       "pkiengine.crl.x509.revoked_certificates",
 		Attributes: []string{"crl.uri", "crl.role", "crl.kind", "crl.x509.issuer.common_name"},
 	},
+	PkiengineCrlX509RevokedCertificatesReason: metricInfo{
+		Name:       "pkiengine.crl.x509.revoked_certificates.reason",
+		Attributes: []string{"crl.uri", "crl.role", "crl.kind", "crl.x509.issuer.common_name", "crl.x509.revoked_certificate.reason"},
+	},
 	PkiengineCrlX509ThisUpdate: metricInfo{
 		Name:       "pkiengine.crl.x509.this_update",
 		Attributes: []string{"crl.uri", "crl.role", "crl.kind", "crl.x509.issuer.common_name"},
@@ -147,19 +209,20 @@ var MetricsInfo = metricsInfo{
 }
 
 type metricsInfo struct {
-	PkiengineCertX509NotAfter           metricInfo
-	PkiengineCertX509NotBefore          metricInfo
-	PkiengineCrlCacheEvictions          metricInfo
-	PkiengineCrlCacheHits               metricInfo
-	PkiengineCrlCacheMisses             metricInfo
-	PkiengineCrlProcessingStatus        metricInfo
-	PkiengineCrlX509NextUpdate          metricInfo
-	PkiengineCrlX509RevokedCertificates metricInfo
-	PkiengineCrlX509ThisUpdate          metricInfo
-	PkiengineIssuerErrors               metricInfo
-	PkiengineMountCertificatesStored    metricInfo
-	PkiengineMountErrors                metricInfo
-	PkiengineRateLimitThrottled         metricInfo
+	PkiengineCertX509NotAfter                 metricInfo
+	PkiengineCertX509NotBefore                metricInfo
+	PkiengineCrlCacheEvictions                metricInfo
+	PkiengineCrlCacheHits                     metricInfo
+	PkiengineCrlCacheMisses                   metricInfo
+	PkiengineCrlProcessingStatus              metricInfo
+	PkiengineCrlX509NextUpdate                metricInfo
+	PkiengineCrlX509RevokedCertificates       metricInfo
+	PkiengineCrlX509RevokedCertificatesReason metricInfo
+	PkiengineCrlX509ThisUpdate                metricInfo
+	PkiengineIssuerErrors                     metricInfo
+	PkiengineMountCertificatesStored          metricInfo
+	PkiengineMountErrors                      metricInfo
+	PkiengineRateLimitThrottled               metricInfo
 }
 
 type metricInfo struct {
@@ -840,6 +903,107 @@ func newMetricPkiengineCrlX509RevokedCertificates(cfg PkiengineCrlX509RevokedCer
 	return m
 }
 
+type metricPkiengineCrlX509RevokedCertificatesReason struct {
+	data          pmetric.Metric                                        // data buffer for generated metric.
+	config        PkiengineCrlX509RevokedCertificatesReasonMetricConfig // metric config provided by user.
+	capacity      int                                                   // max observed number of data points added to the metric.
+	aggDataPoints []int64                                               // slice containing number of aggregated datapoints at each index
+}
+
+// init fills pkiengine.crl.x509.revoked_certificates.reason metric with initial data.
+func (m *metricPkiengineCrlX509RevokedCertificatesReason) init() {
+	m.data.SetName("pkiengine.crl.x509.revoked_certificates.reason")
+	m.data.SetDescription("Number of entries in the CRL `revokedCertificates` field, by RFC 5280 revocation reason.")
+	m.data.SetUnit("{entry}")
+	m.data.SetEmptyGauge()
+	m.data.Gauge().DataPoints().EnsureCapacity(m.capacity)
+	m.aggDataPoints = m.aggDataPoints[:0]
+}
+
+func (m *metricPkiengineCrlX509RevokedCertificatesReason) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64, crlURIAttributeValue string, crlRoleAttributeValue string, crlKindAttributeValue string, crlX509IssuerCommonNameAttributeValue string, crlX509RevokedCertificateReasonAttributeValue string) {
+	if !m.config.Enabled {
+		return
+	}
+
+	dp := pmetric.NewNumberDataPoint()
+	dp.SetStartTimestamp(start)
+	dp.SetTimestamp(ts)
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlURI) {
+		dp.Attributes().PutStr("crl.uri", crlURIAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlRole) {
+		dp.Attributes().PutStr("crl.role", crlRoleAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlKind) {
+		dp.Attributes().PutStr("crl.kind", crlKindAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlX509IssuerCommonName) {
+		dp.Attributes().PutStr("crl.x509.issuer.common_name", crlX509IssuerCommonNameAttributeValue)
+	}
+	if slices.Contains(m.config.EnabledAttributes, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlX509RevokedCertificateReason) {
+		dp.Attributes().PutStr("crl.x509.revoked_certificate.reason", crlX509RevokedCertificateReasonAttributeValue)
+	}
+
+	var s string
+	dps := m.data.Gauge().DataPoints()
+	for i := 0; i < dps.Len(); i++ {
+		dpi := dps.At(i)
+		if dp.Attributes().Equal(dpi.Attributes()) && dp.StartTimestamp() == dpi.StartTimestamp() && dp.Timestamp() == dpi.Timestamp() {
+			switch s = m.config.AggregationStrategy; s {
+			case AggregationStrategySum, AggregationStrategyAvg:
+				dpi.SetIntValue(dpi.IntValue() + val)
+				m.aggDataPoints[i] += 1
+				return
+			case AggregationStrategyMin:
+				if dpi.IntValue() > val {
+					dpi.SetIntValue(val)
+				}
+				return
+			case AggregationStrategyMax:
+				if dpi.IntValue() < val {
+					dpi.SetIntValue(val)
+				}
+				return
+			}
+		}
+	}
+
+	dp.SetIntValue(val)
+	m.aggDataPoints = append(m.aggDataPoints, 1)
+	dp.MoveTo(dps.AppendEmpty())
+}
+
+// updateCapacity saves max length of data point slices that will be used for the slice capacity.
+func (m *metricPkiengineCrlX509RevokedCertificatesReason) updateCapacity() {
+	if m.data.Gauge().DataPoints().Len() > m.capacity {
+		m.capacity = m.data.Gauge().DataPoints().Len()
+	}
+}
+
+// emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
+func (m *metricPkiengineCrlX509RevokedCertificatesReason) emit(metrics pmetric.MetricSlice) {
+	if m.config.Enabled && m.data.Gauge().DataPoints().Len() > 0 {
+		if m.config.AggregationStrategy == AggregationStrategyAvg {
+			for i, aggCount := range m.aggDataPoints {
+				m.data.Gauge().DataPoints().At(i).SetIntValue(m.data.Gauge().DataPoints().At(i).IntValue() / aggCount)
+			}
+		}
+		m.updateCapacity()
+		m.data.MoveTo(metrics.AppendEmpty())
+		m.init()
+	}
+}
+
+func newMetricPkiengineCrlX509RevokedCertificatesReason(cfg PkiengineCrlX509RevokedCertificatesReasonMetricConfig) metricPkiengineCrlX509RevokedCertificatesReason {
+	m := metricPkiengineCrlX509RevokedCertificatesReason{config: cfg}
+
+	if cfg.Enabled {
+		m.data = pmetric.NewMetric()
+		m.init()
+	}
+	return m
+}
+
 type metricPkiengineCrlX509ThisUpdate struct {
 	data          pmetric.Metric                         // data buffer for generated metric.
 	config        PkiengineCrlX509ThisUpdateMetricConfig // metric config provided by user.
@@ -1186,26 +1350,27 @@ func newMetricPkiengineRateLimitThrottled(cfg PkiengineRateLimitThrottledMetricC
 // MetricsBuilder provides an interface for scrapers to report metrics while taking care of all the transformations
 // required to produce metric representation defined in metadata and user config.
 type MetricsBuilder struct {
-	config                                    MetricsBuilderConfig // config of the metrics builder.
-	startTime                                 pcommon.Timestamp    // start time that will be applied to all recorded data points.
-	metricsCapacity                           int                  // maximum observed number of metrics per resource.
-	metricsBuffer                             pmetric.Metrics      // accumulates metrics data before emitting.
-	buildInfo                                 component.BuildInfo  // contains version information.
-	resourceAttributeIncludeFilter            map[string]filter.Filter
-	resourceAttributeExcludeFilter            map[string]filter.Filter
-	metricPkiengineCertX509NotAfter           metricPkiengineCertX509NotAfter
-	metricPkiengineCertX509NotBefore          metricPkiengineCertX509NotBefore
-	metricPkiengineCrlCacheEvictions          metricPkiengineCrlCacheEvictions
-	metricPkiengineCrlCacheHits               metricPkiengineCrlCacheHits
-	metricPkiengineCrlCacheMisses             metricPkiengineCrlCacheMisses
-	metricPkiengineCrlProcessingStatus        metricPkiengineCrlProcessingStatus
-	metricPkiengineCrlX509NextUpdate          metricPkiengineCrlX509NextUpdate
-	metricPkiengineCrlX509RevokedCertificates metricPkiengineCrlX509RevokedCertificates
-	metricPkiengineCrlX509ThisUpdate          metricPkiengineCrlX509ThisUpdate
-	metricPkiengineIssuerErrors               metricPkiengineIssuerErrors
-	metricPkiengineMountCertificatesStored    metricPkiengineMountCertificatesStored
-	metricPkiengineMountErrors                metricPkiengineMountErrors
-	metricPkiengineRateLimitThrottled         metricPkiengineRateLimitThrottled
+	config                                          MetricsBuilderConfig // config of the metrics builder.
+	startTime                                       pcommon.Timestamp    // start time that will be applied to all recorded data points.
+	metricsCapacity                                 int                  // maximum observed number of metrics per resource.
+	metricsBuffer                                   pmetric.Metrics      // accumulates metrics data before emitting.
+	buildInfo                                       component.BuildInfo  // contains version information.
+	resourceAttributeIncludeFilter                  map[string]filter.Filter
+	resourceAttributeExcludeFilter                  map[string]filter.Filter
+	metricPkiengineCertX509NotAfter                 metricPkiengineCertX509NotAfter
+	metricPkiengineCertX509NotBefore                metricPkiengineCertX509NotBefore
+	metricPkiengineCrlCacheEvictions                metricPkiengineCrlCacheEvictions
+	metricPkiengineCrlCacheHits                     metricPkiengineCrlCacheHits
+	metricPkiengineCrlCacheMisses                   metricPkiengineCrlCacheMisses
+	metricPkiengineCrlProcessingStatus              metricPkiengineCrlProcessingStatus
+	metricPkiengineCrlX509NextUpdate                metricPkiengineCrlX509NextUpdate
+	metricPkiengineCrlX509RevokedCertificates       metricPkiengineCrlX509RevokedCertificates
+	metricPkiengineCrlX509RevokedCertificatesReason metricPkiengineCrlX509RevokedCertificatesReason
+	metricPkiengineCrlX509ThisUpdate                metricPkiengineCrlX509ThisUpdate
+	metricPkiengineIssuerErrors                     metricPkiengineIssuerErrors
+	metricPkiengineMountCertificatesStored          metricPkiengineMountCertificatesStored
+	metricPkiengineMountErrors                      metricPkiengineMountErrors
+	metricPkiengineRateLimitThrottled               metricPkiengineRateLimitThrottled
 }
 
 // MetricBuilderOption applies changes to default metrics builder.
@@ -1227,25 +1392,26 @@ func WithStartTime(startTime pcommon.Timestamp) MetricBuilderOption {
 }
 func NewMetricsBuilder(mbc MetricsBuilderConfig, settings receiver.Settings, options ...MetricBuilderOption) *MetricsBuilder {
 	mb := &MetricsBuilder{
-		config:                                    mbc,
-		startTime:                                 pcommon.NewTimestampFromTime(time.Now()),
-		metricsBuffer:                             pmetric.NewMetrics(),
-		buildInfo:                                 settings.BuildInfo,
-		metricPkiengineCertX509NotAfter:           newMetricPkiengineCertX509NotAfter(mbc.Metrics.PkiengineCertX509NotAfter),
-		metricPkiengineCertX509NotBefore:          newMetricPkiengineCertX509NotBefore(mbc.Metrics.PkiengineCertX509NotBefore),
-		metricPkiengineCrlCacheEvictions:          newMetricPkiengineCrlCacheEvictions(mbc.Metrics.PkiengineCrlCacheEvictions),
-		metricPkiengineCrlCacheHits:               newMetricPkiengineCrlCacheHits(mbc.Metrics.PkiengineCrlCacheHits),
-		metricPkiengineCrlCacheMisses:             newMetricPkiengineCrlCacheMisses(mbc.Metrics.PkiengineCrlCacheMisses),
-		metricPkiengineCrlProcessingStatus:        newMetricPkiengineCrlProcessingStatus(mbc.Metrics.PkiengineCrlProcessingStatus),
-		metricPkiengineCrlX509NextUpdate:          newMetricPkiengineCrlX509NextUpdate(mbc.Metrics.PkiengineCrlX509NextUpdate),
-		metricPkiengineCrlX509RevokedCertificates: newMetricPkiengineCrlX509RevokedCertificates(mbc.Metrics.PkiengineCrlX509RevokedCertificates),
-		metricPkiengineCrlX509ThisUpdate:          newMetricPkiengineCrlX509ThisUpdate(mbc.Metrics.PkiengineCrlX509ThisUpdate),
-		metricPkiengineIssuerErrors:               newMetricPkiengineIssuerErrors(mbc.Metrics.PkiengineIssuerErrors),
-		metricPkiengineMountCertificatesStored:    newMetricPkiengineMountCertificatesStored(mbc.Metrics.PkiengineMountCertificatesStored),
-		metricPkiengineMountErrors:                newMetricPkiengineMountErrors(mbc.Metrics.PkiengineMountErrors),
-		metricPkiengineRateLimitThrottled:         newMetricPkiengineRateLimitThrottled(mbc.Metrics.PkiengineRateLimitThrottled),
-		resourceAttributeIncludeFilter:            make(map[string]filter.Filter),
-		resourceAttributeExcludeFilter:            make(map[string]filter.Filter),
+		config:                                          mbc,
+		startTime:                                       pcommon.NewTimestampFromTime(time.Now()),
+		metricsBuffer:                                   pmetric.NewMetrics(),
+		buildInfo:                                       settings.BuildInfo,
+		metricPkiengineCertX509NotAfter:                 newMetricPkiengineCertX509NotAfter(mbc.Metrics.PkiengineCertX509NotAfter),
+		metricPkiengineCertX509NotBefore:                newMetricPkiengineCertX509NotBefore(mbc.Metrics.PkiengineCertX509NotBefore),
+		metricPkiengineCrlCacheEvictions:                newMetricPkiengineCrlCacheEvictions(mbc.Metrics.PkiengineCrlCacheEvictions),
+		metricPkiengineCrlCacheHits:                     newMetricPkiengineCrlCacheHits(mbc.Metrics.PkiengineCrlCacheHits),
+		metricPkiengineCrlCacheMisses:                   newMetricPkiengineCrlCacheMisses(mbc.Metrics.PkiengineCrlCacheMisses),
+		metricPkiengineCrlProcessingStatus:              newMetricPkiengineCrlProcessingStatus(mbc.Metrics.PkiengineCrlProcessingStatus),
+		metricPkiengineCrlX509NextUpdate:                newMetricPkiengineCrlX509NextUpdate(mbc.Metrics.PkiengineCrlX509NextUpdate),
+		metricPkiengineCrlX509RevokedCertificates:       newMetricPkiengineCrlX509RevokedCertificates(mbc.Metrics.PkiengineCrlX509RevokedCertificates),
+		metricPkiengineCrlX509RevokedCertificatesReason: newMetricPkiengineCrlX509RevokedCertificatesReason(mbc.Metrics.PkiengineCrlX509RevokedCertificatesReason),
+		metricPkiengineCrlX509ThisUpdate:                newMetricPkiengineCrlX509ThisUpdate(mbc.Metrics.PkiengineCrlX509ThisUpdate),
+		metricPkiengineIssuerErrors:                     newMetricPkiengineIssuerErrors(mbc.Metrics.PkiengineIssuerErrors),
+		metricPkiengineMountCertificatesStored:          newMetricPkiengineMountCertificatesStored(mbc.Metrics.PkiengineMountCertificatesStored),
+		metricPkiengineMountErrors:                      newMetricPkiengineMountErrors(mbc.Metrics.PkiengineMountErrors),
+		metricPkiengineRateLimitThrottled:               newMetricPkiengineRateLimitThrottled(mbc.Metrics.PkiengineRateLimitThrottled),
+		resourceAttributeIncludeFilter:                  make(map[string]filter.Filter),
+		resourceAttributeExcludeFilter:                  make(map[string]filter.Filter),
 	}
 	if mbc.ResourceAttributes.EngineAddress.MetricsInclude != nil {
 		mb.resourceAttributeIncludeFilter["engine.address"] = filter.CreateFilter(mbc.ResourceAttributes.EngineAddress.MetricsInclude)
@@ -1336,6 +1502,7 @@ func (mb *MetricsBuilder) EmitForResource(options ...ResourceMetricsOption) {
 	mb.metricPkiengineCrlProcessingStatus.emit(ils.Metrics())
 	mb.metricPkiengineCrlX509NextUpdate.emit(ils.Metrics())
 	mb.metricPkiengineCrlX509RevokedCertificates.emit(ils.Metrics())
+	mb.metricPkiengineCrlX509RevokedCertificatesReason.emit(ils.Metrics())
 	mb.metricPkiengineCrlX509ThisUpdate.emit(ils.Metrics())
 	mb.metricPkiengineIssuerErrors.emit(ils.Metrics())
 	mb.metricPkiengineMountCertificatesStored.emit(ils.Metrics())
@@ -1410,6 +1577,11 @@ func (mb *MetricsBuilder) RecordPkiengineCrlX509NextUpdateDataPoint(ts pcommon.T
 // RecordPkiengineCrlX509RevokedCertificatesDataPoint adds a data point to pkiengine.crl.x509.revoked_certificates metric.
 func (mb *MetricsBuilder) RecordPkiengineCrlX509RevokedCertificatesDataPoint(ts pcommon.Timestamp, val int64, crlURIAttributeValue string, crlRoleAttributeValue AttributeCrlRole, crlKindAttributeValue AttributeCrlKind, crlX509IssuerCommonNameAttributeValue string) {
 	mb.metricPkiengineCrlX509RevokedCertificates.recordDataPoint(mb.startTime, ts, val, crlURIAttributeValue, crlRoleAttributeValue.String(), crlKindAttributeValue.String(), crlX509IssuerCommonNameAttributeValue)
+}
+
+// RecordPkiengineCrlX509RevokedCertificatesReasonDataPoint adds a data point to pkiengine.crl.x509.revoked_certificates.reason metric.
+func (mb *MetricsBuilder) RecordPkiengineCrlX509RevokedCertificatesReasonDataPoint(ts pcommon.Timestamp, val int64, crlURIAttributeValue string, crlRoleAttributeValue AttributeCrlRole, crlKindAttributeValue AttributeCrlKind, crlX509IssuerCommonNameAttributeValue string, crlX509RevokedCertificateReasonAttributeValue AttributeCrlX509RevokedCertificateReason) {
+	mb.metricPkiengineCrlX509RevokedCertificatesReason.recordDataPoint(mb.startTime, ts, val, crlURIAttributeValue, crlRoleAttributeValue.String(), crlKindAttributeValue.String(), crlX509IssuerCommonNameAttributeValue, crlX509RevokedCertificateReasonAttributeValue.String())
 }
 
 // RecordPkiengineCrlX509ThisUpdateDataPoint adds a data point to pkiengine.crl.x509.this_update metric.

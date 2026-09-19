@@ -134,6 +134,24 @@ Number of certificates listed in the CRL `revokedCertificates` field.
 | crl.kind | Type of certificate revocation list. | Str: ``base``, ``delta`` | Recommended | - |
 | crl.x509.issuer.common_name | Common Name (CN) in the CRL issuer field. | Any Str | Recommended | - |
 
+### pkiengine.crl.x509.revoked_certificates.reason
+
+Number of entries in the CRL `revokedCertificates` field, by RFC 5280 revocation reason.
+
+| Unit | Metric Type | Value Type | Stability |
+| ---- | ----------- | ---------- | --------- |
+| {entry} | Gauge | Int | Development |
+
+#### Attributes
+
+| Name | Description | Values | Requirement Level | Semantic Convention |
+| ---- | ----------- | ------ | ----------------- | ------------------- |
+| crl.uri | CRL Distribution Point (CDP) URI. | Any Str | Recommended | - |
+| crl.role | Role of the CRL in the certificate chain from the secret store issuer perspective. | Str: ``subject``, ``issuer`` | Recommended | - |
+| crl.kind | Type of certificate revocation list. | Str: ``base``, ``delta`` | Recommended | - |
+| crl.x509.issuer.common_name | Common Name (CN) in the CRL issuer field. | Any Str | Recommended | - |
+| crl.x509.revoked_certificate.reason | RFC 5280 Section 5.3.1 reason of the CRL entry. | Str: ``unspecified``, ``keyCompromise``, ``cACompromise``, ``affiliationChanged``, ``superseded``, ``cessationOfOperation``, ``certificateHold``, ``removeFromCRL``, ``privilegeWithdrawn``, ``aACompromise`` | Required | - |
+
 ### pkiengine.crl.x509.this_update
 
 Time since the CRL `thisUpdate` field.

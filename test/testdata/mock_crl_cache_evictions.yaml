@@ -166,6 +166,49 @@ resourceMetrics:
                   timeUnixNano: "2000000"
             name: pkiengine.crl.processing_status
             unit: '{status}'
+          - description: Number of entries in the CRL `revokedCertificates` field, by RFC 5280 revocation reason.
+            gauge:
+              dataPoints:
+                - asInt: "1"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/crl-a
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: Test CA
+                    - key: crl.x509.revoked_certificate.reason
+                      value:
+                        stringValue: unspecified
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "1"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/crl-b
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: Test CA
+                    - key: crl.x509.revoked_certificate.reason
+                      value:
+                        stringValue: unspecified
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.crl.x509.revoked_certificates.reason
+            unit: '{entry}'
           - description: Time until the CRL `nextUpdate` field.
             gauge:
               dataPoints:

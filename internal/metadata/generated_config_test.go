@@ -60,6 +60,11 @@ func TestMetricsBuilderConfig(t *testing.T) {
 						AggregationStrategy: AggregationStrategyAvg,
 						EnabledAttributes:   []PkiengineCrlX509RevokedCertificatesMetricAttributeKey{PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlURI, PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlRole, PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlKind, PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlX509IssuerCommonName},
 					},
+					PkiengineCrlX509RevokedCertificatesReason: PkiengineCrlX509RevokedCertificatesReasonMetricConfig{
+						Enabled:             true,
+						AggregationStrategy: AggregationStrategyAvg,
+						EnabledAttributes:   []PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKey{PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlURI, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlRole, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlKind, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlX509IssuerCommonName, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlX509RevokedCertificateReason},
+					},
 					PkiengineCrlX509ThisUpdate: PkiengineCrlX509ThisUpdateMetricConfig{
 						Enabled:             true,
 						AggregationStrategy: AggregationStrategyAvg,
@@ -124,6 +129,11 @@ func TestMetricsBuilderConfig(t *testing.T) {
 						AggregationStrategy: AggregationStrategyAvg,
 						EnabledAttributes:   []PkiengineCrlX509RevokedCertificatesMetricAttributeKey{PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlURI, PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlRole, PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlKind, PkiengineCrlX509RevokedCertificatesMetricAttributeKeyCrlX509IssuerCommonName},
 					},
+					PkiengineCrlX509RevokedCertificatesReason: PkiengineCrlX509RevokedCertificatesReasonMetricConfig{
+						Enabled:             false,
+						AggregationStrategy: AggregationStrategyAvg,
+						EnabledAttributes:   []PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKey{PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlURI, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlRole, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlKind, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlX509IssuerCommonName, PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKeyCrlX509RevokedCertificateReason},
+					},
 					PkiengineCrlX509ThisUpdate: PkiengineCrlX509ThisUpdateMetricConfig{
 						Enabled:             false,
 						AggregationStrategy: AggregationStrategyAvg,
@@ -154,7 +164,7 @@ func TestMetricsBuilderConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := loadMetricsBuilderConfig(t, tt.name)
-			diff := cmp.Diff(tt.want, cfg, cmpopts.IgnoreUnexported(PkiengineCertX509NotAfterMetricConfig{}, PkiengineCertX509NotBeforeMetricConfig{}, PkiengineCrlCacheEvictionsMetricConfig{}, PkiengineCrlCacheHitsMetricConfig{}, PkiengineCrlCacheMissesMetricConfig{}, PkiengineCrlProcessingStatusMetricConfig{}, PkiengineCrlX509NextUpdateMetricConfig{}, PkiengineCrlX509RevokedCertificatesMetricConfig{}, PkiengineCrlX509ThisUpdateMetricConfig{}, PkiengineIssuerErrorsMetricConfig{}, PkiengineMountCertificatesStoredMetricConfig{}, PkiengineMountErrorsMetricConfig{}, PkiengineRateLimitThrottledMetricConfig{}, ResourceAttributeConfig{}))
+			diff := cmp.Diff(tt.want, cfg, cmpopts.IgnoreUnexported(PkiengineCertX509NotAfterMetricConfig{}, PkiengineCertX509NotBeforeMetricConfig{}, PkiengineCrlCacheEvictionsMetricConfig{}, PkiengineCrlCacheHitsMetricConfig{}, PkiengineCrlCacheMissesMetricConfig{}, PkiengineCrlProcessingStatusMetricConfig{}, PkiengineCrlX509NextUpdateMetricConfig{}, PkiengineCrlX509RevokedCertificatesMetricConfig{}, PkiengineCrlX509RevokedCertificatesReasonMetricConfig{}, PkiengineCrlX509ThisUpdateMetricConfig{}, PkiengineIssuerErrorsMetricConfig{}, PkiengineMountCertificatesStoredMetricConfig{}, PkiengineMountErrorsMetricConfig{}, PkiengineRateLimitThrottledMetricConfig{}, ResourceAttributeConfig{}))
 			require.Emptyf(t, diff, "Config mismatch (-expected +actual):\n%s", diff)
 		})
 	}
@@ -215,6 +225,18 @@ func TestPkiengineCrlX509RevokedCertificatesMetricsConfig_Validate(t *testing.T)
 	require.ErrorContains(t, cfg.Validate(), "metric pkiengine.crl.x509.revoked_certificates doesn't have an attribute invalid, valid attributes: [crl.uri, crl.role, crl.kind, crl.x509.issuer.common_name]")
 
 	cfg = DefaultMetricsConfig().PkiengineCrlX509RevokedCertificates
+	cfg.AggregationStrategy = "invalid"
+	require.ErrorContains(t, cfg.Validate(), "invalid aggregation strategy")
+}
+
+func TestPkiengineCrlX509RevokedCertificatesReasonMetricsConfig_Validate(t *testing.T) {
+	cfg := DefaultMetricsConfig().PkiengineCrlX509RevokedCertificatesReason
+	require.NoError(t, cfg.Validate())
+
+	cfg.EnabledAttributes = []PkiengineCrlX509RevokedCertificatesReasonMetricAttributeKey{"invalid"}
+	require.ErrorContains(t, cfg.Validate(), "metric pkiengine.crl.x509.revoked_certificates.reason doesn't have an attribute invalid, valid attributes: [crl.uri, crl.role, crl.kind, crl.x509.issuer.common_name, crl.x509.revoked_certificate.reason]")
+
+	cfg = DefaultMetricsConfig().PkiengineCrlX509RevokedCertificatesReason
 	cfg.AggregationStrategy = "invalid"
 	require.ErrorContains(t, cfg.Validate(), "invalid aggregation strategy")
 }
