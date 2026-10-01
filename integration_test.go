@@ -66,7 +66,7 @@ const (
 
 	tokenReferencePodImage = "busybox"
 	// renovate: datasource=docker depName=rancher/k3s
-	k3sImage = "rancher/k3s:v1.37.0-k3s1"
+	k3sImage = "rancher/k3s:v1.37.1-k3s1"
 	// renovate: datasource=docker depName=hashicorp/vault
 	vaultVersion = "2.1.1"
 	// renovate: datasource=docker depName=openbao/openbao
