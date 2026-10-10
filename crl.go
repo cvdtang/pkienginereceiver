@@ -136,11 +136,16 @@ type crlMetrics struct {
 	ts                          pcommon.Timestamp
 	issuerCommonName            string
 	processingStatus            int64
-	thisUpdateMinutes           int64
-	nextUpdateMinutes           int64
+	thisUpdate                  time.Time
+	nextUpdate                  time.Time
 	revokedCertificates         int64
 	revokedCertificatesByReason [crlRevocationReasonSlots]int64
 	err                         error
+}
+
+// Converts an absolute CRL timestamp to the whole minutes remaining.
+func minutesUntil(t time.Time) int64 {
+	return int64(math.Floor(time.Until(t).Minutes()))
 }
 
 // Maps an RFC 5280 Section 5.3.1 reason code to its metric attribute value.
@@ -509,8 +514,8 @@ func createCRLMetrics(res fetchResult) (crlMetrics, error) {
 
 	metrics.processingStatus = crlProcessingStatusSuccess
 	metrics.issuerCommonName = crl.Issuer.CommonName
-	metrics.nextUpdateMinutes = int64(math.Floor(time.Until(crl.NextUpdate).Minutes()))
-	metrics.thisUpdateMinutes = int64(math.Floor(time.Until(crl.ThisUpdate).Minutes()))
+	metrics.nextUpdate = crl.NextUpdate
+	metrics.thisUpdate = crl.ThisUpdate
 	metrics.revokedCertificates = int64(len(crl.RevokedCertificateEntries))
 	metrics.revokedCertificatesByReason = countCRLRevokedCertificatesByReason(crl.RevokedCertificateEntries)
 
@@ -571,7 +576,7 @@ func (c *crl) emit(mb *metadata.MetricsBuilder, metrics crlMetrics) {
 
 	mb.RecordPkiengineCrlX509ThisUpdateDataPoint(
 		metrics.ts,
-		metrics.thisUpdateMinutes,
+		minutesUntil(metrics.thisUpdate),
 		c.uri,
 		c.role,
 		c.kind,
@@ -580,7 +585,7 @@ func (c *crl) emit(mb *metadata.MetricsBuilder, metrics crlMetrics) {
 
 	mb.RecordPkiengineCrlX509NextUpdateDataPoint(
 		metrics.ts,
-		metrics.nextUpdateMinutes,
+		minutesUntil(metrics.nextUpdate),
 		c.uri,
 		c.role,
 		c.kind,
