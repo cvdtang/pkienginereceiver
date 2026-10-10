@@ -534,8 +534,8 @@ func TestCRL_Emit(t *testing.T) {
 			name: "Success - All metrics reported",
 			setupMetrics: func(m *crlMetrics) {
 				m.processingStatus = crlProcessingStatusSuccess
-				m.thisUpdateMinutes = -10
-				m.nextUpdateMinutes = 10
+				m.thisUpdate = time.Now().Add(-10 * time.Minute)
+				m.nextUpdate = time.Now().Add(10 * time.Minute)
 				m.revokedCertificates = 2
 			},
 			expectedMetrics: map[string]func(*testing.T, int64){
@@ -759,6 +759,40 @@ func TestCRL_Collect_HttpCaching(t *testing.T) {
 	assert.True(t, requestHasValidator.Load(), "Revalidation must send If-None-Match")
 	assert.EqualValues(t, 2, state.crlCacheHits.Load(), "Expected two cache hits (same-scrape reuse and 304 revalidation)")
 	assert.EqualValues(t, 1, state.crlCacheMisses.Load(), "Expected one initial cache miss")
+}
+
+// Ensure a 304 revalidation derives time from the current clock instead of replaying stale deltas.
+func TestCRL_Collect_HTTP304PreservesAbsoluteValidityWindow(t *testing.T) {
+	t.Parallel()
+
+	etag := `"fake-etag"`
+
+	var servedNotModified atomic.Bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		servedNotModified.Store(true)
+		w.WriteHeader(http.StatusNotModified)
+	}))
+	defer server.Close()
+
+	sharedCrl, state := createHTTPTestCRL(t, server.URL)
+
+	seeded := newCrlMetrics()
+	seeded.thisUpdate = time.Now().Add(-30 * time.Minute)
+	seeded.nextUpdate = time.Now().Add(90 * time.Minute)
+	state.crlCache.Add(server.URL, crlCacheEntry{
+		metrics:     seeded,
+		eTag:        etag,
+		lastChecked: state.scrapeStartTime,
+	})
+
+	// A later scrape revalidates and gets a 304, so the cached window is reused.
+	advanceScrape(state)
+	metrics, err := sharedCrl.collect(t.Context())
+	require.NoError(t, err)
+	require.True(t, servedNotModified.Load(), "expected the revalidation to be answered with 304")
+
+	assert.Equal(t, seeded.thisUpdate, metrics.thisUpdate, "304 must preserve the absolute thisUpdate")
+	assert.Equal(t, seeded.nextUpdate, metrics.nextUpdate, "304 must preserve the absolute nextUpdate")
 }
 
 // Ensure HTTP CRL caching can be disabled via cache_size=0.
