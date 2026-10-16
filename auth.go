@@ -65,17 +65,19 @@ func (cfg *authToken) authenticate(ctx context.Context, client *vaultapi.Client)
 		return nil, fmt.Errorf("unable to lookup token: %w", err)
 	}
 
-	auth := &vaultapi.SecretAuth{
-		ClientToken: cfgToken,
+	ttl, err := secret.TokenTTL()
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse token ttl: %w", err)
+	}
+	renewable, err := secret.TokenIsRenewable()
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse token renewable: %w", err)
 	}
 
-	if secret != nil && secret.Data != nil {
-		if renewable, ok := secret.Data["renewable"].(bool); ok {
-			auth.Renewable = renewable
-		}
-		if ttl, ok := secret.Data["ttl"].(int); ok {
-			auth.LeaseDuration = ttl
-		}
+	auth := &vaultapi.SecretAuth{
+		ClientToken:   cfgToken,
+		Renewable:     renewable,
+		LeaseDuration: int(ttl.Seconds()),
 	}
 
 	return &vaultapi.Secret{Auth: auth}, nil
