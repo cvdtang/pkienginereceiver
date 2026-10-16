@@ -3,7 +3,8 @@ module github.com/cvdtang/pkienginereceiver
 go 1.26.0
 
 require (
-	github.com/go-ldap/ldap/v3 v3.4.14
+	github.com/cenkalti/backoff/v7 v7.0.1
+	github.com/go-ldap/ldap/v3 v3.4.15
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/hashicorp/terraform-exec v0.25.3
 	github.com/hashicorp/vault/api v1.23.0
