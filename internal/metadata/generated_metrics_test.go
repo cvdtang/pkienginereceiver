@@ -88,12 +88,18 @@ func TestMetricsBuilder(t *testing.T) {
 			mb.RecordPkiengineCertX509NotAfterDataPoint(ts, 1, AttributeCertTypeIssuer, "cert.x509.issuer.common_name-val", "cert.x509.serial_number-val", "cert.x509.subject.common_name-val", []any{"cert.x509.subject.country-item1", "cert.x509.subject.country-item2"}, []any{"cert.x509.subject.organization-item1", "cert.x509.subject.organization-item2"}, []any{"cert.x509.subject.organizational_unit-item1", "cert.x509.subject.organizational_unit-item2"}, []any{"cert.x509.subject.san-item1", "cert.x509.subject.san-item2"}, "engine.mount-val", "issuer.id-val")
 			if tt.name == "reaggregate_set" {
 				mb.RecordPkiengineCertX509NotAfterDataPoint(ts, 3, AttributeCertTypeLeaf, "cert.x509.issuer.common_name-val-2", "cert.x509.serial_number-val-2", "cert.x509.subject.common_name-val-2", []any{"cert.x509.subject.country-item3", "cert.x509.subject.country-item4"}, []any{"cert.x509.subject.organization-item3", "cert.x509.subject.organization-item4"}, []any{"cert.x509.subject.organizational_unit-item3", "cert.x509.subject.organizational_unit-item4"}, []any{"cert.x509.subject.san-item3", "cert.x509.subject.san-item4"}, "engine.mount-val-2", "issuer.id-val-2")
+				// a different timestamp is a different key: must not merge with the above.
+				mb.RecordPkiengineCertX509NotAfterDataPoint(ts+1, 3, AttributeCertTypeLeaf, "cert.x509.issuer.common_name-val-2", "cert.x509.serial_number-val-2", "cert.x509.subject.common_name-val-2", []any{"cert.x509.subject.country-item3", "cert.x509.subject.country-item4"}, []any{"cert.x509.subject.organization-item3", "cert.x509.subject.organization-item4"}, []any{"cert.x509.subject.organizational_unit-item3", "cert.x509.subject.organizational_unit-item4"}, []any{"cert.x509.subject.san-item3", "cert.x509.subject.san-item4"}, "engine.mount-val-2", "issuer.id-val-2")
+				assert.Equal(t, 2, mb.metricPkiengineCertX509NotAfter.data.Gauge().DataPoints().Len())
 			}
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineCertX509NotBeforeDataPoint(ts, 1, AttributeCertTypeIssuer, "cert.x509.issuer.common_name-val", "cert.x509.serial_number-val", "cert.x509.subject.common_name-val", []any{"cert.x509.subject.country-item1", "cert.x509.subject.country-item2"}, []any{"cert.x509.subject.organization-item1", "cert.x509.subject.organization-item2"}, []any{"cert.x509.subject.organizational_unit-item1", "cert.x509.subject.organizational_unit-item2"}, []any{"cert.x509.subject.san-item1", "cert.x509.subject.san-item2"}, "engine.mount-val", "issuer.id-val")
 			if tt.name == "reaggregate_set" {
 				mb.RecordPkiengineCertX509NotBeforeDataPoint(ts, 3, AttributeCertTypeLeaf, "cert.x509.issuer.common_name-val-2", "cert.x509.serial_number-val-2", "cert.x509.subject.common_name-val-2", []any{"cert.x509.subject.country-item3", "cert.x509.subject.country-item4"}, []any{"cert.x509.subject.organization-item3", "cert.x509.subject.organization-item4"}, []any{"cert.x509.subject.organizational_unit-item3", "cert.x509.subject.organizational_unit-item4"}, []any{"cert.x509.subject.san-item3", "cert.x509.subject.san-item4"}, "engine.mount-val-2", "issuer.id-val-2")
+				// a different timestamp is a different key: must not merge with the above.
+				mb.RecordPkiengineCertX509NotBeforeDataPoint(ts+1, 3, AttributeCertTypeLeaf, "cert.x509.issuer.common_name-val-2", "cert.x509.serial_number-val-2", "cert.x509.subject.common_name-val-2", []any{"cert.x509.subject.country-item3", "cert.x509.subject.country-item4"}, []any{"cert.x509.subject.organization-item3", "cert.x509.subject.organization-item4"}, []any{"cert.x509.subject.organizational_unit-item3", "cert.x509.subject.organizational_unit-item4"}, []any{"cert.x509.subject.san-item3", "cert.x509.subject.san-item4"}, "engine.mount-val-2", "issuer.id-val-2")
+				assert.Equal(t, 2, mb.metricPkiengineCertX509NotBefore.data.Gauge().DataPoints().Len())
 			}
 			defaultMetricsCount++
 			allMetricsCount++
@@ -109,30 +115,45 @@ func TestMetricsBuilder(t *testing.T) {
 			mb.RecordPkiengineCrlProcessingStatusDataPoint(ts, 1, AttributeCrlRoleSubject, AttributeCrlKindBase, "crl.uri-val")
 			if tt.name == "reaggregate_set" {
 				mb.RecordPkiengineCrlProcessingStatusDataPoint(ts, 3, AttributeCrlRoleIssuer, AttributeCrlKindDelta, "crl.uri-val-2")
+				// a different timestamp is a different key: must not merge with the above.
+				mb.RecordPkiengineCrlProcessingStatusDataPoint(ts+1, 3, AttributeCrlRoleIssuer, AttributeCrlKindDelta, "crl.uri-val-2")
+				assert.Equal(t, 2, mb.metricPkiengineCrlProcessingStatus.data.Gauge().DataPoints().Len())
 			}
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineCrlX509NextUpdateDataPoint(ts, 1, "crl.uri-val", AttributeCrlRoleSubject, AttributeCrlKindBase, "crl.x509.issuer.common_name-val")
 			if tt.name == "reaggregate_set" {
 				mb.RecordPkiengineCrlX509NextUpdateDataPoint(ts, 3, "crl.uri-val-2", AttributeCrlRoleIssuer, AttributeCrlKindDelta, "crl.x509.issuer.common_name-val-2")
+				// a different timestamp is a different key: must not merge with the above.
+				mb.RecordPkiengineCrlX509NextUpdateDataPoint(ts+1, 3, "crl.uri-val-2", AttributeCrlRoleIssuer, AttributeCrlKindDelta, "crl.x509.issuer.common_name-val-2")
+				assert.Equal(t, 2, mb.metricPkiengineCrlX509NextUpdate.data.Gauge().DataPoints().Len())
 			}
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineCrlX509RevokedCertificatesDataPoint(ts, 1, "crl.uri-val", AttributeCrlRoleSubject, AttributeCrlKindBase, "crl.x509.issuer.common_name-val")
 			if tt.name == "reaggregate_set" {
 				mb.RecordPkiengineCrlX509RevokedCertificatesDataPoint(ts, 3, "crl.uri-val-2", AttributeCrlRoleIssuer, AttributeCrlKindDelta, "crl.x509.issuer.common_name-val-2")
+				// a different timestamp is a different key: must not merge with the above.
+				mb.RecordPkiengineCrlX509RevokedCertificatesDataPoint(ts+1, 3, "crl.uri-val-2", AttributeCrlRoleIssuer, AttributeCrlKindDelta, "crl.x509.issuer.common_name-val-2")
+				assert.Equal(t, 2, mb.metricPkiengineCrlX509RevokedCertificates.data.Gauge().DataPoints().Len())
 			}
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineCrlX509RevokedCertificatesReasonDataPoint(ts, 1, "crl.uri-val", AttributeCrlRoleSubject, AttributeCrlKindBase, "crl.x509.issuer.common_name-val", AttributeCrlX509RevokedCertificateReasonUnspecified)
 			if tt.name == "reaggregate_set" {
 				mb.RecordPkiengineCrlX509RevokedCertificatesReasonDataPoint(ts, 3, "crl.uri-val-2", AttributeCrlRoleIssuer, AttributeCrlKindDelta, "crl.x509.issuer.common_name-val-2", AttributeCrlX509RevokedCertificateReasonUnspecified)
+				// a different timestamp is a different key: must not merge with the above.
+				mb.RecordPkiengineCrlX509RevokedCertificatesReasonDataPoint(ts+1, 3, "crl.uri-val-2", AttributeCrlRoleIssuer, AttributeCrlKindDelta, "crl.x509.issuer.common_name-val-2", AttributeCrlX509RevokedCertificateReasonUnspecified)
+				assert.Equal(t, 2, mb.metricPkiengineCrlX509RevokedCertificatesReason.data.Gauge().DataPoints().Len())
 			}
 			defaultMetricsCount++
 			allMetricsCount++
 			mb.RecordPkiengineCrlX509ThisUpdateDataPoint(ts, 1, "crl.uri-val", AttributeCrlRoleSubject, AttributeCrlKindBase, "crl.x509.issuer.common_name-val")
 			if tt.name == "reaggregate_set" {
 				mb.RecordPkiengineCrlX509ThisUpdateDataPoint(ts, 3, "crl.uri-val-2", AttributeCrlRoleIssuer, AttributeCrlKindDelta, "crl.x509.issuer.common_name-val-2")
+				// a different timestamp is a different key: must not merge with the above.
+				mb.RecordPkiengineCrlX509ThisUpdateDataPoint(ts+1, 3, "crl.uri-val-2", AttributeCrlRoleIssuer, AttributeCrlKindDelta, "crl.x509.issuer.common_name-val-2")
+				assert.Equal(t, 2, mb.metricPkiengineCrlX509ThisUpdate.data.Gauge().DataPoints().Len())
 			}
 			defaultMetricsCount++
 			allMetricsCount++
@@ -142,6 +163,9 @@ func TestMetricsBuilder(t *testing.T) {
 			mb.RecordPkiengineMountCertificatesStoredDataPoint(ts, 1, "engine.mount-val")
 			if tt.name == "reaggregate_set" {
 				mb.RecordPkiengineMountCertificatesStoredDataPoint(ts, 3, "engine.mount-val-2")
+				// a different timestamp is a different key: must not merge with the above.
+				mb.RecordPkiengineMountCertificatesStoredDataPoint(ts+1, 3, "engine.mount-val-2")
+				assert.Equal(t, 2, mb.metricPkiengineMountCertificatesStored.data.Gauge().DataPoints().Len())
 			}
 			defaultMetricsCount++
 			allMetricsCount++
@@ -238,7 +262,9 @@ func TestMetricsBuilder(t *testing.T) {
 						assert.False(t, validatedMetrics["pkiengine.cert.x509.not_after"], "Found a duplicate in the metrics slice: pkiengine.cert.x509.not_after")
 						validatedMetrics["pkiengine.cert.x509.not_after"] = true
 						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
-						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						// 2 points: the merged one above, plus one with a different timestamp that must not have merged with it.
+						assert.Equal(t, 2, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, ts+1, mi.Gauge().DataPoints().At(1).Timestamp())
 						assert.Equal(t, "Time until certificate expiration as specified by the `notAfter` field.", mi.Description())
 						assert.Equal(t, "min", mi.Unit())
 						dp := mi.Gauge().DataPoints().At(0)
@@ -323,7 +349,9 @@ func TestMetricsBuilder(t *testing.T) {
 						assert.False(t, validatedMetrics["pkiengine.cert.x509.not_before"], "Found a duplicate in the metrics slice: pkiengine.cert.x509.not_before")
 						validatedMetrics["pkiengine.cert.x509.not_before"] = true
 						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
-						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						// 2 points: the merged one above, plus one with a different timestamp that must not have merged with it.
+						assert.Equal(t, 2, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, ts+1, mi.Gauge().DataPoints().At(1).Timestamp())
 						assert.Equal(t, "Time until certificate validity start as specified by the `notBefore` field.", mi.Description())
 						assert.Equal(t, "min", mi.Unit())
 						dp := mi.Gauge().DataPoints().At(0)
@@ -423,7 +451,9 @@ func TestMetricsBuilder(t *testing.T) {
 						assert.False(t, validatedMetrics["pkiengine.crl.processing_status"], "Found a duplicate in the metrics slice: pkiengine.crl.processing_status")
 						validatedMetrics["pkiengine.crl.processing_status"] = true
 						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
-						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						// 2 points: the merged one above, plus one with a different timestamp that must not have merged with it.
+						assert.Equal(t, 2, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, ts+1, mi.Gauge().DataPoints().At(1).Timestamp())
 						assert.Equal(t, "CRL processing status as an integer value.", mi.Description())
 						assert.Equal(t, "{status}", mi.Unit())
 						dp := mi.Gauge().DataPoints().At(0)
@@ -476,7 +506,9 @@ func TestMetricsBuilder(t *testing.T) {
 						assert.False(t, validatedMetrics["pkiengine.crl.x509.next_update"], "Found a duplicate in the metrics slice: pkiengine.crl.x509.next_update")
 						validatedMetrics["pkiengine.crl.x509.next_update"] = true
 						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
-						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						// 2 points: the merged one above, plus one with a different timestamp that must not have merged with it.
+						assert.Equal(t, 2, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, ts+1, mi.Gauge().DataPoints().At(1).Timestamp())
 						assert.Equal(t, "Time until the CRL `nextUpdate` field.", mi.Description())
 						assert.Equal(t, "min", mi.Unit())
 						dp := mi.Gauge().DataPoints().At(0)
@@ -531,7 +563,9 @@ func TestMetricsBuilder(t *testing.T) {
 						assert.False(t, validatedMetrics["pkiengine.crl.x509.revoked_certificates"], "Found a duplicate in the metrics slice: pkiengine.crl.x509.revoked_certificates")
 						validatedMetrics["pkiengine.crl.x509.revoked_certificates"] = true
 						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
-						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						// 2 points: the merged one above, plus one with a different timestamp that must not have merged with it.
+						assert.Equal(t, 2, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, ts+1, mi.Gauge().DataPoints().At(1).Timestamp())
 						assert.Equal(t, "Number of certificates listed in the CRL `revokedCertificates` field.", mi.Description())
 						assert.Equal(t, "{count}", mi.Unit())
 						dp := mi.Gauge().DataPoints().At(0)
@@ -589,7 +623,9 @@ func TestMetricsBuilder(t *testing.T) {
 						assert.False(t, validatedMetrics["pkiengine.crl.x509.revoked_certificates.reason"], "Found a duplicate in the metrics slice: pkiengine.crl.x509.revoked_certificates.reason")
 						validatedMetrics["pkiengine.crl.x509.revoked_certificates.reason"] = true
 						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
-						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						// 2 points: the merged one above, plus one with a different timestamp that must not have merged with it.
+						assert.Equal(t, 2, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, ts+1, mi.Gauge().DataPoints().At(1).Timestamp())
 						assert.Equal(t, "Number of entries in the CRL `revokedCertificates` field, by RFC 5280 revocation reason.", mi.Description())
 						assert.Equal(t, "{entry}", mi.Unit())
 						dp := mi.Gauge().DataPoints().At(0)
@@ -646,7 +682,9 @@ func TestMetricsBuilder(t *testing.T) {
 						assert.False(t, validatedMetrics["pkiengine.crl.x509.this_update"], "Found a duplicate in the metrics slice: pkiengine.crl.x509.this_update")
 						validatedMetrics["pkiengine.crl.x509.this_update"] = true
 						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
-						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						// 2 points: the merged one above, plus one with a different timestamp that must not have merged with it.
+						assert.Equal(t, 2, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, ts+1, mi.Gauge().DataPoints().At(1).Timestamp())
 						assert.Equal(t, "Time since the CRL `thisUpdate` field.", mi.Description())
 						assert.Equal(t, "min", mi.Unit())
 						dp := mi.Gauge().DataPoints().At(0)
@@ -706,7 +744,9 @@ func TestMetricsBuilder(t *testing.T) {
 						assert.False(t, validatedMetrics["pkiengine.mount.certificates_stored"], "Found a duplicate in the metrics slice: pkiengine.mount.certificates_stored")
 						validatedMetrics["pkiengine.mount.certificates_stored"] = true
 						assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
-						assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
+						// 2 points: the merged one above, plus one with a different timestamp that must not have merged with it.
+						assert.Equal(t, 2, mi.Gauge().DataPoints().Len())
+						assert.Equal(t, ts+1, mi.Gauge().DataPoints().At(1).Timestamp())
 						assert.Equal(t, "Number of certificates stored in the mount.", mi.Description())
 						assert.Equal(t, "{certificates_stored}", mi.Unit())
 						dp := mi.Gauge().DataPoints().At(0)
