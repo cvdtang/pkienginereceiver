@@ -62,7 +62,7 @@ Adding components to an OTeL Collector requires building a custom collector via 
 When building a custom collector you can add this receiver to the manifest file like the following:
 ```yaml
 receivers:
-  - gomod: github.com/cvdtang/pkienginereceiver v0.163.0
+  - gomod: github.com/cvdtang/pkienginereceiver v0.164.0
 ```
 
 # Configuration
