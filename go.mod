@@ -6,7 +6,7 @@ require (
 	github.com/cenkalti/backoff/v7 v7.0.1
 	github.com/go-ldap/ldap/v3 v3.4.15
 	github.com/hashicorp/golang-lru/v2 v2.0.7
-	github.com/hashicorp/terraform-exec v0.25.3
+	github.com/hashicorp/terraform-exec v0.26.0
 	github.com/hashicorp/vault/api v1.23.0
 	github.com/hashicorp/vault/api/auth/approle v0.12.0
 	github.com/hashicorp/vault/api/auth/kubernetes v0.12.0
@@ -78,7 +78,7 @@ require (
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/hashicorp/go-hmac-drbg v0.0.0-20251119200151-eb7152219c89 // indirect
 	github.com/hashicorp/go-secure-stdlib/cryptoutil v0.1.1 // indirect
-	github.com/hashicorp/terraform-json v0.28.0 // indirect
+	github.com/hashicorp/terraform-json v0.29.0 // indirect
 	github.com/iimos/ucum v0.0.3 // indirect
 	github.com/klauspost/compress v1.19.1 // indirect
 	github.com/lufia/plan9stats v0.0.0-20260330125221-c963978e514e // indirect
