@@ -31,6 +31,7 @@ require (
 	go.opentelemetry.io/collector/scraper/scraperhelper v0.164.0
 	go.uber.org/goleak v1.3.0
 	go.uber.org/zap v1.28.0
+	golang.org/x/crypto v0.58.0
 	golang.org/x/sync v0.24.0
 	k8s.io/api v0.37.2
 	k8s.io/apimachinery v0.37.2
@@ -117,7 +118,6 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.70.0 // indirect
 	go.opentelemetry.io/otel/log v1.47.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
-	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/mod v0.42.0 // indirect
 	golang.org/x/oauth2 v0.37.0 // indirect
 	golang.org/x/term v0.47.0 // indirect

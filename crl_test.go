@@ -184,66 +184,6 @@ func TestCRL_Collect(t *testing.T) {
 	assert.Equal(t, freshMetrics.err, cachedMetrics.err)
 }
 
-func TestCRL_Parse(t *testing.T) {
-	t.Parallel()
-
-	validDER, validPEM := createTestCrlData(t)
-
-	tests := []struct {
-		name        string
-		input       []byte
-		expectError bool
-		assertFunc  func(t *testing.T, crl *x509.RevocationList)
-	}{
-		{
-			name:        "Valid DER Encoded CRL",
-			input:       validDER,
-			expectError: false,
-			assertFunc: func(t *testing.T, crl *x509.RevocationList) {
-				t.Helper()
-				assert.NotNil(t, crl)
-				assert.Equal(t, big.NewInt(1), crl.Number, "CRL number should match")
-				assert.Len(t, crl.RevokedCertificateEntries, 1, "Should have 1 revoked entry")
-			},
-		},
-		{
-			name:        "Valid PEM Encoded CRL",
-			input:       validPEM,
-			expectError: false,
-			assertFunc: func(t *testing.T, crl *x509.RevocationList) {
-				t.Helper()
-				assert.NotNil(t, crl)
-				assert.Equal(t, big.NewInt(1), crl.Number, "CRL number should match")
-				assert.Len(t, crl.RevokedCertificateEntries, 1, "Should have 1 revoked entry")
-			},
-		},
-		{
-			name:        "Invalid Data",
-			input:       []byte("junk"),
-			expectError: true,
-			assertFunc:  nil,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			gotCrl, err := parseCRL(tc.input)
-
-			if tc.expectError {
-				require.Error(t, err)
-				assert.Nil(t, gotCrl)
-			} else {
-				require.NoError(t, err)
-				if tc.assertFunc != nil {
-					tc.assertFunc(t, gotCrl)
-				}
-			}
-		})
-	}
-}
-
 func TestCRL_Collect_Verification(t *testing.T) {
 	t.Parallel()
 
@@ -467,59 +407,20 @@ func TestCreateCRLMetrics_RevokedCertificatesByReason(t *testing.T) {
 	assert.Equal(t, int64(1), metrics.revokedCertificatesByReason[crlReasonRemoveFromCRL])
 }
 
-func TestCountCRLRevokedCertificatesByReason(t *testing.T) {
+func TestCRLReasonSlot(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name         string
-		entries      []x509.RevocationListEntry
-		wantByReason map[int]int64
-	}{
-		{
-			name: "folds explicit and unused unspecified codes",
-			entries: []x509.RevocationListEntry{
-				{ReasonCode: crlReasonUnspecified},
-				{ReasonCode: crlReasonUnused},
-				{ReasonCode: crlReasonPrivilegeWithdrawn},
-				{ReasonCode: crlReasonRemoveFromCRL},
-			},
-			wantByReason: map[int]int64{
-				crlReasonUnspecified:        2,
-				crlReasonPrivilegeWithdrawn: 1,
-				crlReasonRemoveFromCRL:      1,
-			},
-		},
-		{
-			name: "folds out-of-range codes into unspecified",
-			entries: []x509.RevocationListEntry{
-				{ReasonCode: -1},
-				{ReasonCode: crlRevocationReasonSlots},
-			},
-			wantByReason: map[int]int64{crlReasonUnspecified: 2},
-		},
-		{
-			name:         "no entries yields no counts",
-			entries:      nil,
-			wantByReason: map[int]int64{},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			byReason := countCRLRevokedCertificatesByReason(tt.entries)
-
-			var got, want int64
-			for code, count := range byReason {
-				got += count
-				assert.Equal(t, tt.wantByReason[code], count, "reason code %d", code)
-			}
-			for _, count := range tt.wantByReason {
-				want += count
-			}
-			assert.Equal(t, want, got, "unexpected extra reason counts")
-		})
+	for code, want := range map[int]int{
+		crlReasonUnspecified:         crlReasonUnspecified,
+		crlReasonKeyCompromise:       crlReasonKeyCompromise,
+		crlReasonUnused:              crlReasonUnspecified,
+		crlReasonRemoveFromCRL:       crlReasonRemoveFromCRL,
+		crlReasonAACompromise:        crlReasonAACompromise,
+		-1:                           crlReasonUnspecified,
+		crlRevocationReasonSlots:     crlReasonUnspecified,
+		crlRevocationReasonSlots + 5: crlReasonUnspecified,
+	} {
+		assert.Equal(t, want, crlReasonSlot(code), "reason code %d", code)
 	}
 }
 

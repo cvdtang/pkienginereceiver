@@ -2,8 +2,6 @@ package pkienginereceiver
 
 import (
 	"context"
-	"crypto/x509"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"math"
@@ -505,7 +503,7 @@ func createCRLMetrics(res fetchResult) (crlMetrics, error) {
 		return metrics, nil
 	}
 
-	crl, err := parseCRL(res.Data)
+	summary, err := summarizeCRL(res.Data)
 	if err != nil {
 		metrics.processingStatus = crlProcessingStatusParseFailed
 
@@ -513,39 +511,23 @@ func createCRLMetrics(res fetchResult) (crlMetrics, error) {
 	}
 
 	metrics.processingStatus = crlProcessingStatusSuccess
-	metrics.issuerCommonName = crl.Issuer.CommonName
-	metrics.nextUpdate = crl.NextUpdate
-	metrics.thisUpdate = crl.ThisUpdate
-	metrics.revokedCertificates = int64(len(crl.RevokedCertificateEntries))
-	metrics.revokedCertificatesByReason = countCRLRevokedCertificatesByReason(crl.RevokedCertificateEntries)
+	metrics.issuerCommonName = summary.issuerCommonName
+	metrics.nextUpdate = summary.nextUpdate
+	metrics.thisUpdate = summary.thisUpdate
+	metrics.revokedCertificates = summary.revokedCertificates
+	metrics.revokedCertificatesByReason = summary.revokedCertificatesByReason
 
 	return metrics, nil
 }
 
-// Counts CRL `revokedCertificates` entries per RFC 5280 Section 5.3.1 reason.
+// Maps a reason code to its counter slot.
 // Codes outside the RFC table fold into `unspecified`.
-func countCRLRevokedCertificatesByReason(entries []x509.RevocationListEntry) [crlRevocationReasonSlots]int64 {
-	var byReason [crlRevocationReasonSlots]int64
-
-	for i := range entries {
-		code := entries[i].ReasonCode
-		if code < 0 || code >= crlRevocationReasonSlots || code == crlReasonUnused {
-			code = crlReasonUnspecified
-		}
-		byReason[code]++ //nolint:gosec // code is bounded to [0, crlRevocationReasonSlots) by the guard above.
+func crlReasonSlot(code int) int {
+	if code < 0 || code >= crlRevocationReasonSlots || code == crlReasonUnused {
+		return crlReasonUnspecified
 	}
 
-	return byReason
-}
-
-// Decodes and parses CRL bytes from PEM or DER format.
-func parseCRL(data []byte) (*x509.RevocationList, error) {
-	block, _ := pem.Decode(data)
-	if block != nil {
-		data = block.Bytes
-	}
-
-	return x509.ParseRevocationList(data)
+	return code
 }
 
 // Records CRL metrics to the metrics builder.
