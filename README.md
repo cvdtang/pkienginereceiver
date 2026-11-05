@@ -97,7 +97,8 @@ receivers:
 ### CRL
 - `crl.enabled` *(bool)*: (default = `true`) Enable CRL processing.
 - `crl.scrape_parent` *(bool)*: (default = `true`) Enable scraping issuer-role (parent) CRLs referenced in issuer certificates. When `false`, only subject-role CRLs from issuer API fields are scraped.
-- `crl.cache_size` *(int)*: (default = `50`) Maximum number of entries in the LRU cache for processed CRLs. Set to `0` to disable CRL caching.
+- `crl.cache.enabled` *(bool)*: (default = `true`) Cache processed CRLs across scrapes, so unchanged HTTP CRLs are revalidated instead of downloaded. The cache holds the CRLs referenced in the last 3 scrapes.
+- `crl.cache_size` *(int)*: Deprecated, use `crl.cache.enabled`. A value of `0` disables the CRL cache, other values are ignored.
 - `crl.timeout` *(string)*: (default = `5s`) Maximum time to wait for a CRL fetch response.
 - `crl.retries` *(int)*: (default = `0`) Number of retry attempts for CRL fetching after the initial attempt.
 - `crl.retry_interval` *(string)*: (default = `3s`) Wait interval between CRL fetch retry attempts.

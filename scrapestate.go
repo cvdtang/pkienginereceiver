@@ -1,64 +1,40 @@
 package pkienginereceiver
 
 import (
-	"net/http"
-	"strings"
 	"sync"
-	"sync/atomic"
-	"time"
 
 	"go.opentelemetry.io/collector/receiver"
-	"golang.org/x/sync/singleflight"
 
 	"github.com/cvdtang/pkienginereceiver/internal/metadata"
 )
 
 // Common, per-scrape shared state.
 type scrapeShared struct {
-	cfg             *config
-	crlFetchSfg     *singleflight.Group
-	crlCache        crlCacheStore
-	crlClient       *http.Client
-	scrapeStartTime time.Time
-	crlCacheHits    atomic.Int64
-	crlCacheMisses  atomic.Int64
+	cfg  *config
+	crls *crlCollector
 
 	rateObserver *rateObserver
 
 	mb      *metadata.MetricsBuilder
 	mbMutex *sync.Mutex
-
-	crlSeen sync.Map
 }
 
 // Creates per-scrape shared resources reused across mounts.
 func newScrapeShared(
 	cfg *config,
 	settings receiver.Settings,
-	crlCache crlCacheStore,
-	crlClient *http.Client,
+	crls *crlCollector,
 ) *scrapeShared {
 	return &scrapeShared{
-		cfg:             cfg,
-		crlFetchSfg:     &singleflight.Group{},
-		crlCache:        crlCache,
-		crlClient:       crlClient,
-		scrapeStartTime: time.Now(),
-		rateObserver:    newRateObserver(),
+		cfg:          cfg,
+		crls:         crls,
+		rateObserver: newRateObserver(),
 		mb: metadata.NewMetricsBuilder(
 			cfg.MetricsBuilderConfig,
 			settings,
 		),
 		mbMutex: &sync.Mutex{},
 	}
-}
-
-// Checks whether this scrape should process the CRL keyed by uri|role|kind.
-func (s *scrapeShared) claimCRL(uri string, role metadata.AttributeCrlRole, kind metadata.AttributeCrlKind) bool {
-	key := crlDedupKey(uri, role, kind)
-	_, loaded := s.crlSeen.LoadOrStore(key, struct{}{})
-
-	return !loaded
 }
 
 func (s *scrapeShared) shouldCollectCertificates() bool {
@@ -93,9 +69,10 @@ func (s *scrapeShared) emitCert(cert certificate, certType metadata.AttributeCer
 	})
 }
 
-func (s *scrapeShared) emitCRL(crl *crl, metrics crlMetrics) {
+// Records the metrics of all claimed CRL series, once all CRL tasks finished.
+func (s *scrapeShared) emitCRLs() {
 	s.withMetricsLock(func() {
-		crl.emit(s.mb, metrics)
+		s.crls.emit(s.mb)
 	})
 }
 
@@ -103,16 +80,4 @@ func (s *scrapeShared) withMetricsLock(emitFn func()) {
 	s.mbMutex.Lock()
 	defer s.mbMutex.Unlock()
 	emitFn()
-}
-
-func crlDedupKey(uri string, role metadata.AttributeCrlRole, kind metadata.AttributeCrlKind) string {
-	var b strings.Builder
-	b.Grow(len(uri) + len(role.String()) + len(kind.String()) + 2)
-	b.WriteString(uri)
-	b.WriteByte('|')
-	b.WriteString(role.String())
-	b.WriteByte('|')
-	b.WriteString(kind.String())
-
-	return b.String()
 }

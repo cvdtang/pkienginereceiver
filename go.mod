@@ -5,7 +5,6 @@ go 1.26.0
 require (
 	github.com/cenkalti/backoff/v7 v7.0.1
 	github.com/go-ldap/ldap/v3 v3.4.15
-	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/hashicorp/terraform-exec v0.25.3
 	github.com/hashicorp/vault/api v1.23.0
 	github.com/hashicorp/vault/api/auth/approle v0.12.0
@@ -32,7 +31,6 @@ require (
 	go.uber.org/goleak v1.3.0
 	go.uber.org/zap v1.28.0
 	golang.org/x/crypto v0.58.0
-	golang.org/x/sync v0.24.0
 	k8s.io/api v0.37.2
 	k8s.io/apimachinery v0.37.2
 	k8s.io/client-go v0.37.2
@@ -79,6 +77,7 @@ require (
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/hashicorp/go-hmac-drbg v0.0.0-20251119200151-eb7152219c89 // indirect
 	github.com/hashicorp/go-secure-stdlib/cryptoutil v0.1.1 // indirect
+	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/hashicorp/terraform-json v0.28.0 // indirect
 	github.com/iimos/ucum v0.0.3 // indirect
 	github.com/klauspost/compress v1.19.1 // indirect
@@ -120,6 +119,7 @@ require (
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	golang.org/x/mod v0.42.0 // indirect
 	golang.org/x/oauth2 v0.37.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/term v0.47.0 // indirect
 	golang.org/x/tools v0.52.0 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect

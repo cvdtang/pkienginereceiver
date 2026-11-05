@@ -37,7 +37,7 @@ Processing speed is mainly limited by the speed of network requests.
 
 To manage system load, a fixed-size worker pool executes mount, issuer and CRL tasks. The concurrency limit configures the worker count and therefore the maximum number of concurrent network operations. Tasks can enqueue follow-up work (mounts enqueue issuers, issuers enqueue CRLs).
 
-CRL fetch requests are protected by a [singleflight](https://pkg.go.dev/golang.org/x/sync/singleflight) group to prevent thundering herds.
+Each CRL URI is fetched at most once per scrape, regardless of how many issuers, roles and kinds reference it, which prevents thundering herds.
 
 The metric builder is not concurrency-safe and requires a lock during operation. Resource attributes are scrape-scoped (`engine.address`, `engine.namespace`) while `engine.mount` is carried as a metric attribute on mount-scoped metrics to support scrape-global error metrics.
 The Terraform variables `num_two_tier`, `num_standalone` and `num_leaf` can be adjusted to test different deployment sizes. It's recommended to use a mount per issuer ([reference](https://developer.hashicorp.com/vault/docs/secrets/pki/considerations#one-ca-certificate-one-secrets-engine)), however this is not enforced.
@@ -81,7 +81,9 @@ To avoid unnecessary API calls and duplicate metric emission:
 
 # CRL
 ## Caching
-Optionally, a shared in-memory LRU cache is reused across scrape runs to avoid repeated downloads and parsing of CRLs. Within a single scrape run, each unique CRL URI is normally checked over the network at most once, additional fetches can occur on cache-eviction recovery paths.
+Optionally, an in-memory cache is reused across scrape runs to avoid repeated downloads and parsing of CRLs. It keeps only the processed values and HTTP validators of each CRL, not the CRL itself. Instead of a size limit, CRLs not referenced by any issuer in the last 3 scrapes are dropped, so the cache holds the recently referenced CRLs. A CRL is not dropped right away, as a scrape cut short by errors or a timeout cannot tell an unreferenced CRL from an unreached one, and dropping a still referenced CRL forces a full download. A failed fetch keeps the cached CRL and its validators, so the next scrape revalidates it. Within a single scrape run, each unique CRL URI is checked over the network at most once.
+
+The scrape-global CRL counters only cover the cache across scrapes: `pkiengine.crl.cache.hits` counts the CRLs reused from the cache after the host reported them unchanged and `pkiengine.crl.cache.misses` the CRLs downloaded and processed. Series that reference a URI already collected in the same scrape reuse its result and are not counted.
 
 LDAP CRLs are cached only within the current scrape run.
 

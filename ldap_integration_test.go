@@ -18,6 +18,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"go.opentelemetry.io/collector/pdata/pmetric"
+	"go.opentelemetry.io/collector/receiver/receivertest"
 	"go.uber.org/zap/zaptest"
 )
 
@@ -160,24 +162,36 @@ func seedLDAPEntries(t *testing.T, ctx context.Context, l *ldapContainer, entrie
 	}
 }
 
+// Collects and emits a single subject base CRL series from a real server entry.
+func collectLDAPCRL(t *testing.T, ctx context.Context, uri string) (crlMetrics, pmetric.Metrics) {
+	t.Helper()
+
+	cfg := crlConfig{Enabled: true, Timeout: time.Second}
+	collector := newCRLCollector(zaptest.NewLogger(t), cfg, newNopCrlCache(), &realCrlFetcher{client: http.DefaultClient})
+
+	_, collect := collector.claim(crlTask{uri: uri, role: metadata.AttributeCrlRoleSubject, kind: metadata.AttributeCrlKindBase})
+	require.True(t, collect)
+
+	metrics, err := collector.collect(ctx, zaptest.NewLogger(t), uri)
+	require.NoError(t, err)
+
+	defaultCfg := createDefaultConfig().(*config)
+	mb := metadata.NewMetricsBuilder(defaultCfg.MetricsBuilderConfig, receivertest.NewNopSettings(metadata.Type))
+	rb := mb.NewResourceBuilder()
+	collector.emit(mb)
+
+	return metrics, mb.Emit(metadata.WithResource(rb.Emit()))
+}
+
 // Runs a full collect+emit against a real server entry whose CRL fails to
 // process, asserting the single failure status metric is reported.
 func collectAndAssertFailureStatus(t *testing.T, uri string, wantStatus int64, reason string) {
 	t.Helper()
 
-	state := createTestScrapeState(t)
-	crlEntry := newCRL(zaptest.NewLogger(t), state, uri, metadata.AttributeCrlRoleSubject, metadata.AttributeCrlKindBase)
+	metrics, md := collectLDAPCRL(t, t.Context(), uri)
 
-	metrics, err := crlEntry.collect(t.Context())
-
-	require.NoError(t, err)
 	require.Error(t, metrics.err)
 	assert.Equal(t, wantStatus, metrics.processingStatus)
-
-	rb := state.mb.NewResourceBuilder()
-	crlEntry.emit(state.mb, metrics)
-	res := rb.Emit()
-	md := state.mb.Emit(metadata.WithResource(res))
 
 	require.Equal(t, 1, md.ResourceMetrics().Len())
 	metricSlice := md.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics()
@@ -290,18 +304,10 @@ func TestLDAPIntegrationTest(t *testing.T) {
 		t.Parallel()
 
 		uri := fmt.Sprintf("ldap://%s/CN=Test CA,dc=example,dc=org?certificateRevocationList", hostPort)
-		state := createTestScrapeState(t)
-		crlEntry := newCRL(zaptest.NewLogger(t), state, uri, metadata.AttributeCrlRoleSubject, metadata.AttributeCrlKindBase)
-
-		metrics, err := crlEntry.collect(ctx)
-		require.NoError(t, err)
+		metrics, md := collectLDAPCRL(t, ctx, uri)
 		require.NoError(t, metrics.err)
 		require.Equal(t, crlProcessingStatusSuccess, metrics.processingStatus)
 
-		rb := state.mb.NewResourceBuilder()
-		crlEntry.emit(state.mb, metrics)
-		res := rb.Emit()
-		md := state.mb.Emit(metadata.WithResource(res))
 		require.Equal(t, 1, md.ResourceMetrics().Len())
 
 		metricSlice := md.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics()

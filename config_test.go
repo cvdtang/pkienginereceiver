@@ -14,9 +14,6 @@ func TestConfig_Validate(t *testing.T) {
 		return &config{
 			Address:    "http://127.0.0.1:8200",
 			MatchRegex: ".*",
-			Crl: crlConfig{
-				CacheSize: 1,
-			},
 			Auth: authConfig{
 				AuthType: authTypeToken,
 				AuthToken: authToken{
@@ -121,7 +118,7 @@ func TestConfig_Validate(t *testing.T) {
 			name: "negative crl cache size",
 			c: func() *config {
 				cfg := validConfig()
-				cfg.Crl.CacheSize = -1
+				cfg.Crl.CacheSize = new(-1)
 
 				return cfg
 			}(),

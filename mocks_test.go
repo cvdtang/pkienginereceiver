@@ -241,28 +241,28 @@ func (_c *mockcrlCacheStore_Get_Call) RunAndReturn(run func(key string) (crlCach
 	return _c
 }
 
-// Remove provides a mock function for the type mockcrlCacheStore
-func (_mock *mockcrlCacheStore) Remove(key string) {
-	_mock.Called(key)
+// Retain provides a mock function for the type mockcrlCacheStore
+func (_mock *mockcrlCacheStore) Retain(keys map[string]struct{}) {
+	_mock.Called(keys)
 	return
 }
 
-// mockcrlCacheStore_Remove_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Remove'
-type mockcrlCacheStore_Remove_Call struct {
+// mockcrlCacheStore_Retain_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Retain'
+type mockcrlCacheStore_Retain_Call struct {
 	*mock.Call
 }
 
-// Remove is a helper method to define mock.On call
-//   - key string
-func (_e *mockcrlCacheStore_Expecter) Remove(key any) *mockcrlCacheStore_Remove_Call {
-	return &mockcrlCacheStore_Remove_Call{Call: _e.mock.On("Remove", key)}
+// Retain is a helper method to define mock.On call
+//   - keys map[string]struct{}
+func (_e *mockcrlCacheStore_Expecter) Retain(keys any) *mockcrlCacheStore_Retain_Call {
+	return &mockcrlCacheStore_Retain_Call{Call: _e.mock.On("Retain", keys)}
 }
 
-func (_c *mockcrlCacheStore_Remove_Call) Run(run func(key string)) *mockcrlCacheStore_Remove_Call {
+func (_c *mockcrlCacheStore_Retain_Call) Run(run func(keys map[string]struct{})) *mockcrlCacheStore_Retain_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
+		var arg0 map[string]struct{}
 		if args[0] != nil {
-			arg0 = args[0].(string)
+			arg0 = args[0].(map[string]struct{})
 		}
 		run(
 			arg0,
@@ -271,12 +271,12 @@ func (_c *mockcrlCacheStore_Remove_Call) Run(run func(key string)) *mockcrlCache
 	return _c
 }
 
-func (_c *mockcrlCacheStore_Remove_Call) Return() *mockcrlCacheStore_Remove_Call {
+func (_c *mockcrlCacheStore_Retain_Call) Return() *mockcrlCacheStore_Retain_Call {
 	_c.Call.Return()
 	return _c
 }
 
-func (_c *mockcrlCacheStore_Remove_Call) RunAndReturn(run func(key string)) *mockcrlCacheStore_Remove_Call {
+func (_c *mockcrlCacheStore_Retain_Call) RunAndReturn(run func(keys map[string]struct{})) *mockcrlCacheStore_Retain_Call {
 	_c.Run(run)
 	return _c
 }
@@ -388,176 +388,6 @@ func (_c *mockcrlFetcher_fetch_Call) Return(fetchResultMoqParam fetchResult, err
 }
 
 func (_c *mockcrlFetcher_fetch_Call) RunAndReturn(run func(ctx context.Context, uri string, timeout time.Duration, previousETag string, previousLastModified time.Time) (fetchResult, error)) *mockcrlFetcher_fetch_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// fetchHTTP provides a mock function for the type mockcrlFetcher
-func (_mock *mockcrlFetcher) fetchHTTP(ctx context.Context, uri string, timeout time.Duration, previousETag string, previousLastModified time.Time) (fetchResult, error) {
-	ret := _mock.Called(ctx, uri, timeout, previousETag, previousLastModified)
-
-	if len(ret) == 0 {
-		panic("no return value specified for fetchHTTP")
-	}
-
-	var r0 fetchResult
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Duration, string, time.Time) (fetchResult, error)); ok {
-		return returnFunc(ctx, uri, timeout, previousETag, previousLastModified)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Duration, string, time.Time) fetchResult); ok {
-		r0 = returnFunc(ctx, uri, timeout, previousETag, previousLastModified)
-	} else {
-		r0 = ret.Get(0).(fetchResult)
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, time.Duration, string, time.Time) error); ok {
-		r1 = returnFunc(ctx, uri, timeout, previousETag, previousLastModified)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// mockcrlFetcher_fetchHTTP_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'fetchHTTP'
-type mockcrlFetcher_fetchHTTP_Call struct {
-	*mock.Call
-}
-
-// fetchHTTP is a helper method to define mock.On call
-//   - ctx context.Context
-//   - uri string
-//   - timeout time.Duration
-//   - previousETag string
-//   - previousLastModified time.Time
-func (_e *mockcrlFetcher_Expecter) fetchHTTP(ctx any, uri any, timeout any, previousETag any, previousLastModified any) *mockcrlFetcher_fetchHTTP_Call {
-	return &mockcrlFetcher_fetchHTTP_Call{Call: _e.mock.On("fetchHTTP", ctx, uri, timeout, previousETag, previousLastModified)}
-}
-
-func (_c *mockcrlFetcher_fetchHTTP_Call) Run(run func(ctx context.Context, uri string, timeout time.Duration, previousETag string, previousLastModified time.Time)) *mockcrlFetcher_fetchHTTP_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 time.Duration
-		if args[2] != nil {
-			arg2 = args[2].(time.Duration)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 time.Time
-		if args[4] != nil {
-			arg4 = args[4].(time.Time)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-			arg4,
-		)
-	})
-	return _c
-}
-
-func (_c *mockcrlFetcher_fetchHTTP_Call) Return(fetchResultMoqParam fetchResult, err error) *mockcrlFetcher_fetchHTTP_Call {
-	_c.Call.Return(fetchResultMoqParam, err)
-	return _c
-}
-
-func (_c *mockcrlFetcher_fetchHTTP_Call) RunAndReturn(run func(ctx context.Context, uri string, timeout time.Duration, previousETag string, previousLastModified time.Time) (fetchResult, error)) *mockcrlFetcher_fetchHTTP_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// fetchLDAP provides a mock function for the type mockcrlFetcher
-func (_mock *mockcrlFetcher) fetchLDAP(ctx context.Context, dialer ldapDialer, uri string, timeout time.Duration) (int64, []byte, error) {
-	ret := _mock.Called(ctx, dialer, uri, timeout)
-
-	if len(ret) == 0 {
-		panic("no return value specified for fetchLDAP")
-	}
-
-	var r0 int64
-	var r1 []byte
-	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ldapDialer, string, time.Duration) (int64, []byte, error)); ok {
-		return returnFunc(ctx, dialer, uri, timeout)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ldapDialer, string, time.Duration) int64); ok {
-		r0 = returnFunc(ctx, dialer, uri, timeout)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, ldapDialer, string, time.Duration) []byte); ok {
-		r1 = returnFunc(ctx, dialer, uri, timeout)
-	} else {
-		if ret.Get(1) != nil {
-			r1 = ret.Get(1).([]byte)
-		}
-	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, ldapDialer, string, time.Duration) error); ok {
-		r2 = returnFunc(ctx, dialer, uri, timeout)
-	} else {
-		r2 = ret.Error(2)
-	}
-	return r0, r1, r2
-}
-
-// mockcrlFetcher_fetchLDAP_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'fetchLDAP'
-type mockcrlFetcher_fetchLDAP_Call struct {
-	*mock.Call
-}
-
-// fetchLDAP is a helper method to define mock.On call
-//   - ctx context.Context
-//   - dialer ldapDialer
-//   - uri string
-//   - timeout time.Duration
-func (_e *mockcrlFetcher_Expecter) fetchLDAP(ctx any, dialer any, uri any, timeout any) *mockcrlFetcher_fetchLDAP_Call {
-	return &mockcrlFetcher_fetchLDAP_Call{Call: _e.mock.On("fetchLDAP", ctx, dialer, uri, timeout)}
-}
-
-func (_c *mockcrlFetcher_fetchLDAP_Call) Run(run func(ctx context.Context, dialer ldapDialer, uri string, timeout time.Duration)) *mockcrlFetcher_fetchLDAP_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 ldapDialer
-		if args[1] != nil {
-			arg1 = args[1].(ldapDialer)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 time.Duration
-		if args[3] != nil {
-			arg3 = args[3].(time.Duration)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-		)
-	})
-	return _c
-}
-
-func (_c *mockcrlFetcher_fetchLDAP_Call) Return(n int64, bytes []byte, err error) *mockcrlFetcher_fetchLDAP_Call {
-	_c.Call.Return(n, bytes, err)
-	return _c
-}
-
-func (_c *mockcrlFetcher_fetchLDAP_Call) RunAndReturn(run func(ctx context.Context, dialer ldapDialer, uri string, timeout time.Duration) (int64, []byte, error)) *mockcrlFetcher_fetchLDAP_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -42,12 +42,6 @@ func newIssuer(
 	}
 }
 
-type crlTask struct {
-	uri  string
-	role metadata.AttributeCrlRole
-	kind metadata.AttributeCrlKind
-}
-
 type issuerResult struct {
 	mountPath         string
 	id                string

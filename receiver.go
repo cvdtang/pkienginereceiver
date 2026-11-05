@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"go.opentelemetry.io/collector/component"
@@ -30,9 +29,7 @@ type pkiEngineScraper struct {
 	renewCancel context.CancelFunc
 	renewWg     sync.WaitGroup
 
-	crlCache          crlCacheStore
-	crlEvictionsTotal atomic.Int64
-
+	crlCache  crlCacheStore
 	crlClient *http.Client
 }
 
@@ -54,7 +51,7 @@ func (s *pkiEngineScraper) shutdown(ctx context.Context) error {
 	return nil
 }
 
-func newPkiEngineScraper(cfg *config, settings receiver.Settings) (*pkiEngineScraper, error) {
+func newPkiEngineScraper(cfg *config, settings receiver.Settings) *pkiEngineScraper {
 	scraper := &pkiEngineScraper{
 		logger: settings.Logger.With(
 			zap.String("engine.address", cfg.Address),
@@ -67,23 +64,19 @@ func newPkiEngineScraper(cfg *config, settings receiver.Settings) (*pkiEngineScr
 		crlClient:   newCrlHTTPClient(cfg.workerCount()),
 	}
 
-	// Setup optional CRL cache.
-	crlCache := newNopCrlCache()
-	if cfg.Crl.Enabled && cfg.Crl.CacheSize > 0 {
-		onEvict := func(key string, _ crlCacheEntry) {
-			scraper.crlEvictionsTotal.Add(1)
-			settings.Logger.Debug("crl evicted from LRU cache", zap.String("key", key))
+	if cfg.Crl.CacheSize != nil {
+		scraper.logger.Warn("crl.cache_size is deprecated and ignored unless 0, use crl.cache.enabled instead")
+		if *cfg.Crl.CacheSize == 0 {
+			scraper.cfg.Crl.Cache.Enabled = false
 		}
-		backend, err := newLruCrlCache(cfg.Crl.CacheSize, onEvict)
-		if err != nil {
-			return nil, fmt.Errorf("failed creating CRL cache: %w", err)
-		}
-		crlCache = backend
 	}
 
-	scraper.crlCache = crlCache
+	scraper.crlCache = newNopCrlCache()
+	if scraper.cfg.Crl.Enabled && scraper.cfg.Crl.Cache.Enabled {
+		scraper.crlCache = newCrlCache()
+	}
 
-	return scraper, nil
+	return scraper
 }
 
 // Lazily create the secret store client and starts token renewal.
@@ -134,16 +127,9 @@ func (s *pkiEngineScraper) scrape(ctx context.Context) (pmetric.Metrics, error) 
 	}
 	defer s.crlClient.CloseIdleConnections()
 
-	// Reset per-scrape eviction count before any CRL fetch work starts.
-	s.crlEvictionsTotal.Store(0)
-
 	// Shared state across all mount, issuer and CRL tasks.
-	sharedState := newScrapeShared(
-		&s.cfg,
-		s.settings,
-		s.crlCache,
-		s.crlClient,
-	)
+	crls := newCRLCollector(s.logger, s.cfg.Crl, s.crlCache, &realCrlFetcher{client: s.crlClient})
+	sharedState := newScrapeShared(&s.cfg, s.settings, crls)
 
 	ctx = withRateLimitCounter(ctx, &sharedState.rateObserver.throttled)
 
@@ -155,6 +141,8 @@ func (s *pkiEngineScraper) scrape(ctx context.Context) (pmetric.Metrics, error) 
 
 	run := newScrapeRun(ctx, s, sharedState, store)
 	run.processMounts(filteredMountPaths)
+	crls.pruneCache()
+	sharedState.emitCRLs()
 
 	// Emit global counters after all task-side counters are final.
 	s.recordGlobalMetrics(sharedState, &run.errorTotals, pcommon.NewTimestampFromTime(time.Now()))

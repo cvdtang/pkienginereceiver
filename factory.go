@@ -36,7 +36,7 @@ func createDefaultConfig() component.Config {
 		Crl: crlConfig{
 			Enabled:       true,
 			Timeout:       5 * time.Second,
-			CacheSize:     50,
+			Cache:         cacheConfig{Enabled: true},
 			RetryInterval: 3 * time.Second,
 			ScrapeParent:  true,
 		},
@@ -61,10 +61,7 @@ func createMetricsReceiver(_ context.Context, settings receiver.Settings, cfg co
 	if err := rCfg.validate(); err != nil {
 		return nil, err
 	}
-	pki, err := newPkiEngineScraper(rCfg, settings)
-	if err != nil {
-		return nil, err
-	}
+	pki := newPkiEngineScraper(rCfg, settings)
 	s, err := scraper.NewMetrics(
 		pki.scrape,
 		scraper.WithStart(pki.start),
