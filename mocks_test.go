@@ -6,7 +6,6 @@ package pkienginereceiver
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/go-ldap/ldap/v3"
@@ -1001,52 +1000,6 @@ func (_c *mocksecretStore_readIssuer_Call) Return(secret *api.Secret, err error)
 
 func (_c *mocksecretStore_readIssuer_Call) RunAndReturn(run func(ctx context.Context, mount string, id string) (*api.Secret, error)) *mocksecretStore_readIssuer_Call {
 	_c.Call.Return(run)
-	return _c
-}
-
-// startTokenRenewal provides a mock function for the type mocksecretStore
-func (_mock *mocksecretStore) startTokenRenewal(ctx context.Context, wg *sync.WaitGroup) {
-	_mock.Called(ctx, wg)
-	return
-}
-
-// mocksecretStore_startTokenRenewal_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'startTokenRenewal'
-type mocksecretStore_startTokenRenewal_Call struct {
-	*mock.Call
-}
-
-// startTokenRenewal is a helper method to define mock.On call
-//   - ctx context.Context
-//   - wg *sync.WaitGroup
-func (_e *mocksecretStore_Expecter) startTokenRenewal(ctx interface{}, wg interface{}) *mocksecretStore_startTokenRenewal_Call {
-	return &mocksecretStore_startTokenRenewal_Call{Call: _e.mock.On("startTokenRenewal", ctx, wg)}
-}
-
-func (_c *mocksecretStore_startTokenRenewal_Call) Run(run func(ctx context.Context, wg *sync.WaitGroup)) *mocksecretStore_startTokenRenewal_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *sync.WaitGroup
-		if args[1] != nil {
-			arg1 = args[1].(*sync.WaitGroup)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *mocksecretStore_startTokenRenewal_Call) Return() *mocksecretStore_startTokenRenewal_Call {
-	_c.Call.Return()
-	return _c
-}
-
-func (_c *mocksecretStore_startTokenRenewal_Call) RunAndReturn(run func(ctx context.Context, wg *sync.WaitGroup)) *mocksecretStore_startTokenRenewal_Call {
-	_c.Run(run)
 	return _c
 }
 

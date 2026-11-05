@@ -17,11 +17,13 @@ import (
 )
 
 type pkiEngineScraper struct {
-	logger      *zap.Logger
-	cfg         config
+	logger    *zap.Logger
+	cfg       config
+	settings  receiver.Settings
+	startTime pcommon.Timestamp
+
+	storeMu     sync.Mutex
 	secretStore secretStore
-	settings    receiver.Settings
-	startTime   pcommon.Timestamp
 
 	renewCtx    context.Context
 	renewCancel context.CancelFunc
@@ -81,21 +83,38 @@ func newPkiEngineScraper(cfg *config, settings receiver.Settings) (*pkiEngineScr
 }
 
 // Lazily create the secret store client and starts token renewal.
-func (s *pkiEngineScraper) ensureSecretStore() error {
+func (s *pkiEngineScraper) ensureSecretStore() (secretStore, error) {
+	s.storeMu.Lock()
+	defer s.storeMu.Unlock()
+
 	if s.secretStore != nil {
-		return nil
+		return s.secretStore, nil
 	}
 
 	vault, err := newVault(s.renewCtx, s.cfg, s.logger)
 	if err != nil {
-		return fmt.Errorf("failed to initialize client: %w", err)
+		return nil, fmt.Errorf("failed to initialize client: %w", err)
 	}
 	s.secretStore = vault
 
-	s.renewWg.Add(1)
-	go s.secretStore.startTokenRenewal(s.renewCtx, &s.renewWg)
+	s.renewWg.Go(func() {
+		if stopped := vault.runTokenRenewal(s.renewCtx); stopped {
+			s.dropSecretStore(vault)
+		}
+	})
 
-	return nil
+	return vault, nil
+}
+
+// Drops the client so the next scrape authenticates again, unless it was replaced already.
+func (s *pkiEngineScraper) dropSecretStore(store secretStore) {
+	s.storeMu.Lock()
+	defer s.storeMu.Unlock()
+
+	if s.secretStore == store {
+		s.logger.Warn("token renewal stopped, the client is re-created on the next scrape")
+		s.secretStore = nil
+	}
 }
 
 // Executes one scrape cycle across mounts, issuers and CRLs.
@@ -105,7 +124,8 @@ func (s *pkiEngineScraper) scrape(ctx context.Context) (pmetric.Metrics, error) 
 		s.logger.Debug("scrape job finished", zap.Duration("duration", time.Since(start)))
 	}()
 
-	if err := s.ensureSecretStore(); err != nil {
+	store, err := s.ensureSecretStore()
+	if err != nil {
 		return pmetric.NewMetrics(), err
 	}
 	// Reset per-scrape eviction count before any CRL fetch work starts.
@@ -121,12 +141,12 @@ func (s *pkiEngineScraper) scrape(ctx context.Context) (pmetric.Metrics, error) 
 	ctx = withRateLimitCounter(ctx, &sharedState.rateObserver.throttled)
 
 	// Exit early when no mounts match current filters.
-	filteredMountPaths, err := getFilteredMounts(ctx, s.logger, s.secretStore, s.cfg)
+	filteredMountPaths, err := getFilteredMounts(ctx, s.logger, store, s.cfg)
 	if err != nil || len(filteredMountPaths) == 0 {
 		return pmetric.NewMetrics(), err
 	}
 
-	run := newScrapeRun(ctx, s, sharedState)
+	run := newScrapeRun(ctx, s, sharedState, store)
 	run.processMounts(filteredMountPaths)
 
 	// Emit global counters after all task-side counters are final.

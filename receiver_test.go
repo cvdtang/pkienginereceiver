@@ -13,7 +13,7 @@ func TestScrapeRunParallelismLimitDefaultsToOne(t *testing.T) {
 		cfg.ConcurrencyLimit = 0
 	})
 	shared := newScrapeShared(&scraper.cfg, scraper.settings, newNopCrlCache())
-	run := newScrapeRun(t.Context(), scraper, shared)
+	run := newScrapeRun(t.Context(), scraper, shared, scraper.secretStore)
 
 	assert.Equal(t, 1, run.parallelismLimit())
 }
@@ -25,7 +25,7 @@ func TestScrapeRunParallelismLimitUsesConfiguredLimit(t *testing.T) {
 		cfg.ConcurrencyLimit = 4
 	})
 	shared := newScrapeShared(&scraper.cfg, scraper.settings, newNopCrlCache())
-	run := newScrapeRun(t.Context(), scraper, shared)
+	run := newScrapeRun(t.Context(), scraper, shared, scraper.secretStore)
 
 	assert.Equal(t, 4, run.parallelismLimit())
 }
