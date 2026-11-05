@@ -27,11 +27,7 @@ func newScrapeRun(ctx context.Context, scraper *pkiEngineScraper, sharedState *s
 }
 
 func (r *scrapeRun) parallelismLimit() int {
-	if r.scraper.cfg.ConcurrencyLimit < 1 {
-		return 1
-	}
-
-	return r.scraper.cfg.ConcurrencyLimit
+	return r.scraper.cfg.workerCount()
 }
 
 // Fans out mount/issuer/leaf/crl processing through one shared bounded worker pool.

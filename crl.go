@@ -213,7 +213,7 @@ func newCRL(
 		role:   role,
 		kind:   kind,
 		fetcher: &realCrlFetcher{
-			client: http.DefaultClient,
+			client: shared.crlClient,
 		},
 	}
 }

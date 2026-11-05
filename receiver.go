@@ -3,6 +3,7 @@ package pkienginereceiver
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -31,6 +32,8 @@ type pkiEngineScraper struct {
 
 	crlCache          crlCacheStore
 	crlEvictionsTotal atomic.Int64
+
+	crlClient *http.Client
 }
 
 func (s *pkiEngineScraper) start(ctx context.Context, _ component.Host) error {
@@ -61,6 +64,7 @@ func newPkiEngineScraper(cfg *config, settings receiver.Settings) (*pkiEngineScr
 		secretStore: nil,
 		settings:    settings,
 		startTime:   pcommon.NewTimestampFromTime(time.Now()),
+		crlClient:   newCrlHTTPClient(cfg.workerCount()),
 	}
 
 	// Setup optional CRL cache.
@@ -128,6 +132,8 @@ func (s *pkiEngineScraper) scrape(ctx context.Context) (pmetric.Metrics, error) 
 	if err != nil {
 		return pmetric.NewMetrics(), err
 	}
+	defer s.crlClient.CloseIdleConnections()
+
 	// Reset per-scrape eviction count before any CRL fetch work starts.
 	s.crlEvictionsTotal.Store(0)
 
@@ -136,6 +142,7 @@ func (s *pkiEngineScraper) scrape(ctx context.Context) (pmetric.Metrics, error) 
 		&s.cfg,
 		s.settings,
 		s.crlCache,
+		s.crlClient,
 	)
 
 	ctx = withRateLimitCounter(ctx, &sharedState.rateObserver.throttled)

@@ -1,6 +1,7 @@
 package pkienginereceiver
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -8,6 +9,29 @@ import (
 	"net/http"
 	"time"
 )
+
+// Upper bound for preallocating the CRL response buffer from Content-Length.
+const crlMaxPreallocBytes = 64 << 20
+
+// Creates the HTTP client for CRL fetching.
+func newCrlHTTPClient(workers int) *http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.MaxIdleConnsPerHost = workers
+
+	return &http.Client{Transport: transport}
+}
+
+// Reads the response body, sizing the buffer from Content-Length when known.
+func readCrlBody(resp *http.Response) ([]byte, error) {
+	if resp.ContentLength <= 0 {
+		return io.ReadAll(resp.Body)
+	}
+
+	buf := bytes.NewBuffer(make([]byte, 0, min(resp.ContentLength, crlMaxPreallocBytes)+bytes.MinRead))
+	_, err := buf.ReadFrom(resp.Body)
+
+	return buf.Bytes(), err
+}
 
 // Parses Last-Modified and optionally falls back to Date.
 func parseLastModifiedHeader(headers http.Header, allowDateFallback bool) time.Time {
@@ -78,7 +102,7 @@ func (f *realCrlFetcher) fetchHTTP(ctx context.Context, uri string, timeout time
 		return res, newPermanentFetchError(err)
 	}
 
-	data, err := io.ReadAll(resp.Body)
+	data, err := readCrlBody(resp)
 	if err != nil {
 		return res, newRetryableFetchError(fmt.Errorf("failed to read data: %w", err))
 	}

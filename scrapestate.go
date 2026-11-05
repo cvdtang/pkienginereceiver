@@ -1,6 +1,7 @@
 package pkienginereceiver
 
 import (
+	"net/http"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -17,6 +18,7 @@ type scrapeShared struct {
 	cfg             *config
 	crlFetchSfg     *singleflight.Group
 	crlCache        crlCacheStore
+	crlClient       *http.Client
 	scrapeStartTime time.Time
 	crlCacheHits    atomic.Int64
 	crlCacheMisses  atomic.Int64
@@ -34,11 +36,13 @@ func newScrapeShared(
 	cfg *config,
 	settings receiver.Settings,
 	crlCache crlCacheStore,
+	crlClient *http.Client,
 ) *scrapeShared {
 	return &scrapeShared{
 		cfg:             cfg,
 		crlFetchSfg:     &singleflight.Group{},
 		crlCache:        crlCache,
+		crlClient:       crlClient,
 		scrapeStartTime: time.Now(),
 		rateObserver:    newRateObserver(),
 		mb: metadata.NewMetricsBuilder(
