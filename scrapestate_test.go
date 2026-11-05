@@ -25,6 +25,7 @@ func createTestScrapeState(t *testing.T) *scrapeShared {
 		cfg,
 		receivertest.NewNopSettings(metadata.Type),
 		cache,
+		newCrlHTTPClient(cfg.workerCount()),
 	)
 
 	return shared

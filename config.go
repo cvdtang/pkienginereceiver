@@ -40,6 +40,10 @@ type leafConfig struct {
 	Enabled bool `mapstructure:"enabled"`
 }
 
+func (c *config) workerCount() int {
+	return max(c.ConcurrencyLimit, 1)
+}
+
 func (c *config) validate() error {
 	u, err := url.ParseRequestURI(c.Address)
 

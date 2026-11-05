@@ -24,8 +24,7 @@ type vault struct {
 
 // Creates a Vault client and performs initial authentication.
 func newVault(ctx context.Context, cfg config, logger *zap.Logger) (*vault, error) {
-	config := vaultapi.DefaultConfig()
-	config.Address = cfg.Address
+	config := newVaultConfig(cfg)
 
 	client, err := vaultapi.NewClient(config)
 	if err != nil {
@@ -57,6 +56,17 @@ func newVault(ctx context.Context, cfg config, logger *zap.Logger) (*vault, erro
 	}
 
 	return vault, nil
+}
+
+// Creates the client configuration from defaults and VAULT_* environment variables.
+func newVaultConfig(cfg config) *vaultapi.Config {
+	config := vaultapi.DefaultConfig()
+	config.Address = cfg.Address
+	if transport, ok := config.HttpClient.Transport.(*http.Transport); ok {
+		transport.MaxIdleConnsPerHost = max(transport.MaxIdleConnsPerHost, cfg.workerCount())
+	}
+
+	return config
 }
 
 // Retry policy hook to count every 429 received.
