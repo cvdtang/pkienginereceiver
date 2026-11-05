@@ -62,20 +62,20 @@ func (s *scrapeShared) shouldCollectCertificates() bool {
 }
 
 func (s *scrapeShared) emitMount(result mountResult) {
-	if result.metrics.storedCertificates == nil {
+	if result.storedCertificates == nil {
 		return
 	}
 	s.withMetricsLock(func() {
 		s.mb.RecordPkiengineMountCertificatesStoredDataPoint(
-			result.metrics.ts,
-			*result.metrics.storedCertificates,
+			result.ts,
+			*result.storedCertificates,
 			result.path,
 		)
 	})
 }
 
 func (s *scrapeShared) emitIssuer(result issuerResult) {
-	if result.skipped {
+	if result.isParent {
 		return
 	}
 	s.withMetricsLock(func() {

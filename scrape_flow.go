@@ -52,8 +52,8 @@ func (r *scrapeRun) handleMountTask(pool *scrapeTaskPool, mountPath string) {
 	stageMount := newMount(
 		r.scraper.logger,
 		r.secretStore,
-		r.shared,
 		mountPath,
+		r.shared.shouldCollectCertificates(),
 	)
 
 	result, ok := r.collectMount(stageMount)
@@ -123,7 +123,7 @@ func (r *scrapeRun) collectIssuer(stageMount mount, clusterCfg clusterConfig, is
 	issuer := newIssuer(
 		stageMount.logger,
 		r.secretStore,
-		r.shared,
+		r.shared.cfg.Crl,
 		stageMount.path,
 		issuerID,
 		clusterCfg,
@@ -189,20 +189,14 @@ func (r *scrapeRun) handleLeafPlanTask(pool *scrapeTaskPool, mountState *mountWo
 
 // Emits one stored certificate as a leaf certificate.
 func (r *scrapeRun) processCertificate(stageMount mount, serial string) {
-	storedCert := newStoredCert(
-		stageMount.logger,
-		r.secretStore,
-		stageMount.path,
-		serial,
-	)
-	storedCertResult, err := storedCert.collect(r.ctx)
+	crt, err := readStoredCertificate(r.ctx, r.secretStore, stageMount.path, serial)
 	if err != nil {
-		storedCert.logger.Warn("failed processing certificate", zap.Error(err))
+		stageMount.logger.Warn("failed processing certificate", zap.String("cert.serial", serial), zap.Error(err))
 
 		return
 	}
 
-	r.shared.emitCert(storedCertResult.certificate, metadata.AttributeCertTypeLeaf, stageMount.path, "")
+	r.shared.emitCert(crt, metadata.AttributeCertTypeLeaf, stageMount.path, "")
 }
 
 type mountWorkState struct {

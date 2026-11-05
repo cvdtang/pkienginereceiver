@@ -5,53 +5,44 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hashicorp/vault/api"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.uber.org/zap"
 )
-
-type mountMetrics struct {
-	ts                 pcommon.Timestamp
-	storedCertificates *int64
-}
-
-// Initializes mount metrics with the current timestamp.
-func newMountMetrics() mountMetrics {
-	return mountMetrics{
-		ts: pcommon.NewTimestampFromTime(time.Now()),
-	}
-}
 
 type mountResult struct {
 	path               string
 	clusterConfig      clusterConfig
 	issuerIDs          []string
 	certificateSerials []string
-	metrics            mountMetrics
+
+	ts pcommon.Timestamp
+	// Number of stored certificates, nil when certificates are not listed.
+	storedCertificates *int64
 }
 
 type mount struct {
 	logger      *zap.Logger
 	secretStore secretStore
-	state       *scrapeShared
 
 	path string
+	// Whether stored certificates are listed, for the stored certificates metric and leaf collection.
+	listCertificates bool
 }
 
 // Creates a mount processor for a PKI engine mount path.
 func newMount(
 	logger *zap.Logger,
 	secretStore secretStore,
-	state *scrapeShared,
 
 	path string,
+	listCertificates bool,
 ) mount {
 	return mount{
-		logger:      logger.With(zap.String("engine.mount_path", path)),
+		logger:      logger.WithLazy(zap.String("engine.mount_path", path)),
 		secretStore: secretStore,
-		state:       state,
 
-		path: path,
+		path:             path,
+		listCertificates: listCertificates,
 	}
 }
 
@@ -60,119 +51,60 @@ type clusterConfig struct {
 	aiaPath string
 }
 
-// Get AIA templating values.
-func (m *mount) getClusterConfiguration(ctx context.Context) (clusterConfig, error) {
-	if ctx.Err() != nil {
-		return clusterConfig{}, ctx.Err()
-	}
-
-	secret, err := m.secretStore.readClusterConfiguration(ctx, m.path)
-	if err != nil {
-		return clusterConfig{}, err
-	}
-
-	return parseClusterConfig(secret)
-}
-
 // Extracts AIA templating values from the cluster configuration.
-func parseClusterConfig(secret *api.Secret) (clusterConfig, error) {
-	if secret == nil || secret.Data == nil {
-		return clusterConfig{}, fmt.Errorf("empty secret or data")
+func parseClusterConfig(data *clusterConfigData) (clusterConfig, error) {
+	if data == nil {
+		return clusterConfig{}, fmt.Errorf("empty cluster config")
 	}
-
-	path, ok := secret.Data["path"].(string)
-	if !ok {
+	if data.Path == nil {
 		return clusterConfig{}, fmt.Errorf("missing or invalid path in cluster config")
 	}
-
-	aiaPath, ok := secret.Data["aia_path"].(string)
-	if !ok {
+	if data.AIAPath == nil {
 		return clusterConfig{}, fmt.Errorf("missing or invalid aia_path in cluster config")
 	}
 
 	return clusterConfig{
-		path:    path,
-		aiaPath: aiaPath,
+		path:    *data.Path,
+		aiaPath: *data.AIAPath,
 	}, nil
-}
-
-// Lists issuer IDs for the current mount path.
-func (m *mount) listIssuers(ctx context.Context) ([]string, error) {
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
-
-	secret, err := m.secretStore.listIssuers(ctx, m.path)
-	if err != nil {
-		return nil, fmt.Errorf("failed listing issuers: %w", err)
-	}
-	if secret == nil {
-		return []string{}, nil
-	}
-
-	return toStringSlice(secret.Data["keys"]), nil
-}
-
-func (m *mount) listCertificates(ctx context.Context) ([]string, error) {
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
-
-	secret, err := m.secretStore.listCertificates(ctx, m.path)
-	if err != nil {
-		return nil, err
-	}
-	if secret == nil {
-		return []string{}, nil
-	}
-
-	return toStringSlice(secret.Data["keys"]), nil
 }
 
 // Reads mount config, mount metrics and issuer IDs.
 func (m *mount) collect(ctx context.Context) (mountResult, error) {
-	clusterConfig, err := m.getClusterConfiguration(ctx)
+	data, err := m.secretStore.readClusterConfiguration(ctx, m.path)
+	var clusterConfig clusterConfig
+	if err == nil {
+		clusterConfig, err = parseClusterConfig(data)
+	}
 	if err != nil {
 		m.logger.Error("failed reading cluster config", zap.Error(err))
 
 		return mountResult{}, fmt.Errorf("failed reading cluster config: %w", err)
 	}
 
-	// Bit of a sore thumb as it's used for mount metrics and fan-out.
-	var leafs []string
-	if m.state.shouldCollectCertificates() {
-		leafs, err = m.listCertificates(ctx)
+	result := mountResult{
+		path:          m.path,
+		clusterConfig: clusterConfig,
+	}
+
+	if m.listCertificates {
+		result.certificateSerials, err = m.secretStore.listCertificates(ctx, m.path)
 		if err != nil {
 			m.logger.Error("failed listing leaf certificates", zap.Error(err))
 
 			return mountResult{}, fmt.Errorf("failed listing leaf certificates: %w", err)
 		}
+		storedCertificates := int64(len(result.certificateSerials))
+		result.storedCertificates = &storedCertificates
 	}
+	result.ts = pcommon.NewTimestampFromTime(time.Now())
 
-	metrics := m.collectMetrics(int64(len(leafs)))
-
-	issuers, err := m.listIssuers(ctx)
+	result.issuerIDs, err = m.secretStore.listIssuers(ctx, m.path)
 	if err != nil {
 		m.logger.Error("failed listing issuers", zap.Error(err))
-		issuers = nil
+
+		return mountResult{}, fmt.Errorf("failed listing issuers: %w", err)
 	}
 
-	return mountResult{
-		path:               m.path,
-		clusterConfig:      clusterConfig,
-		issuerIDs:          issuers,
-		certificateSerials: leafs,
-		metrics:            metrics,
-	}, nil
-}
-
-// Gathers mount-level metrics from the secret store.
-func (m *mount) collectMetrics(leafs int64) mountMetrics {
-	metrics := newMountMetrics()
-
-	if m.state.shouldCollectCertificates() {
-		metrics.storedCertificates = &leafs
-	}
-
-	return metrics
+	return result, nil
 }

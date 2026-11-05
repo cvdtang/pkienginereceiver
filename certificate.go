@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/cvdtang/pkienginereceiver/internal/metadata"
-	"github.com/hashicorp/vault/sdk/helper/certutil"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 )
 
@@ -167,10 +166,12 @@ func (c certificate) emit(mb *metadata.MetricsBuilder, certType metadata.Attribu
 	)
 }
 
-func (c certificate) listBaseCrlDistributionPoints() []string {
-	return c.cert.CRLDistributionPoints
-}
+// Converts a []string value into a []any.
+func toAnySlice(values []string) []any {
+	attrs := make([]any, 0, len(values))
+	for _, value := range values {
+		attrs = append(attrs, value)
+	}
 
-func (c certificate) listDeltaCrlDistributionPoints() ([]string, error) {
-	return certutil.ParseDeltaCRLExtension(c.cert)
+	return attrs
 }
