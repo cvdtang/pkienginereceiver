@@ -12,15 +12,17 @@ type scrapeRun struct {
 	ctx         context.Context
 	scraper     *pkiEngineScraper
 	shared      *scrapeShared
+	secretStore secretStore
 	errorTotals scrapeErrorTotals
 }
 
 // Creates one per-scrape runtime that owns concurrency and shared counters.
-func newScrapeRun(ctx context.Context, scraper *pkiEngineScraper, sharedState *scrapeShared) *scrapeRun {
+func newScrapeRun(ctx context.Context, scraper *pkiEngineScraper, sharedState *scrapeShared, store secretStore) *scrapeRun {
 	return &scrapeRun{
-		ctx:     ctx,
-		scraper: scraper,
-		shared:  sharedState,
+		ctx:         ctx,
+		scraper:     scraper,
+		shared:      sharedState,
+		secretStore: store,
 	}
 }
 
@@ -49,7 +51,7 @@ func (r *scrapeRun) processMounts(mountPaths []string) {
 func (r *scrapeRun) handleMountTask(pool *scrapeTaskPool, mountPath string) {
 	stageMount := newMount(
 		r.scraper.logger,
-		r.scraper.secretStore,
+		r.secretStore,
 		r.shared,
 		mountPath,
 	)
@@ -120,7 +122,7 @@ func (r *scrapeRun) handleIssuerTask(pool *scrapeTaskPool, mountState *mountWork
 func (r *scrapeRun) collectIssuer(stageMount mount, clusterCfg clusterConfig, issuerID string) (issuerResult, bool) {
 	issuer := newIssuer(
 		stageMount.logger,
-		r.scraper.secretStore,
+		r.secretStore,
 		r.shared,
 		stageMount.path,
 		issuerID,
@@ -189,7 +191,7 @@ func (r *scrapeRun) handleLeafPlanTask(pool *scrapeTaskPool, mountState *mountWo
 func (r *scrapeRun) processCertificate(stageMount mount, serial string) {
 	storedCert := newStoredCert(
 		stageMount.logger,
-		r.scraper.secretStore,
+		r.secretStore,
 		stageMount.path,
 		serial,
 	)

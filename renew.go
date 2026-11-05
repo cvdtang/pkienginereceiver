@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff/v7"
@@ -135,13 +134,16 @@ func getAuthToken(ctx context.Context, authCfg *authConfig, client *vaultapi.Cli
 	return am.authenticate(ctx, client)
 }
 
-// Runs the background token renewal flow until cancellation.
-func (v *vault) startTokenRenewal(renewCtx context.Context, renewWg *sync.WaitGroup) {
-	defer renewWg.Done()
-
-	if err := v.keepRenewingTokenLease(renewCtx); err != nil {
-		if !errors.Is(err, context.Canceled) {
-			v.logger.Error("token renewal stopped unexpectedly", zap.Error(err))
-		}
+// Runs the token renewal flow until cancellation.
+// Reports whether renewal stopped before the context was cancelled,
+// in which case the client can no longer authenticate requests.
+func (v *vault) runTokenRenewal(ctx context.Context) bool {
+	err := v.keepRenewingTokenLease(ctx)
+	if ctx.Err() != nil || errors.Is(err, context.Canceled) {
+		return false
 	}
+
+	v.logger.Error("token renewal stopped unexpectedly", zap.Error(err))
+
+	return true
 }

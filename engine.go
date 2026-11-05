@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"path"
 	"slices"
-	"sync"
 
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/mitchellh/mapstructure"
@@ -21,7 +20,6 @@ var _ secretStore = (*vault)(nil)
 const httpMethodList = "LIST"
 
 type secretStore interface {
-	startTokenRenewal(ctx context.Context, wg *sync.WaitGroup)
 	readClusterConfiguration(ctx context.Context, mount string) (*vaultapi.Secret, error)
 	listMountPathsTypePki(ctx context.Context) ([]string, error)
 	listIssuers(ctx context.Context, mount string) (*vaultapi.Secret, error)
