@@ -1,47 +1,60 @@
 package pkienginereceiver
 
 import (
+	"errors"
 	"testing"
 
-	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
-func TestParseCertificateSecret(t *testing.T) {
+func TestReadStoredCertificate(t *testing.T) {
 	t.Parallel()
 
 	_, certPEM := getTestCertData(t, "leaf.example.org")
 
 	tests := []struct {
-		name    string
-		secret  *vaultapi.Secret
-		wantErr string
+		name       string
+		data       *certificateData
+		readErr    error
+		wantErr    string
+		wantSerial string
 	}{
 		{
-			name: "success",
-			secret: &vaultapi.Secret{Data: map[string]any{
-				"certificate": string(certPEM),
-			}},
+			name:       "success",
+			data:       &certificateData{Certificate: string(certPEM)},
+			wantSerial: "30:39",
 		},
 		{
-			name:    "nil secret",
-			secret:  nil,
+			name:    "read error",
+			readErr: errors.New("boom"),
+			wantErr: "boom",
+		},
+		{
+			name:    "not found",
 			wantErr: "certificate not found",
 		},
 		{
-			name:    "invalid certificate attribute",
-			secret:  &vaultapi.Secret{Data: map[string]any{"certificate": 1}},
+			name:    "empty certificate attribute",
+			data:    &certificateData{},
 			wantErr: "certificate attribute is empty or invalid",
+		},
+		{
+			name:    "invalid certificate",
+			data:    &certificateData{Certificate: "junk"},
+			wantErr: "failed processing stored certificate",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+			ctx := t.Context()
 
-			certData, err := parseCertificateData(tt.secret)
+			mockSecretStore := newMocksecretStore(t)
+			mockSecretStore.On("readCertificate", ctx, "pki/", "01:23").Return(tt.data, tt.readErr)
+
+			crt, err := readStoredCertificate(ctx, mockSecretStore, "pki/", "01:23")
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 
@@ -49,26 +62,7 @@ func TestParseCertificateSecret(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			assert.NotEmpty(t, certData)
+			assert.Equal(t, tt.wantSerial, crt.serial)
 		})
 	}
-}
-
-func TestStoredCertCollect(t *testing.T) {
-	t.Parallel()
-	ctx := t.Context()
-
-	mockSecretStore := newMocksecretStore(t)
-	storedCert := newStoredCert(zap.NewNop(), mockSecretStore, "pki/", "01:23")
-	_, certPEM := getTestCertData(t, "leaf.example.org")
-
-	mockSecretStore.On("readCertificate", ctx, "pki/", "01:23").Return(&vaultapi.Secret{
-		Data: map[string]any{
-			"certificate": string(certPEM),
-		},
-	}, nil)
-
-	result, err := storedCert.collect(ctx)
-	require.NoError(t, err)
-	require.Equal(t, "30:39", result.certificate.serial)
 }

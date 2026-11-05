@@ -2,13 +2,13 @@ package pkienginereceiver
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
 
-	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/golden"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatatest/pmetrictest"
 	"github.com/stretchr/testify/assert"
@@ -30,6 +30,10 @@ const (
 )
 
 var errTest = errors.New(testError)
+
+func newTestClusterConfigData(path, aiaPath string) *clusterConfigData {
+	return &clusterConfigData{Path: &path, AIAPath: &aiaPath}
+}
 
 func createTestScraper(t *testing.T) (*pkiEngineScraper, *mocksecretStore) {
 	t.Helper()
@@ -132,36 +136,15 @@ func TestScrape(t *testing.T) {
 	// Mock API
 	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
 
-	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{
-			"path":     "",
-			"aia_path": "",
-		},
-	}, nil)
+	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(newTestClusterConfigData("", ""), nil)
 
-	mockSecretStore.On("listCertificates", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{
-			"keys": []any{testCertificateSerialKey},
-		},
-	}, nil)
+	mockSecretStore.On("listCertificates", ctx, testMountPath).Return([]string{testCertificateSerialKey}, nil)
 
-	mockSecretStore.On("listIssuers", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{
-			"keys": []any{testIssuerID},
-		},
-	}, nil)
+	mockSecretStore.On("listIssuers", ctx, testMountPath).Return([]string{testIssuerID}, nil)
 
-	mockSecretStore.On("readIssuer", ctx, testMountPath, testIssuerID).Return(&vaultapi.Secret{
-		Data: map[string]any{
-			"certificate": string(issuerCertPEM),
-		},
-	}, nil)
+	mockSecretStore.On("readIssuer", ctx, testMountPath, testIssuerID).Return(&issuerData{Certificate: string(issuerCertPEM)}, nil)
 
-	mockSecretStore.On("readCertificate", ctx, testMountPath, testCertificateSerialKey).Return(&vaultapi.Secret{
-		Data: map[string]any{
-			"certificate": string(leafCertPEM),
-		},
-	}, nil)
+	mockSecretStore.On("readCertificate", ctx, testMountPath, testCertificateSerialKey).Return(&certificateData{Certificate: string(leafCertPEM)}, nil)
 
 	// Execution
 	err := scraper.start(ctx, newMdatagenNopHost())
@@ -224,24 +207,11 @@ func TestScrapeIssuerErrorMetric(t *testing.T) {
 
 	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
 
-	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{
-			"path":     "",
-			"aia_path": "",
-		},
-	}, nil)
+	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(newTestClusterConfigData("", ""), nil)
 
-	mockSecretStore.On("listCertificates", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{
-			"keys": []any{testCertificateSerialKey},
-		},
-	}, nil)
+	mockSecretStore.On("listCertificates", ctx, testMountPath).Return([]string{testCertificateSerialKey}, nil)
 
-	mockSecretStore.On("listIssuers", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{
-			"keys": []any{testIssuerID},
-		},
-	}, nil)
+	mockSecretStore.On("listIssuers", ctx, testMountPath).Return([]string{testIssuerID}, nil)
 
 	mockSecretStore.On("readIssuer", ctx, testMountPath, testIssuerID).Return(nil, errTest)
 
@@ -275,12 +245,7 @@ func TestScrapeMountErrorMetricOnListCertificatesFailure(t *testing.T) {
 	expectedFile := filepath.Join("test", "testdata", "mock_mount_error.yaml")
 
 	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
-	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{
-			"path":     "",
-			"aia_path": "",
-		},
-	}, nil)
+	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(newTestClusterConfigData("", ""), nil)
 	mockSecretStore.On("listCertificates", ctx, testMountPath).Return(nil, errTest)
 
 	err := scraper.start(ctx, newMdatagenNopHost())
@@ -324,23 +289,10 @@ func TestScrapeCRLCacheHitMissMetrics(t *testing.T) {
 	})
 
 	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
-	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"path": "", "aia_path": ""},
-	}, nil)
-	mockSecretStore.On("listCertificates", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"keys": []any{testCertificateSerialKey}},
-	}, nil)
-	mockSecretStore.On("listIssuers", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"keys": []any{testIssuerID}},
-	}, nil)
-	mockSecretStore.On("readIssuer", ctx, testMountPath, testIssuerID).Return(&vaultapi.Secret{
-		Data: map[string]any{
-			"certificate":                   string(certPEM),
-			"crl_distribution_points":       []any{crlURI},
-			"delta_crl_distribution_points": []any{crlURI},
-			"enable_aia_url_templating":     false,
-		},
-	}, nil)
+	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(newTestClusterConfigData("", ""), nil)
+	mockSecretStore.On("listCertificates", ctx, testMountPath).Return([]string{testCertificateSerialKey}, nil)
+	mockSecretStore.On("listIssuers", ctx, testMountPath).Return([]string{testIssuerID}, nil)
+	mockSecretStore.On("readIssuer", ctx, testMountPath, testIssuerID).Return(&issuerData{Certificate: string(certPEM), CRLDistributionPoints: []string{crlURI}, DeltaCRLDistributionPoints: []string{crlURI}, EnableAIAURLTemplating: false}, nil)
 
 	err := scraper.start(ctx, newMdatagenNopHost())
 	require.NoError(t, err)
@@ -384,22 +336,10 @@ func TestScrapeCRLCacheEvictionsMetric(t *testing.T) {
 	})
 
 	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
-	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"path": "", "aia_path": ""},
-	}, nil)
-	mockSecretStore.On("listCertificates", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"keys": []any{testCertificateSerialKey}},
-	}, nil)
-	mockSecretStore.On("listIssuers", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"keys": []any{testIssuerID}},
-	}, nil)
-	mockSecretStore.On("readIssuer", ctx, testMountPath, testIssuerID).Return(&vaultapi.Secret{
-		Data: map[string]any{
-			"certificate":               string(certPEM),
-			"crl_distribution_points":   []any{server.URL + "/crl-a", server.URL + "/crl-b"},
-			"enable_aia_url_templating": false,
-		},
-	}, nil)
+	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(newTestClusterConfigData("", ""), nil)
+	mockSecretStore.On("listCertificates", ctx, testMountPath).Return([]string{testCertificateSerialKey}, nil)
+	mockSecretStore.On("listIssuers", ctx, testMountPath).Return([]string{testIssuerID}, nil)
+	mockSecretStore.On("readIssuer", ctx, testMountPath, testIssuerID).Return(&issuerData{Certificate: string(certPEM), CRLDistributionPoints: []string{server.URL + "/crl-a", server.URL + "/crl-b"}, EnableAIAURLTemplating: false}, nil)
 
 	err := scraper.start(ctx, newMdatagenNopHost())
 	require.NoError(t, err)
@@ -487,12 +427,8 @@ func TestScrapeSkipsCertificateListWhenDisabled(t *testing.T) {
 	})
 
 	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
-	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"path": "", "aia_path": ""},
-	}, nil)
-	mockSecretStore.On("listIssuers", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"keys": []any{}},
-	}, nil)
+	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(newTestClusterConfigData("", ""), nil)
+	mockSecretStore.On("listIssuers", ctx, testMountPath).Return([]string{}, nil)
 
 	err := scraper.start(ctx, newMdatagenNopHost())
 	require.NoError(t, err)
@@ -517,26 +453,11 @@ func TestScrapeSkipsIssuerCertificatesFromCertificateList(t *testing.T) {
 	_, leafCertPEM := getTestCertDataWithOU(t, testLeafCommonName, "App")
 
 	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
-	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"path": "", "aia_path": ""},
-	}, nil)
-	mockSecretStore.On("listCertificates", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"keys": []any{issuerSerialRef, testCertificateSerialKey}},
-	}, nil)
-	mockSecretStore.On("listIssuers", ctx, testMountPath).Return(&vaultapi.Secret{
-		Data: map[string]any{"keys": []any{testIssuerID}},
-	}, nil)
-	mockSecretStore.On("readIssuer", ctx, testMountPath, testIssuerID).Return(&vaultapi.Secret{
-		Data: map[string]any{
-			"certificate": string(issuerCertPEM),
-			"key_id":      "key-local",
-		},
-	}, nil)
-	mockSecretStore.On("readCertificate", ctx, testMountPath, testCertificateSerialKey).Return(&vaultapi.Secret{
-		Data: map[string]any{
-			"certificate": string(leafCertPEM),
-		},
-	}, nil)
+	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(newTestClusterConfigData("", ""), nil)
+	mockSecretStore.On("listCertificates", ctx, testMountPath).Return([]string{issuerSerialRef, testCertificateSerialKey}, nil)
+	mockSecretStore.On("listIssuers", ctx, testMountPath).Return([]string{testIssuerID}, nil)
+	mockSecretStore.On("readIssuer", ctx, testMountPath, testIssuerID).Return(&issuerData{Certificate: string(issuerCertPEM), KeyID: json.RawMessage(`"key-local"`)}, nil)
+	mockSecretStore.On("readCertificate", ctx, testMountPath, testCertificateSerialKey).Return(&certificateData{Certificate: string(leafCertPEM)}, nil)
 
 	err := scraper.start(ctx, newMdatagenNopHost())
 	require.NoError(t, err)

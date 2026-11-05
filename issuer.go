@@ -8,14 +8,14 @@ import (
 
 	"github.com/cvdtang/pkienginereceiver/internal/metadata"
 
-	"github.com/hashicorp/vault/api"
+	"github.com/hashicorp/vault/sdk/helper/certutil"
 	"go.uber.org/zap"
 )
 
 type issuer struct {
 	logger      *zap.Logger
 	secretStore secretStore
-	state       *scrapeShared
+	crlConfig   crlConfig
 
 	mountPath     string
 	id            string
@@ -26,16 +26,16 @@ type issuer struct {
 func newIssuer(
 	logger *zap.Logger,
 	secretStore secretStore,
-	state *scrapeShared,
+	crlConfig crlConfig,
 
 	mountPath string,
 	id string,
 	clusterConfig clusterConfig,
 ) issuer {
 	return issuer{
-		logger:        logger.With(zap.String("issuer.id", id)),
+		logger:        logger.WithLazy(zap.String("issuer.id", id)),
 		secretStore:   secretStore,
-		state:         state,
+		crlConfig:     crlConfig,
 		mountPath:     mountPath,
 		id:            id,
 		clusterConfig: clusterConfig,
@@ -52,7 +52,6 @@ type issuerResult struct {
 	mountPath         string
 	id                string
 	logger            *zap.Logger
-	skipped           bool
 	isParent          bool // auto copied over by multi-tier setup
 	certificate       certificate
 	certificateSerial string
@@ -72,54 +71,45 @@ func renderAiaUrlTemplate(url string, issuerID string, clusterConfig clusterConf
 	return url
 }
 
-func (ie *issuer) renderAiaUrlTemplate(url string) string {
-	return renderAiaUrlTemplate(url, ie.id, ie.clusterConfig)
-}
-
 // Reads issuer data, processes the certificate and prepares CRL tasks.
 func (ie *issuer) collect(ctx context.Context) (issuerResult, error) {
-	var err error
-	var issuer *api.Secret
-
-	if ctx.Err() != nil {
-		return issuerResult{}, ctx.Err()
-	}
-	issuer, err = ie.secretStore.readIssuer(ctx, ie.mountPath, ie.id)
-
+	data, err := ie.secretStore.readIssuer(ctx, ie.mountPath, ie.id)
 	if err != nil {
 		ie.logger.Error("failed reading issuer", zap.Error(err))
 
 		return issuerResult{}, err
 	}
 
-	if issuer == nil {
+	if data == nil {
 		return issuerResult{}, errors.New("issuer not found")
 	}
 
-	if issuer.Data == nil {
-		return issuerResult{}, errors.New("issuer exists but has no data")
+	// Copied parent issuers in intermediate mounts are read-only and have no local key.
+	if data.hasNoLocalKey() {
+		ie.logger.Debug("skipping non-local issuer")
+
+		return issuerResult{
+			mountPath:         ie.mountPath,
+			id:                ie.id,
+			logger:            ie.logger,
+			isParent:          true,
+			certificateSerial: ie.parentSerial(data),
+		}, nil
 	}
 
-	if skip, isParent := ie.shouldSkip(issuer); skip {
-		return ie.newSkippedIssuerResult(issuer, isParent), nil
-	}
-
-	certData, err := parseCertificateData(issuer)
+	crt, err := newCertificate(data.Certificate)
 	if err != nil {
-		return issuerResult{}, err
-	}
+		if data.Certificate == "" {
+			return issuerResult{}, errors.New("certificate attribute is empty or invalid")
+		}
 
-	crt, err := newCertificate(certData)
-	if err != nil {
 		return issuerResult{}, fmt.Errorf("failed processing certificate: %w", err)
 	}
 
-	issuerLogger := ie.logger.With(
+	issuerLogger := ie.logger.WithLazy(
 		zap.String("cert.subject.common_name", crt.subjectCN),
 		zap.String("cert.issuer.common_name", crt.issuerCN),
 	)
-
-	crlTasks := ie.buildCRLTasks(issuer, crt, issuerLogger)
 
 	return issuerResult{
 		mountPath:         ie.mountPath,
@@ -127,39 +117,17 @@ func (ie *issuer) collect(ctx context.Context) (issuerResult, error) {
 		logger:            issuerLogger,
 		certificate:       crt,
 		certificateSerial: crt.serial,
-		crlTasks:          crlTasks,
+		crlTasks:          ie.buildCRLTasks(data, crt, issuerLogger),
 	}, nil
 }
 
-func (ie *issuer) shouldSkip(issuer *api.Secret) (bool, bool) {
-	// Copied parent issuers in intermediate mounts are read-only and have no local key.
-	keyID, exists := issuer.Data["key_id"]
-	if !exists {
-		return false, false
-	}
-	if keyID == nil {
-		ie.logger.Debug("skipping non-local issuer (nil key_id)")
-
-		return true, true
-	}
-	keyIDStr, ok := keyID.(string)
-	if ok && keyIDStr == "" {
-		ie.logger.Debug("skipping non-local issuer (empty key_id)")
-
-		return true, true
-	}
-
-	return false, false
-}
-
-// Extracts the certificate serial from a copied parent issuer secret.
-func (ie *issuer) parentSerialFromIssuerSecret(issuer *api.Secret) string {
-	certData, err := parseCertificateData(issuer)
-	if err != nil {
+// Extracts the certificate serial from a copied parent issuer.
+func (ie *issuer) parentSerial(data *issuerData) string {
+	if data.Certificate == "" {
 		return ""
 	}
 
-	crt, err := newCertificate(certData)
+	crt, err := newCertificate(data.Certificate)
 	if err != nil {
 		ie.logger.Debug("failed parsing copied parent issuer certificate serial", zap.Error(err))
 
@@ -169,43 +137,27 @@ func (ie *issuer) parentSerialFromIssuerSecret(issuer *api.Secret) string {
 	return crt.serial
 }
 
-func (ie *issuer) newSkippedIssuerResult(issuer *api.Secret, isParent bool) issuerResult {
-	parentSerial := ""
-	if isParent {
-		parentSerial = ie.parentSerialFromIssuerSecret(issuer)
-	}
-
-	return issuerResult{
-		mountPath:         ie.mountPath,
-		id:                ie.id,
-		logger:            ie.logger,
-		skipped:           true,
-		isParent:          isParent,
-		certificateSerial: parentSerial,
-	}
-}
-
 // Creates CRL tasks from issuer and certificate distribution points.
-func (ie *issuer) buildCRLTasks(issuer *api.Secret, cert certificate, logger *zap.Logger) []crlTask {
-	if !ie.state.cfg.Crl.Enabled {
+func (ie *issuer) buildCRLTasks(data *issuerData, cert certificate, logger *zap.Logger) []crlTask {
+	if !ie.crlConfig.Enabled {
 		return nil
 	}
 
 	tasks := make([]crlTask, 0)
 	appendTasks := func(urls []string, role metadata.AttributeCrlRole, kind metadata.AttributeCrlKind) {
-		tasks = append(tasks, ie.buildCRLTasksForURIs(issuer, urls, role, kind)...)
+		tasks = append(tasks, ie.buildCRLTasksForURIs(data, urls, role, kind)...)
 	}
 
-	appendTasks(ie.listBaseCrlDistributionPoints(issuer), metadata.AttributeCrlRoleSubject, metadata.AttributeCrlKindBase)
-	appendTasks(ie.listDeltaCrlDistributionPoints(issuer), metadata.AttributeCrlRoleSubject, metadata.AttributeCrlKindDelta)
+	appendTasks(data.CRLDistributionPoints, metadata.AttributeCrlRoleSubject, metadata.AttributeCrlKindBase)
+	appendTasks(data.DeltaCRLDistributionPoints, metadata.AttributeCrlRoleSubject, metadata.AttributeCrlKindDelta)
 
-	if !ie.state.cfg.Crl.ScrapeParent {
+	if !ie.crlConfig.ScrapeParent {
 		return tasks
 	}
 
-	appendTasks(cert.listBaseCrlDistributionPoints(), metadata.AttributeCrlRoleIssuer, metadata.AttributeCrlKindBase)
+	appendTasks(cert.cert.CRLDistributionPoints, metadata.AttributeCrlRoleIssuer, metadata.AttributeCrlKindBase)
 
-	deltaIssuerURIs, err := cert.listDeltaCrlDistributionPoints()
+	deltaIssuerURIs, err := certutil.ParseDeltaCRLExtension(cert.cert)
 	if err != nil {
 		logger.Error("failed parsing delta CRL extension")
 
@@ -217,7 +169,7 @@ func (ie *issuer) buildCRLTasks(issuer *api.Secret, cert certificate, logger *za
 }
 
 // Converts raw URIs to labelled CRL task entries.
-func (ie *issuer) buildCRLTasksForURIs(issuer *api.Secret, urls []string, role metadata.AttributeCrlRole, kind metadata.AttributeCrlKind) []crlTask {
+func (ie *issuer) buildCRLTasksForURIs(data *issuerData, urls []string, role metadata.AttributeCrlRole, kind metadata.AttributeCrlKind) []crlTask {
 	if len(urls) == 0 {
 		return nil
 	}
@@ -225,10 +177,8 @@ func (ie *issuer) buildCRLTasksForURIs(issuer *api.Secret, urls []string, role m
 	tasks := make([]crlTask, 0, len(urls))
 	for _, rawURI := range urls {
 		realURI := rawURI
-		if issuer != nil && issuer.Data != nil {
-			if enable, ok := issuer.Data["enable_aia_url_templating"].(bool); ok && enable {
-				realURI = ie.renderAiaUrlTemplate(rawURI)
-			}
+		if data != nil && data.EnableAIAURLTemplating {
+			realURI = renderAiaUrlTemplate(rawURI, ie.id, ie.clusterConfig)
 		}
 		tasks = append(tasks, crlTask{
 			uri:  realURI,
@@ -238,12 +188,4 @@ func (ie *issuer) buildCRLTasksForURIs(issuer *api.Secret, urls []string, role m
 	}
 
 	return tasks
-}
-
-func (ie *issuer) listBaseCrlDistributionPoints(issuer *api.Secret) []string {
-	return toStringSlice(issuer.Data["crl_distribution_points"])
-}
-
-func (ie *issuer) listDeltaCrlDistributionPoints(issuer *api.Secret) []string {
-	return toStringSlice(issuer.Data["delta_crl_distribution_points"])
 }

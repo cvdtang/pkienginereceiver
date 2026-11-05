@@ -76,7 +76,7 @@ type mockauthMethod_authenticate_Call struct {
 // authenticate is a helper method to define mock.On call
 //   - ctx context.Context
 //   - client *api.Client
-func (_e *mockauthMethod_Expecter) authenticate(ctx interface{}, client interface{}) *mockauthMethod_authenticate_Call {
+func (_e *mockauthMethod_Expecter) authenticate(ctx any, client any) *mockauthMethod_authenticate_Call {
 	return &mockauthMethod_authenticate_Call{Call: _e.mock.On("authenticate", ctx, client)}
 }
 
@@ -149,7 +149,7 @@ type mockcrlCacheStore_Add_Call struct {
 // Add is a helper method to define mock.On call
 //   - key string
 //   - value crlCacheEntry
-func (_e *mockcrlCacheStore_Expecter) Add(key interface{}, value interface{}) *mockcrlCacheStore_Add_Call {
+func (_e *mockcrlCacheStore_Expecter) Add(key any, value any) *mockcrlCacheStore_Add_Call {
 	return &mockcrlCacheStore_Add_Call{Call: _e.mock.On("Add", key, value)}
 }
 
@@ -214,7 +214,7 @@ type mockcrlCacheStore_Get_Call struct {
 
 // Get is a helper method to define mock.On call
 //   - key string
-func (_e *mockcrlCacheStore_Expecter) Get(key interface{}) *mockcrlCacheStore_Get_Call {
+func (_e *mockcrlCacheStore_Expecter) Get(key any) *mockcrlCacheStore_Get_Call {
 	return &mockcrlCacheStore_Get_Call{Call: _e.mock.On("Get", key)}
 }
 
@@ -254,7 +254,7 @@ type mockcrlCacheStore_Remove_Call struct {
 
 // Remove is a helper method to define mock.On call
 //   - key string
-func (_e *mockcrlCacheStore_Expecter) Remove(key interface{}) *mockcrlCacheStore_Remove_Call {
+func (_e *mockcrlCacheStore_Expecter) Remove(key any) *mockcrlCacheStore_Remove_Call {
 	return &mockcrlCacheStore_Remove_Call{Call: _e.mock.On("Remove", key)}
 }
 
@@ -345,7 +345,7 @@ type mockcrlFetcher_fetch_Call struct {
 //   - timeout time.Duration
 //   - previousETag string
 //   - previousLastModified time.Time
-func (_e *mockcrlFetcher_Expecter) fetch(ctx interface{}, uri interface{}, timeout interface{}, previousETag interface{}, previousLastModified interface{}) *mockcrlFetcher_fetch_Call {
+func (_e *mockcrlFetcher_Expecter) fetch(ctx any, uri any, timeout any, previousETag any, previousLastModified any) *mockcrlFetcher_fetch_Call {
 	return &mockcrlFetcher_fetch_Call{Call: _e.mock.On("fetch", ctx, uri, timeout, previousETag, previousLastModified)}
 }
 
@@ -429,7 +429,7 @@ type mockcrlFetcher_fetchHTTP_Call struct {
 //   - timeout time.Duration
 //   - previousETag string
 //   - previousLastModified time.Time
-func (_e *mockcrlFetcher_Expecter) fetchHTTP(ctx interface{}, uri interface{}, timeout interface{}, previousETag interface{}, previousLastModified interface{}) *mockcrlFetcher_fetchHTTP_Call {
+func (_e *mockcrlFetcher_Expecter) fetchHTTP(ctx any, uri any, timeout any, previousETag any, previousLastModified any) *mockcrlFetcher_fetchHTTP_Call {
 	return &mockcrlFetcher_fetchHTTP_Call{Call: _e.mock.On("fetchHTTP", ctx, uri, timeout, previousETag, previousLastModified)}
 }
 
@@ -520,7 +520,7 @@ type mockcrlFetcher_fetchLDAP_Call struct {
 //   - dialer ldapDialer
 //   - uri string
 //   - timeout time.Duration
-func (_e *mockcrlFetcher_Expecter) fetchLDAP(ctx interface{}, dialer interface{}, uri interface{}, timeout interface{}) *mockcrlFetcher_fetchLDAP_Call {
+func (_e *mockcrlFetcher_Expecter) fetchLDAP(ctx any, dialer any, uri any, timeout any) *mockcrlFetcher_fetchLDAP_Call {
 	return &mockcrlFetcher_fetchLDAP_Call{Call: _e.mock.On("fetchLDAP", ctx, dialer, uri, timeout)}
 }
 
@@ -590,23 +590,23 @@ func (_m *mocksecretStore) EXPECT() *mocksecretStore_Expecter {
 }
 
 // listCertificates provides a mock function for the type mocksecretStore
-func (_mock *mocksecretStore) listCertificates(ctx context.Context, mount string) (*api.Secret, error) {
+func (_mock *mocksecretStore) listCertificates(ctx context.Context, mount string) ([]string, error) {
 	ret := _mock.Called(ctx, mount)
 
 	if len(ret) == 0 {
 		panic("no return value specified for listCertificates")
 	}
 
-	var r0 *api.Secret
+	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*api.Secret, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]string, error)); ok {
 		return returnFunc(ctx, mount)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *api.Secret); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []string); ok {
 		r0 = returnFunc(ctx, mount)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*api.Secret)
+			r0 = ret.Get(0).([]string)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
@@ -625,7 +625,7 @@ type mocksecretStore_listCertificates_Call struct {
 // listCertificates is a helper method to define mock.On call
 //   - ctx context.Context
 //   - mount string
-func (_e *mocksecretStore_Expecter) listCertificates(ctx interface{}, mount interface{}) *mocksecretStore_listCertificates_Call {
+func (_e *mocksecretStore_Expecter) listCertificates(ctx any, mount any) *mocksecretStore_listCertificates_Call {
 	return &mocksecretStore_listCertificates_Call{Call: _e.mock.On("listCertificates", ctx, mount)}
 }
 
@@ -647,34 +647,34 @@ func (_c *mocksecretStore_listCertificates_Call) Run(run func(ctx context.Contex
 	return _c
 }
 
-func (_c *mocksecretStore_listCertificates_Call) Return(secret *api.Secret, err error) *mocksecretStore_listCertificates_Call {
-	_c.Call.Return(secret, err)
+func (_c *mocksecretStore_listCertificates_Call) Return(strings []string, err error) *mocksecretStore_listCertificates_Call {
+	_c.Call.Return(strings, err)
 	return _c
 }
 
-func (_c *mocksecretStore_listCertificates_Call) RunAndReturn(run func(ctx context.Context, mount string) (*api.Secret, error)) *mocksecretStore_listCertificates_Call {
+func (_c *mocksecretStore_listCertificates_Call) RunAndReturn(run func(ctx context.Context, mount string) ([]string, error)) *mocksecretStore_listCertificates_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // listIssuers provides a mock function for the type mocksecretStore
-func (_mock *mocksecretStore) listIssuers(ctx context.Context, mount string) (*api.Secret, error) {
+func (_mock *mocksecretStore) listIssuers(ctx context.Context, mount string) ([]string, error) {
 	ret := _mock.Called(ctx, mount)
 
 	if len(ret) == 0 {
 		panic("no return value specified for listIssuers")
 	}
 
-	var r0 *api.Secret
+	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*api.Secret, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]string, error)); ok {
 		return returnFunc(ctx, mount)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *api.Secret); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []string); ok {
 		r0 = returnFunc(ctx, mount)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*api.Secret)
+			r0 = ret.Get(0).([]string)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
@@ -693,7 +693,7 @@ type mocksecretStore_listIssuers_Call struct {
 // listIssuers is a helper method to define mock.On call
 //   - ctx context.Context
 //   - mount string
-func (_e *mocksecretStore_Expecter) listIssuers(ctx interface{}, mount interface{}) *mocksecretStore_listIssuers_Call {
+func (_e *mocksecretStore_Expecter) listIssuers(ctx any, mount any) *mocksecretStore_listIssuers_Call {
 	return &mocksecretStore_listIssuers_Call{Call: _e.mock.On("listIssuers", ctx, mount)}
 }
 
@@ -715,12 +715,12 @@ func (_c *mocksecretStore_listIssuers_Call) Run(run func(ctx context.Context, mo
 	return _c
 }
 
-func (_c *mocksecretStore_listIssuers_Call) Return(secret *api.Secret, err error) *mocksecretStore_listIssuers_Call {
-	_c.Call.Return(secret, err)
+func (_c *mocksecretStore_listIssuers_Call) Return(strings []string, err error) *mocksecretStore_listIssuers_Call {
+	_c.Call.Return(strings, err)
 	return _c
 }
 
-func (_c *mocksecretStore_listIssuers_Call) RunAndReturn(run func(ctx context.Context, mount string) (*api.Secret, error)) *mocksecretStore_listIssuers_Call {
+func (_c *mocksecretStore_listIssuers_Call) RunAndReturn(run func(ctx context.Context, mount string) ([]string, error)) *mocksecretStore_listIssuers_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -760,7 +760,7 @@ type mocksecretStore_listMountPathsTypePki_Call struct {
 
 // listMountPathsTypePki is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *mocksecretStore_Expecter) listMountPathsTypePki(ctx interface{}) *mocksecretStore_listMountPathsTypePki_Call {
+func (_e *mocksecretStore_Expecter) listMountPathsTypePki(ctx any) *mocksecretStore_listMountPathsTypePki_Call {
 	return &mocksecretStore_listMountPathsTypePki_Call{Call: _e.mock.On("listMountPathsTypePki", ctx)}
 }
 
@@ -788,23 +788,23 @@ func (_c *mocksecretStore_listMountPathsTypePki_Call) RunAndReturn(run func(ctx 
 }
 
 // readCertificate provides a mock function for the type mocksecretStore
-func (_mock *mocksecretStore) readCertificate(ctx context.Context, mount string, serial string) (*api.Secret, error) {
+func (_mock *mocksecretStore) readCertificate(ctx context.Context, mount string, serial string) (*certificateData, error) {
 	ret := _mock.Called(ctx, mount, serial)
 
 	if len(ret) == 0 {
 		panic("no return value specified for readCertificate")
 	}
 
-	var r0 *api.Secret
+	var r0 *certificateData
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*api.Secret, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*certificateData, error)); ok {
 		return returnFunc(ctx, mount, serial)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *api.Secret); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *certificateData); ok {
 		r0 = returnFunc(ctx, mount, serial)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*api.Secret)
+			r0 = ret.Get(0).(*certificateData)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
@@ -824,7 +824,7 @@ type mocksecretStore_readCertificate_Call struct {
 //   - ctx context.Context
 //   - mount string
 //   - serial string
-func (_e *mocksecretStore_Expecter) readCertificate(ctx interface{}, mount interface{}, serial interface{}) *mocksecretStore_readCertificate_Call {
+func (_e *mocksecretStore_Expecter) readCertificate(ctx any, mount any, serial any) *mocksecretStore_readCertificate_Call {
 	return &mocksecretStore_readCertificate_Call{Call: _e.mock.On("readCertificate", ctx, mount, serial)}
 }
 
@@ -851,34 +851,34 @@ func (_c *mocksecretStore_readCertificate_Call) Run(run func(ctx context.Context
 	return _c
 }
 
-func (_c *mocksecretStore_readCertificate_Call) Return(secret *api.Secret, err error) *mocksecretStore_readCertificate_Call {
-	_c.Call.Return(secret, err)
+func (_c *mocksecretStore_readCertificate_Call) Return(certificateDataMoqParam *certificateData, err error) *mocksecretStore_readCertificate_Call {
+	_c.Call.Return(certificateDataMoqParam, err)
 	return _c
 }
 
-func (_c *mocksecretStore_readCertificate_Call) RunAndReturn(run func(ctx context.Context, mount string, serial string) (*api.Secret, error)) *mocksecretStore_readCertificate_Call {
+func (_c *mocksecretStore_readCertificate_Call) RunAndReturn(run func(ctx context.Context, mount string, serial string) (*certificateData, error)) *mocksecretStore_readCertificate_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // readClusterConfiguration provides a mock function for the type mocksecretStore
-func (_mock *mocksecretStore) readClusterConfiguration(ctx context.Context, mount string) (*api.Secret, error) {
+func (_mock *mocksecretStore) readClusterConfiguration(ctx context.Context, mount string) (*clusterConfigData, error) {
 	ret := _mock.Called(ctx, mount)
 
 	if len(ret) == 0 {
 		panic("no return value specified for readClusterConfiguration")
 	}
 
-	var r0 *api.Secret
+	var r0 *clusterConfigData
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*api.Secret, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*clusterConfigData, error)); ok {
 		return returnFunc(ctx, mount)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *api.Secret); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *clusterConfigData); ok {
 		r0 = returnFunc(ctx, mount)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*api.Secret)
+			r0 = ret.Get(0).(*clusterConfigData)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
@@ -897,7 +897,7 @@ type mocksecretStore_readClusterConfiguration_Call struct {
 // readClusterConfiguration is a helper method to define mock.On call
 //   - ctx context.Context
 //   - mount string
-func (_e *mocksecretStore_Expecter) readClusterConfiguration(ctx interface{}, mount interface{}) *mocksecretStore_readClusterConfiguration_Call {
+func (_e *mocksecretStore_Expecter) readClusterConfiguration(ctx any, mount any) *mocksecretStore_readClusterConfiguration_Call {
 	return &mocksecretStore_readClusterConfiguration_Call{Call: _e.mock.On("readClusterConfiguration", ctx, mount)}
 }
 
@@ -919,34 +919,34 @@ func (_c *mocksecretStore_readClusterConfiguration_Call) Run(run func(ctx contex
 	return _c
 }
 
-func (_c *mocksecretStore_readClusterConfiguration_Call) Return(secret *api.Secret, err error) *mocksecretStore_readClusterConfiguration_Call {
-	_c.Call.Return(secret, err)
+func (_c *mocksecretStore_readClusterConfiguration_Call) Return(clusterConfigDataMoqParam *clusterConfigData, err error) *mocksecretStore_readClusterConfiguration_Call {
+	_c.Call.Return(clusterConfigDataMoqParam, err)
 	return _c
 }
 
-func (_c *mocksecretStore_readClusterConfiguration_Call) RunAndReturn(run func(ctx context.Context, mount string) (*api.Secret, error)) *mocksecretStore_readClusterConfiguration_Call {
+func (_c *mocksecretStore_readClusterConfiguration_Call) RunAndReturn(run func(ctx context.Context, mount string) (*clusterConfigData, error)) *mocksecretStore_readClusterConfiguration_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // readIssuer provides a mock function for the type mocksecretStore
-func (_mock *mocksecretStore) readIssuer(ctx context.Context, mount string, id string) (*api.Secret, error) {
+func (_mock *mocksecretStore) readIssuer(ctx context.Context, mount string, id string) (*issuerData, error) {
 	ret := _mock.Called(ctx, mount, id)
 
 	if len(ret) == 0 {
 		panic("no return value specified for readIssuer")
 	}
 
-	var r0 *api.Secret
+	var r0 *issuerData
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*api.Secret, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*issuerData, error)); ok {
 		return returnFunc(ctx, mount, id)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *api.Secret); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *issuerData); ok {
 		r0 = returnFunc(ctx, mount, id)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*api.Secret)
+			r0 = ret.Get(0).(*issuerData)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
@@ -966,7 +966,7 @@ type mocksecretStore_readIssuer_Call struct {
 //   - ctx context.Context
 //   - mount string
 //   - id string
-func (_e *mocksecretStore_Expecter) readIssuer(ctx interface{}, mount interface{}, id interface{}) *mocksecretStore_readIssuer_Call {
+func (_e *mocksecretStore_Expecter) readIssuer(ctx any, mount any, id any) *mocksecretStore_readIssuer_Call {
 	return &mocksecretStore_readIssuer_Call{Call: _e.mock.On("readIssuer", ctx, mount, id)}
 }
 
@@ -993,12 +993,12 @@ func (_c *mocksecretStore_readIssuer_Call) Run(run func(ctx context.Context, mou
 	return _c
 }
 
-func (_c *mocksecretStore_readIssuer_Call) Return(secret *api.Secret, err error) *mocksecretStore_readIssuer_Call {
-	_c.Call.Return(secret, err)
+func (_c *mocksecretStore_readIssuer_Call) Return(issuerDataMoqParam *issuerData, err error) *mocksecretStore_readIssuer_Call {
+	_c.Call.Return(issuerDataMoqParam, err)
 	return _c
 }
 
-func (_c *mocksecretStore_readIssuer_Call) RunAndReturn(run func(ctx context.Context, mount string, id string) (*api.Secret, error)) *mocksecretStore_readIssuer_Call {
+func (_c *mocksecretStore_readIssuer_Call) RunAndReturn(run func(ctx context.Context, mount string, id string) (*issuerData, error)) *mocksecretStore_readIssuer_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1109,7 +1109,7 @@ type mockldapConn_Search_Call struct {
 
 // Search is a helper method to define mock.On call
 //   - searchRequest *ldap.SearchRequest
-func (_e *mockldapConn_Expecter) Search(searchRequest interface{}) *mockldapConn_Search_Call {
+func (_e *mockldapConn_Expecter) Search(searchRequest any) *mockldapConn_Search_Call {
 	return &mockldapConn_Search_Call{Call: _e.mock.On("Search", searchRequest)}
 }
 
@@ -1199,7 +1199,7 @@ type mockldapDialer_Dial_Call struct {
 // Dial is a helper method to define mock.On call
 //   - addr string
 //   - timeout time.Duration
-func (_e *mockldapDialer_Expecter) Dial(addr interface{}, timeout interface{}) *mockldapDialer_Dial_Call {
+func (_e *mockldapDialer_Expecter) Dial(addr any, timeout any) *mockldapDialer_Dial_Call {
 	return &mockldapDialer_Dial_Call{Call: _e.mock.On("Dial", addr, timeout)}
 }
 
