@@ -158,21 +158,6 @@ func TestCertificate_New_ParseErr(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestCertificate_CollectMetrics(t *testing.T) {
-	t.Parallel()
-
-	startTime := time.Now()
-	_, certDER := getTestCertData(t, "ACME org")
-	cert, err := parseCertificate(certDER)
-	require.NoError(t, err)
-	metrics := collectCertificateMetrics(cert)
-
-	assert.GreaterOrEqual(t, metrics.ts.AsTime(), startTime)
-
-	assert.Positive(t, metrics.notAfterMinutes)
-	assert.Negative(t, metrics.notBeforeMinutes)
-}
-
 func TestCertificate_Emit(t *testing.T) {
 	t.Parallel()
 
@@ -180,7 +165,7 @@ func TestCertificate_Emit(t *testing.T) {
 
 	crt := createTestCertificate(t)
 
-	state := createTestScrapeState(t)
+	state := createTestScrapeRun(t)
 	rb := state.mb.NewResourceBuilder()
 	crt.emit(state.mb, metadata.AttributeCertTypeIssuer, "pki/", "58390ed4-aaab-488f-8cc1-cc006df63e37")
 
@@ -234,7 +219,7 @@ func TestCertificate_Emit_Leaf(t *testing.T) {
 
 	crt := createTestCertificate(t)
 
-	state := createTestScrapeState(t)
+	state := createTestScrapeRun(t)
 	rb := state.mb.NewResourceBuilder()
 	crt.emit(state.mb, metadata.AttributeCertTypeLeaf, "pki/", "")
 

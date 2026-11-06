@@ -11,16 +11,13 @@ type scrapeErrorTotals struct {
 	issuerErrors atomic.Int64
 }
 
-func (s *pkiEngineScraper) recordGlobalMetrics(
-	sharedState *scrapeShared,
-	errorTotals *scrapeErrorTotals,
-	ts pcommon.Timestamp,
-) {
-	sharedState.mb.RecordPkiengineCrlCacheHitsDataPoint(ts, sharedState.crls.cacheHits.Load())
-	sharedState.mb.RecordPkiengineCrlCacheMissesDataPoint(ts, sharedState.crls.cacheMisses.Load())
+// Records the scrape-global counters, which are final once collection finished.
+func (r *scrapeRun) recordGlobalMetrics(ts pcommon.Timestamp) {
+	r.mb.RecordPkiengineCrlCacheHitsDataPoint(ts, r.crls.cacheHits.Load())
+	r.mb.RecordPkiengineCrlCacheMissesDataPoint(ts, r.crls.cacheMisses.Load())
 
-	sharedState.mb.RecordPkiengineMountErrorsDataPoint(ts, errorTotals.mountErrors.Load())
-	sharedState.mb.RecordPkiengineIssuerErrorsDataPoint(ts, errorTotals.issuerErrors.Load())
+	r.mb.RecordPkiengineMountErrorsDataPoint(ts, r.errorTotals.mountErrors.Load())
+	r.mb.RecordPkiengineIssuerErrorsDataPoint(ts, r.errorTotals.issuerErrors.Load())
 
-	sharedState.mb.RecordPkiengineRateLimitThrottledDataPoint(ts, sharedState.rateObserver.throttled.Load())
+	r.mb.RecordPkiengineRateLimitThrottledDataPoint(ts, r.throttled.Load())
 }

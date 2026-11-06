@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/golden"
@@ -67,7 +68,7 @@ func createTestScraperWithConfig(t *testing.T, configure func(cfg *config)) (*pk
 func scrapeTestCtx(t *testing.T) context.Context {
 	t.Helper()
 
-	return withRateLimitCounter(t.Context(), &newRateObserver().throttled)
+	return withRateLimitCounter(t.Context(), new(atomic.Int64))
 }
 
 func assertEquivalentScrapeMetrics(t *testing.T, expectedMetrics pmetric.Metrics, actualMetrics pmetric.Metrics) {

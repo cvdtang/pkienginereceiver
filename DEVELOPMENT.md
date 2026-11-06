@@ -35,11 +35,13 @@ Both Vault and OpenBao officially support only the latest public version. Note t
 # Concurrency
 Processing speed is mainly limited by the speed of network requests.
 
-To manage system load, a fixed-size worker pool executes mount, issuer and CRL tasks. The concurrency limit configures the worker count and therefore the maximum number of concurrent network operations. Tasks can enqueue follow-up work (mounts enqueue issuers, issuers enqueue CRLs).
+To manage system load, work is split into tasks: reading a mount, reading an issuer, fetching a CRL or reading a leaf certificate, each including its network requests and parsing.
+
+A task goroutine is only started once it holds a task slot, so goroutines are not created ahead of the work. To stay deadlock-free, a task never acquires another slot or waits for other tasks. Only mount goroutines start tasks and wait for them, without holding a task slot.
 
 Each CRL URI is fetched at most once per scrape, regardless of how many issuers, roles and kinds reference it, which prevents thundering herds.
 
-The metric builder is not concurrency-safe and requires a lock during operation. Resource attributes are scrape-scoped (`engine.address`, `engine.namespace`) while `engine.mount` is carried as a metric attribute on mount-scoped metrics to support scrape-global error metrics.
+The metric builder is not concurrency-safe, so collected values are recorded once after all collection finished. Resource attributes are scrape-scoped (`engine.address`, `engine.namespace`) while `engine.mount` is carried as a metric attribute on mount-scoped metrics to support scrape-global error metrics.
 The Terraform variables `num_two_tier`, `num_standalone` and `num_leaf` can be adjusted to test different deployment sizes. It's recommended to use a mount per issuer ([reference](https://developer.hashicorp.com/vault/docs/secrets/pki/considerations#one-ca-certificate-one-secrets-engine)), however this is not enforced.
 
 # Rate limiting
@@ -47,7 +49,7 @@ Vault and OpenBao can return rate-limit response headers when `enable_rate_limit
 
 The Vault Go SDK cannot handle this on its own. Its retry budget (`MaxRetries`, default 2) is a flat, status-blind attempt counter, so it cannot separate "retry 429 until the quota resets" from "retry 5xx a few times". A count cap is also the wrong bound for rate limiting: a `Retry-After: 0` hot-loop would exhaust the budget right before the reset. This is why the receiver keeps the SDK's internal retries but adds a small custom loop in `vault.rawLogical`.
 
-The approach is a stateless blocking retry. The client never paces requests proactively. Instead, a 429 is retried until it succeeds or the request deadline expires, honoring the server's `Retry-After` and blocking only the throttled worker, so the bounded worker pool keeps processing other requests and naturally runs at the rate the store allows.
+The approach is a stateless blocking retry. The client never paces requests proactively. Instead, a 429 is retried until it succeeds or the request deadline expires, honoring the server's `Retry-After` and blocking only the throttled request. The request keeps its task slot while waiting, so the remaining slots keep processing other requests and the scraper naturally runs at the rate the store allows.
 
 The logic flow for each request:
 

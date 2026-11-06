@@ -79,16 +79,3 @@ func rateLimitCounterFromContext(ctx context.Context) *atomic.Int64 {
 
 	return nil
 }
-
-// Holds the per-scrape rate limit observations.
-// It is replaced at the start of each scrape and never shared across scrapes.
-// Throttling is handled by the blocking retry loop in vault.rawLogical;
-// the counter is incremented by the SDK CheckRetry hook for every 429 response the
-// scraper receives, including ones the SDK retries internally.
-type rateObserver struct {
-	throttled atomic.Int64
-}
-
-func newRateObserver() *rateObserver {
-	return &rateObserver{}
-}

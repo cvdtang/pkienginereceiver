@@ -2,141 +2,179 @@ package pkienginereceiver
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
-func TestScrapeTaskPoolDrainsDynamicallySubmittedTasks(t *testing.T) {
-	t.Parallel()
-
-	pool := newScrapeTaskPool(context.Background(), 2)
-
-	var executed atomic.Int64
-	pool.submit(func() {
-		executed.Add(1)
-		for range 5 {
-			pool.submit(func() {
-				executed.Add(1)
-			})
-		}
-	})
-
-	pool.wait()
-
-	assert.Equal(t, int64(6), executed.Load())
+// Tracks the maximum number of concurrently running calls.
+type inFlightTracker struct {
+	current atomic.Int64
+	max     atomic.Int64
 }
 
-func TestScrapeTaskPoolRecursiveEnqueueNoDeadlock(t *testing.T) {
-	t.Parallel()
-
-	const depth = 5000
-	pool := newScrapeTaskPool(context.Background(), 1)
-
-	var executed atomic.Int64
-	var enqueue func(level int)
-	enqueue = func(level int) {
-		executed.Add(1)
-		if level == 0 {
+func (tr *inFlightTracker) enter() {
+	current := tr.current.Add(1)
+	for {
+		prev := tr.max.Load()
+		if current <= prev || tr.max.CompareAndSwap(prev, current) {
 			return
 		}
-
-		pool.submit(func() {
-			enqueue(level - 1)
-		})
 	}
-
-	pool.submit(func() {
-		enqueue(depth)
-	})
-
-	pool.wait()
-
-	assert.Equal(t, int64(depth+1), executed.Load())
 }
 
-func TestScrapeTaskPoolBoundedSchedulerGoroutines(t *testing.T) {
-	t.Parallel()
-
-	pool := newScrapeTaskPool(context.Background(), 1)
-
-	var inFlight atomic.Int64
-	var maxInFlight atomic.Int64
-	withInFlightAccounting := func(taskFn func()) func() {
-		return func() {
-			current := inFlight.Add(1)
-			for {
-				prev := maxInFlight.Load()
-				if current <= prev {
-					break
-				}
-				if maxInFlight.CompareAndSwap(prev, current) {
-					break
-				}
-			}
-			defer inFlight.Add(-1)
-
-			taskFn()
-		}
-	}
-
-	started := make(chan struct{})
-	submittedFanout := make(chan struct{})
-	releaseFirst := make(chan struct{})
-	const fanout = 30000
-	pool.submit(withInFlightAccounting(func() {
-		close(started)
-		for range fanout {
-			pool.submit(withInFlightAccounting(func() {}))
-		}
-		close(submittedFanout)
-		<-releaseFirst
-	}))
-
-	<-started
-	<-submittedFanout
-	close(releaseFirst)
-	pool.wait()
-
-	assert.Equal(t, int64(1), maxInFlight.Load())
+func (tr *inFlightTracker) leave() {
+	tr.current.Add(-1)
 }
 
-func TestScrapeTaskPoolWaitReturnsAfterContextCancel(t *testing.T) {
+// Ensures leaf certificate reads are bounded by the concurrency limit.
+func TestScrapeBoundsLeafCertificateReads(t *testing.T) {
+	t.Parallel()
+	ctx := scrapeTestCtx(t)
+
+	const leafs = 40
+	scraper, mockSecretStore := createTestScraperWithConfig(t, func(cfg *config) {
+		cfg.Leaf.Enabled = true
+		cfg.ConcurrencyLimit = 2
+	})
+	_, leafCertPEM := getTestCertDataWithOU(t, testLeafCommonName, "App")
+
+	serials := make([]string, 0, leafs)
+	for i := range leafs {
+		serials = append(serials, fmt.Sprintf("%02x", i+1))
+	}
+
+	var tracker inFlightTracker
+	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
+	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(newTestClusterConfigData("", ""), nil)
+	mockSecretStore.On("listCertificates", ctx, testMountPath).Return(serials, nil)
+	mockSecretStore.On("listIssuers", ctx, testMountPath).Return([]string{}, nil)
+	mockSecretStore.On("readCertificate", ctx, testMountPath, mock.Anything).Run(func(mock.Arguments) {
+		tracker.enter()
+		defer tracker.leave()
+		time.Sleep(time.Millisecond)
+	}).Return(&certificateData{Certificate: string(leafCertPEM)}, nil)
+
+	require.NoError(t, scraper.start(ctx, newMdatagenNopHost()))
+	metrics, err := scraper.scrape(ctx)
+	require.NoError(t, err)
+	require.NoError(t, scraper.shutdown(ctx))
+
+	assert.Equal(t, 1, countLeafDataPoints(metrics, "pkiengine.cert.x509.not_after"))
+	mockSecretStore.AssertNumberOfCalls(t, "readCertificate", leafs)
+	assert.LessOrEqual(t, tracker.max.Load(), int64(2))
+}
+
+// Ensures a cancelled scrape returns and counts the skipped mounts as errors.
+func TestScrapeRunStopsOnCancelledContext(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	pool := newScrapeTaskPool(ctx, 1)
-
-	started := make(chan struct{})
-	release := make(chan struct{})
-	var executed atomic.Int64
-
-	pool.submit(func() {
-		executed.Add(1)
-		close(started)
-		<-release
-		pool.submit(func() {
-			executed.Add(1)
-		})
-	})
-
-	<-started
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	close(release)
 
-	done := make(chan struct{})
-	go func() {
-		pool.wait()
-		close(done)
-	}()
+	scraper, _ := createTestScraper(t)
+	run := newScrapeRun(scraper, scraper.secretStore)
+
+	done := make(chan []mountOutput)
+	go func() { done <- run.collect(ctx, []string{"a/", "b/"}) }()
 
 	select {
-	case <-done:
+	case outputs := <-done:
+		assert.Empty(t, outputs)
 	case <-time.After(2 * time.Second):
-		t.Fatal("pool wait did not return after context cancellation")
+		t.Fatal("collect did not return after context cancellation")
 	}
+	assert.Equal(t, int64(2), run.errorTotals.mountErrors.Load())
+}
 
-	assert.Equal(t, int64(1), executed.Load())
+func createTestScrapeRun(t *testing.T) *scrapeRun {
+	t.Helper()
+
+	scraper, _ := createTestScraperWithConfig(t, func(cfg *config) {
+		cfg.Crl.Timeout = time.Second
+		cfg.Crl.RetryInterval = 0
+		cfg.Leaf.Enabled = true
+	})
+
+	return newScrapeRun(scraper, scraper.secretStore)
+}
+
+// Ensures a scrape never exceeds the task limit and cannot deadlock.
+func TestScrapeTaskLimit(t *testing.T) {
+	t.Parallel()
+
+	_, crlDER := createTestCrlData(t)
+	_, issuerPEM := getTestCertDataWithOU(t, "Issuer", "CA")
+	_, leafPEM := getTestCertDataWithOU(t, testLeafCommonName, "App")
+
+	for _, limit := range []int{1, 2, 3} {
+		t.Run(fmt.Sprintf("limit=%d", limit), func(t *testing.T) {
+			t.Parallel()
+
+			var tracker inFlightTracker
+			work := func() {
+				tracker.enter()
+				defer tracker.leave()
+				time.Sleep(200 * time.Microsecond)
+			}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				work()
+				_, _ = w.Write(crlDER)
+			}))
+			defer server.Close()
+
+			const mounts, issuers, leafs = 30, 3, 5
+			scraper, mockSecretStore := createTestScraperWithConfig(t, func(cfg *config) {
+				cfg.Leaf.Enabled = true
+				cfg.ConcurrencyLimit = limit
+			})
+			mountPaths := make([]string, mounts)
+			for i := range mounts {
+				mountPaths[i] = fmt.Sprintf("pki%d/", i)
+			}
+			track := func(mock.Arguments) { work() }
+			mockSecretStore.On("listMountPathsTypePki", mock.Anything).Return(mountPaths, nil)
+			mockSecretStore.On("readClusterConfiguration", mock.Anything, mock.Anything).Run(track).Return(newTestClusterConfigData("", ""), nil)
+			mockSecretStore.On("listCertificates", mock.Anything, mock.Anything).Run(track).Return([]string{"01", "02", "03", "04", "05"}, nil)
+			mockSecretStore.On("listIssuers", mock.Anything, mock.Anything).Run(track).Return([]string{"a", "b", "c"}, nil)
+			mockSecretStore.On("readIssuer", mock.Anything, mock.Anything, mock.Anything).Run(track).Return(
+				func(_ context.Context, mount string, id string) *issuerData {
+					return &issuerData{
+						Certificate: string(issuerPEM),
+						KeyID:       json.RawMessage(`"key"`),
+						// Shared by all mounts, by the issuers of a mount and per issuer.
+						CRLDistributionPoints: []string{server.URL + "/shared", server.URL + "/" + mount, server.URL + "/" + mount + id},
+					}
+				}, nil)
+			mockSecretStore.On("readCertificate", mock.Anything, mock.Anything, mock.Anything).Run(track).
+				Return(&certificateData{Certificate: string(leafPEM)}, nil)
+
+			ctx := scrapeTestCtx(t)
+			require.NoError(t, scraper.start(ctx, newMdatagenNopHost()))
+			done := make(chan error, 1)
+			go func() {
+				_, err := scraper.scrape(ctx)
+				done <- err
+			}()
+			select {
+			case err := <-done:
+				require.NoError(t, err)
+			case <-time.After(10 * time.Second):
+				t.Fatal("scrape deadlocked")
+			}
+			require.NoError(t, scraper.shutdown(ctx))
+
+			assert.Equal(t, int64(limit), tracker.max.Load())
+			mockSecretStore.AssertNumberOfCalls(t, "readIssuer", mounts*issuers)
+			mockSecretStore.AssertNumberOfCalls(t, "readCertificate", mounts*leafs)
+		})
+	}
 }

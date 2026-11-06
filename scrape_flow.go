@@ -3,129 +3,189 @@ package pkienginereceiver
 import (
 	"context"
 	"sync"
+	"sync/atomic"
+	"time"
+
+	"go.uber.org/zap"
+	"golang.org/x/sync/semaphore"
 
 	"github.com/cvdtang/pkienginereceiver/internal/metadata"
-	"go.uber.org/zap"
 )
 
+// Per-scrape runtime collecting mounts, issuers, CRLs and leaf certificates.
+//
+// Work is split into tasks: reading a mount, reading an issuer,
+// fetching a CRL or reading a leaf certificate, each including its requests and parsing.
+// At most workerCount tasks run concurrently. To stay deadlock-free:
+//   - a task goroutine is only started once it holds a task slot,
+//   - a task never acquires a task slot or waits for other tasks,
+//   - only mount goroutines start tasks and wait for them, without holding a task slot.
 type scrapeRun struct {
-	ctx         context.Context
 	scraper     *pkiEngineScraper
-	shared      *scrapeShared
+	cfg         *config
 	secretStore secretStore
+	crls        *crlCollector
+	mb          *metadata.MetricsBuilder
+
 	errorTotals scrapeErrorTotals
+	throttled atomic.Int64
+
+	tasks  *semaphore.Weighted
+	mounts *semaphore.Weighted
+
+	crlWg sync.WaitGroup
 }
 
-// Creates one per-scrape runtime that owns concurrency and shared counters.
-func newScrapeRun(ctx context.Context, scraper *pkiEngineScraper, sharedState *scrapeShared, store secretStore) *scrapeRun {
+// Collected values of one mount.
+type mountOutput struct {
+	mount   mountResult
+	issuers []issuerResult
+	leafs   []leafCert
+}
+
+// Creates one per-scrape runtime.
+func newScrapeRun(scraper *pkiEngineScraper, store secretStore) *scrapeRun {
+	cfg := &scraper.cfg
+	workers := int64(cfg.workerCount())
+
 	return &scrapeRun{
-		ctx:         ctx,
 		scraper:     scraper,
-		shared:      sharedState,
+		cfg:         cfg,
 		secretStore: store,
+		crls:        newCRLCollector(scraper.logger, cfg.Crl, scraper.crlCache, &realCrlFetcher{client: scraper.crlClient}),
+		mb:          metadata.NewMetricsBuilder(cfg.MetricsBuilderConfig, scraper.settings),
+		tasks:       semaphore.NewWeighted(workers),
+		mounts:      semaphore.NewWeighted(workers),
 	}
 }
 
-func (r *scrapeRun) parallelismLimit() int {
-	return r.scraper.cfg.workerCount()
+// Starts fn as a task once a task slot is free.
+// Reports false when the context is done before a slot was free.
+func (r *scrapeRun) goTask(ctx context.Context, wg *sync.WaitGroup, fn func()) bool {
+	if r.tasks.Acquire(ctx, 1) != nil {
+		return false
+	}
+	wg.Go(func() {
+		defer r.tasks.Release(1)
+		fn()
+	})
+
+	return true
 }
 
-// Fans out mount/issuer/leaf/crl processing through one shared bounded worker pool.
-func (r *scrapeRun) processMounts(mountPaths []string) {
-	pool := newScrapeTaskPool(r.ctx, r.parallelismLimit())
+// Collects all mounts and waits for the scheduled CRL tasks.
+func (r *scrapeRun) collect(ctx context.Context, mountPaths []string) []mountOutput {
+	outputs := make([]mountOutput, len(mountPaths))
+	collected := make([]bool, len(mountPaths))
 
-	for _, mountPath := range mountPaths {
-		pool.submit(func() {
-			r.handleMountTask(pool, mountPath)
+	var wg sync.WaitGroup
+	for i, mountPath := range mountPaths {
+		if r.mounts.Acquire(ctx, 1) != nil {
+			r.errorTotals.mountErrors.Add(int64(len(mountPaths) - i))
+
+			break
+		}
+		wg.Go(func() {
+			defer r.mounts.Release(1)
+			outputs[i], collected[i] = r.collectMountTree(ctx, mountPath)
 		})
 	}
+	wg.Wait()
+	r.crlWg.Wait()
 
-	pool.wait()
+	result := outputs[:0]
+	for i := range outputs {
+		if collected[i] {
+			result = append(result, outputs[i])
+		}
+	}
+
+	return result
 }
 
-// Builds mount-local state and schedules issuer work, or immediate leaf planning for issuer-less mounts.
-func (r *scrapeRun) handleMountTask(pool *scrapeTaskPool, mountPath string) {
+// Collects a mount, its issuers and its leaf certificates, and schedules the CRL tasks of its issuers.
+func (r *scrapeRun) collectMountTree(ctx context.Context, mountPath string) (mountOutput, bool) {
 	stageMount := newMount(
 		r.scraper.logger,
 		r.secretStore,
 		mountPath,
-		r.shared.shouldCollectCertificates(),
+		r.cfg.Metrics.PkiengineMountCertificatesStored.Enabled || r.cfg.Leaf.Enabled,
 	)
 
-	result, ok := r.collectMount(stageMount)
-	if !ok {
-		return
-	}
-
-	mountState := newMountWorkState(stageMount, result, r.shared.cfg.Leaf.Enabled)
-
-	for _, issuerID := range result.issuerIDs {
-		pool.submit(func() {
-			r.handleIssuerTask(pool, mountState, issuerID)
-		})
-	}
-
-	if r.shared.cfg.Leaf.Enabled && mountState.issuerDone() {
-		pool.submit(func() {
-			r.handleLeafPlanTask(pool, mountState)
-		})
-	}
-}
-
-// Collects mount-level data and emits mount metrics.
-func (r *scrapeRun) collectMount(stageMount mount) (mountResult, bool) {
-	result, err := stageMount.collect(r.ctx)
+	result, err := withSlot(ctx, r.tasks, func() (mountResult, error) {
+		return stageMount.collect(ctx)
+	})
 	if err != nil {
 		r.errorTotals.mountErrors.Add(1)
 		stageMount.logger.Warn("failed processing mount", zap.Error(err))
 
-		return mountResult{}, false
+		return mountOutput{}, false
 	}
 
-	r.shared.emitMount(result)
+	output := mountOutput{mount: result}
+	issuerSerials := make(map[string]struct{})
+	parentSerials := make(map[string]struct{})
+	for _, issuer := range r.collectIssuers(ctx, stageMount, result) {
+		if issuer.isParent {
+			if issuer.certificateSerial != "" {
+				parentSerials[issuer.certificateSerial] = struct{}{}
+			}
 
-	return result, true
+			continue
+		}
+		issuerSerials[issuer.certificateSerial] = struct{}{}
+		output.issuers = append(output.issuers, issuer)
+		r.scheduleCRLs(ctx, issuer)
+	}
+
+	if r.cfg.Leaf.Enabled {
+		serials := leafCandidates(stageMount.logger, result.certificateSerials, issuerSerials, parentSerials)
+		output.leafs = r.collectLeafs(ctx, stageMount, serials)
+	}
+
+	return output, true
 }
 
-// Processes one issuer task, updates serial classification state, emits issuer metrics and schedules CRL work.
-// Leaf planning is scheduled exactly once by the issuer task that decrements pendingIssuers to zero.
-func (r *scrapeRun) handleIssuerTask(pool *scrapeTaskPool, mountState *mountWorkState, issuerID string) {
-	if r.shared.cfg.Leaf.Enabled {
-		defer func() {
-			if mountState.issuerDone() {
-				pool.submit(func() {
-					r.handleLeafPlanTask(pool, mountState)
-				})
-			}
-		}()
+// Collects the issuers of a mount as tasks.
+func (r *scrapeRun) collectIssuers(ctx context.Context, stageMount mount, result mountResult) []issuerResult {
+	issuers := make([]issuerResult, len(result.issuerIDs))
+	collected := make([]bool, len(result.issuerIDs))
+
+	var wg sync.WaitGroup
+	for i, issuerID := range result.issuerIDs {
+		started := r.goTask(ctx, &wg, func() {
+			issuers[i], collected[i] = r.collectIssuer(ctx, stageMount, result.clusterConfig, issuerID)
+		})
+		if !started {
+			r.errorTotals.issuerErrors.Add(int64(len(result.issuerIDs) - i))
+
+			break
+		}
+	}
+	wg.Wait()
+
+	output := issuers[:0]
+	for i := range issuers {
+		if collected[i] {
+			output = append(output, issuers[i])
+		}
 	}
 
-	result, ok := r.collectIssuer(mountState.mount, mountState.clusterCfg, issuerID)
-	if !ok {
-		return
-	}
-
-	mountState.recordIssuerSerial(result.certificateSerial, result.isParent)
-	if result.isParent {
-		return
-	}
-
-	r.shared.emitIssuer(result)
-	r.enqueueCRLTasks(pool, result)
+	return output
 }
 
 // Collects one issuer and increments scrape-level issuer errors on failure.
-func (r *scrapeRun) collectIssuer(stageMount mount, clusterCfg clusterConfig, issuerID string) (issuerResult, bool) {
+func (r *scrapeRun) collectIssuer(ctx context.Context, stageMount mount, clusterCfg clusterConfig, issuerID string) (issuerResult, bool) {
 	issuer := newIssuer(
 		stageMount.logger,
 		r.secretStore,
-		r.shared.cfg.Crl,
+		r.cfg.Crl,
 		stageMount.path,
 		issuerID,
 		clusterCfg,
 	)
 
-	result, collectErr := issuer.collect(r.ctx)
+	result, collectErr := issuer.collect(ctx)
 	if collectErr != nil {
 		r.errorTotals.issuerErrors.Add(1)
 		issuer.logger.Warn("failed processing issuer", zap.Error(collectErr))
@@ -136,10 +196,10 @@ func (r *scrapeRun) collectIssuer(stageMount mount, clusterCfg clusterConfig, is
 	return result, true
 }
 
-// Claims the CRL series of an issuer and submits one CRL task per URI not yet collected in this scrape.
-func (r *scrapeRun) enqueueCRLTasks(pool *scrapeTaskPool, result issuerResult) {
+// Claims the CRL series of an issuer and starts one CRL task per URI not yet collected in this scrape.
+func (r *scrapeRun) scheduleCRLs(ctx context.Context, result issuerResult) {
 	for _, task := range result.crlTasks {
-		claimed, collect := r.shared.crls.claim(task)
+		claimed, collect := r.crls.claim(task)
 		if !claimed {
 			result.logger.Debug(
 				"skipping duplicate crl in scrape",
@@ -154,108 +214,75 @@ func (r *scrapeRun) enqueueCRLTasks(pool *scrapeTaskPool, result issuerResult) {
 			continue
 		}
 
-		logger := result.logger.With(zap.String("crl.uri", task.uri))
-		pool.submit(func() {
-			if _, err := r.shared.crls.collect(r.ctx, logger, task.uri); err != nil {
+		logger := result.logger.WithLazy(zap.String("crl.uri", task.uri))
+		r.goTask(ctx, &r.crlWg, func() {
+			if _, err := r.crls.collect(ctx, logger, task.uri); err != nil {
 				logger.Warn("failed processing crl", zap.Error(err))
 			}
 		})
 	}
 }
 
-func (r *scrapeRun) handleLeafPlanTask(pool *scrapeTaskPool, mountState *mountWorkState) {
-	for _, serial := range mountState.leafCandidates() {
-		pool.submit(func() {
-			r.processCertificate(mountState.mount, serial)
+// Reads the leaf certificates of a mount as tasks.
+func (r *scrapeRun) collectLeafs(ctx context.Context, stageMount mount, serials []string) []leafCert {
+	var leafs []leafCert
+
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	for _, serial := range serials {
+		started := r.goTask(ctx, &wg, func() {
+			crt, err := readStoredCertificate(ctx, r.secretStore, stageMount.path, serial)
+			if err != nil {
+				stageMount.logger.Warn("failed processing certificate", zap.String("cert.serial", serial), zap.Error(err))
+
+				return
+			}
+
+			leaf := newLeafCert(crt)
+
+			mu.Lock()
+			leafs = append(leafs, leaf)
+			mu.Unlock()
 		})
+		if !started {
+			break
+		}
 	}
+	wg.Wait()
+
+	return leafs
 }
 
-// Emits one stored certificate as a leaf certificate.
-func (r *scrapeRun) processCertificate(stageMount mount, serial string) {
-	crt, err := readStoredCertificate(r.ctx, r.secretStore, stageMount.path, serial)
-	if err != nil {
-		stageMount.logger.Warn("failed processing certificate", zap.String("cert.serial", serial), zap.Error(err))
+// Records all collected values to the metrics builder.
+func (r *scrapeRun) emit(outputs []mountOutput) {
+	now := time.Now()
 
-		return
+	for _, output := range outputs {
+		if output.mount.storedCertificates != nil {
+			r.mb.RecordPkiengineMountCertificatesStoredDataPoint(
+				output.mount.ts,
+				*output.mount.storedCertificates,
+				output.mount.path,
+			)
+		}
+		for _, issuer := range output.issuers {
+			issuer.certificate.emit(r.mb, metadata.AttributeCertTypeIssuer, issuer.mountPath, issuer.id)
+		}
+		for i := range output.leafs {
+			output.leafs[i].emit(r.mb, now, output.mount.path)
+		}
 	}
 
-	r.shared.emitCert(crt, metadata.AttributeCertTypeLeaf, stageMount.path, "")
+	r.crls.emit(r.mb)
 }
 
-type mountWorkState struct {
-	mount              mount
-	clusterCfg         clusterConfig
-	certificateSerials []string
-	issuerSerials      map[string]struct{}
-	parentSerials      map[string]struct{}
-	pendingIssuers     int
-	mu                 sync.Mutex
-}
-
-func newMountWorkState(stageMount mount, result mountResult, leafEnabled bool) *mountWorkState {
-	pendingIssuers := len(result.issuerIDs)
-	if leafEnabled {
-		// Include the mount task in the completion counter so zero-issuer mounts
-		// use the same leaf-planning path as mounts with issuers.
-		pendingIssuers++
-	}
-
-	return &mountWorkState{
-		mount:              stageMount,
-		clusterCfg:         result.clusterConfig,
-		certificateSerials: result.certificateSerials,
-		issuerSerials:      make(map[string]struct{}),
-		parentSerials:      make(map[string]struct{}),
-		pendingIssuers:     pendingIssuers,
-	}
-}
-
-func (m *mountWorkState) recordIssuerSerial(serial string, isParent bool) {
-	if serial == "" {
-		return
-	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if isParent {
-		m.parentSerials[serial] = struct{}{}
-	} else {
-		m.issuerSerials[serial] = struct{}{}
-	}
-}
-
-func (m *mountWorkState) issuerDone() bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.pendingIssuers <= 0 {
-		return false
-	}
-
-	m.pendingIssuers--
-
-	return m.pendingIssuers == 0
-}
-
-func (m *mountWorkState) leafCandidates() []string {
-	m.mu.Lock()
-	certificateSerials := append([]string(nil), m.certificateSerials...)
-	issuerSerials := make(map[string]struct{}, len(m.issuerSerials))
-	for serial := range m.issuerSerials {
-		issuerSerials[serial] = struct{}{}
-	}
-	parentSerials := make(map[string]struct{}, len(m.parentSerials))
-	for serial := range m.parentSerials {
-		parentSerials[serial] = struct{}{}
-	}
-	m.mu.Unlock()
-
+// Returns the stored certificate serials which are neither issuers nor copied parent issuers of the mount.
+func leafCandidates(logger *zap.Logger, certificateSerials []string, issuerSerials, parentSerials map[string]struct{}) []string {
 	leafSerials := make([]string, 0, len(certificateSerials))
 	for _, serial := range certificateSerials {
 		normalizedSerial, ok := normalizeCertificateSerial(serial)
 		if !ok {
-			m.mount.logger.Warn("invalid certificate id, skipping certificate", zap.String("cert.id", serial))
+			logger.Warn("invalid certificate id, skipping certificate", zap.String("cert.id", serial))
 
 			continue
 		}
@@ -272,89 +299,14 @@ func (m *mountWorkState) leafCandidates() []string {
 	return leafSerials
 }
 
-type scrapeTaskPool struct {
-	ctx context.Context
+// Runs fn while holding one slot of the semaphore.
+func withSlot[T any](ctx context.Context, sem *semaphore.Weighted, fn func() (T, error)) (T, error) {
+	if err := sem.Acquire(ctx, 1); err != nil {
+		var zero T
 
-	mu        sync.Mutex
-	cond      *sync.Cond
-	queue     []func()
-	accepting bool
-	pending   int
-
-	workers sync.WaitGroup
-}
-
-func newScrapeTaskPool(ctx context.Context, workerCount int) *scrapeTaskPool {
-	if workerCount < 1 {
-		workerCount = 1
+		return zero, err
 	}
+	defer sem.Release(1)
 
-	pool := &scrapeTaskPool{
-		ctx:       ctx,
-		queue:     make([]func(), 0),
-		accepting: true,
-	}
-	pool.cond = sync.NewCond(&pool.mu)
-
-	pool.workers.Add(workerCount)
-	for range workerCount {
-		go pool.worker()
-	}
-
-	return pool
-}
-
-func (p *scrapeTaskPool) submit(taskFn func()) {
-	if p.ctx.Err() != nil {
-		return
-	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if !p.accepting {
-		return
-	}
-	p.pending++
-	p.queue = append(p.queue, taskFn)
-	p.cond.Signal()
-}
-
-func (p *scrapeTaskPool) wait() {
-	p.mu.Lock()
-	for p.pending > 0 {
-		p.cond.Wait()
-	}
-	p.accepting = false
-	p.cond.Broadcast()
-	p.mu.Unlock()
-
-	p.workers.Wait()
-}
-
-func (p *scrapeTaskPool) worker() {
-	defer p.workers.Done()
-
-	for {
-		p.mu.Lock()
-		for len(p.queue) == 0 && p.accepting {
-			p.cond.Wait()
-		}
-		if len(p.queue) == 0 && !p.accepting {
-			p.mu.Unlock()
-
-			return
-		}
-		taskFn := p.queue[0]
-		p.queue = p.queue[1:]
-		p.mu.Unlock()
-
-		if p.ctx.Err() == nil {
-			taskFn()
-		}
-
-		p.mu.Lock()
-		p.pending--
-		p.cond.Broadcast()
-		p.mu.Unlock()
-	}
+	return fn()
 }
