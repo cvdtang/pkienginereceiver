@@ -52,8 +52,7 @@ func createTestScraperWithConfig(t *testing.T, configure func(cfg *config)) (*pk
 	}
 	require.NoError(t, cfg.validate())
 
-	scraper, err := newPkiEngineScraper(cfg, receivertest.NewNopSettings(metadata.Type))
-	require.NoError(t, err)
+	scraper := newPkiEngineScraper(cfg, receivertest.NewNopSettings(metadata.Type))
 	mockSecretStore := newMocksecretStore(t)
 	scraper.secretStore = mockSecretStore
 
@@ -316,85 +315,37 @@ func TestScrapeCRLCacheHitMissMetrics(t *testing.T) {
 	assertEquivalentScrapeMetrics(t, expectedMetrics, actualMetrics)
 }
 
-func TestScrapeCRLCacheEvictionsMetric(t *testing.T) {
-	t.Parallel()
-	ctx := scrapeTestCtx(t)
-
-	expectedFile := filepath.Join("test", "testdata", "mock_crl_cache_evictions.yaml")
-	_, crlData := createTestCrlData(t)
-	_, certPEM := getTestCertDataWithOU(t, testIssuerCommonName, "Security")
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(crlData)
-	}))
-	defer server.Close()
-
-	scraper, mockSecretStore := createTestScraperWithConfig(t, func(cfg *config) {
-		cfg.ConcurrencyLimit = 1
-		cfg.Crl.CacheSize = 1
-	})
-
-	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
-	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(newTestClusterConfigData("", ""), nil)
-	mockSecretStore.On("listCertificates", ctx, testMountPath).Return([]string{testCertificateSerialKey}, nil)
-	mockSecretStore.On("listIssuers", ctx, testMountPath).Return([]string{testIssuerID}, nil)
-	mockSecretStore.On("readIssuer", ctx, testMountPath, testIssuerID).Return(&issuerData{Certificate: string(certPEM), CRLDistributionPoints: []string{server.URL + "/crl-a", server.URL + "/crl-b"}, EnableAIAURLTemplating: false}, nil)
-
-	err := scraper.start(ctx, newMdatagenNopHost())
-	require.NoError(t, err)
-
-	actualMetrics, err := scraper.scrape(ctx)
-	require.NoError(t, err)
-
-	err = scraper.shutdown(ctx)
-	require.NoError(t, err)
-
-	normalizeMetrics(actualMetrics)
-
-	if *update {
-		err = golden.WriteMetrics(t, expectedFile, actualMetrics)
-		require.NoError(t, err)
-	}
-
-	expectedMetrics, err := golden.ReadMetrics(expectedFile)
-	require.NoError(t, err)
-
-	assertEquivalentScrapeMetrics(t, expectedMetrics, actualMetrics)
-}
-
 func TestNewPkiEngineScraperCRLCacheSelection(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name      string
-		configure func(cfg *config)
-		expectLRU bool
-		expectNop bool
+		name         string
+		configure    func(cfg *config)
+		wantCRLCache bool
 	}{
 		{
-			name: "CRL disabled uses noop cache",
-			configure: func(cfg *config) {
-				cfg.Crl.Enabled = false
-				cfg.Crl.CacheSize = 10
-			},
-			expectNop: true,
+			name:         "defaults enable the cache",
+			wantCRLCache: true,
 		},
 		{
-			name: "CRL enabled uses LRU cache",
-			configure: func(cfg *config) {
-				cfg.Crl.Enabled = true
-				cfg.Crl.CacheSize = 10
-			},
-			expectLRU: true,
+			name:         "CRL disabled uses noop cache",
+			configure:    func(cfg *config) { cfg.Crl.Enabled = false },
+			wantCRLCache: false,
 		},
 		{
-			name: "Cache size zero uses noop cache",
-			configure: func(cfg *config) {
-				cfg.Crl.Enabled = true
-				cfg.Crl.CacheSize = 0
-			},
-			expectNop: true,
+			name:         "cache disabled",
+			configure:    func(cfg *config) { cfg.Crl.Cache.Enabled = false },
+			wantCRLCache: false,
+		},
+		{
+			name:         "deprecated cache size zero disables the cache",
+			configure:    func(cfg *config) { cfg.Crl.CacheSize = new(0) },
+			wantCRLCache: false,
+		},
+		{
+			name:         "deprecated cache size is otherwise ignored",
+			configure:    func(cfg *config) { cfg.Crl.CacheSize = new(10) },
+			wantCRLCache: true,
 		},
 	}
 
@@ -403,15 +354,8 @@ func TestNewPkiEngineScraperCRLCacheSelection(t *testing.T) {
 			t.Parallel()
 
 			scraper, _ := createTestScraperWithConfig(t, tt.configure)
-			require.NotNil(t, scraper.crlCache)
-			if tt.expectLRU {
-				_, ok := scraper.crlCache.(*lruCRLCache)
-				assert.True(t, ok, "expected lru CRL cache")
-			}
-			if tt.expectNop {
-				_, ok := scraper.crlCache.(*nopCRLCache)
-				assert.True(t, ok, "expected noop CRL cache")
-			}
+			_, isMapCache := scraper.crlCache.(*mapCRLCache)
+			assert.Equal(t, tt.wantCRLCache, isMapCache)
 		})
 	}
 }

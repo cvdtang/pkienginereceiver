@@ -36,9 +36,6 @@ func TestMetricsBuilderConfig(t *testing.T) {
 						AggregationStrategy: AggregationStrategyAvg,
 						EnabledAttributes:   []PkiengineCertX509NotBeforeMetricAttributeKey{PkiengineCertX509NotBeforeMetricAttributeKeyCertType, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectSan, PkiengineCertX509NotBeforeMetricAttributeKeyEngineMount, PkiengineCertX509NotBeforeMetricAttributeKeyIssuerID},
 					},
-					PkiengineCrlCacheEvictions: PkiengineCrlCacheEvictionsMetricConfig{
-						Enabled: true,
-					},
 					PkiengineCrlCacheHits: PkiengineCrlCacheHitsMetricConfig{
 						Enabled: true,
 					},
@@ -105,9 +102,6 @@ func TestMetricsBuilderConfig(t *testing.T) {
 						AggregationStrategy: AggregationStrategyAvg,
 						EnabledAttributes:   []PkiengineCertX509NotBeforeMetricAttributeKey{PkiengineCertX509NotBeforeMetricAttributeKeyCertType, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectSan, PkiengineCertX509NotBeforeMetricAttributeKeyEngineMount, PkiengineCertX509NotBeforeMetricAttributeKeyIssuerID},
 					},
-					PkiengineCrlCacheEvictions: PkiengineCrlCacheEvictionsMetricConfig{
-						Enabled: false,
-					},
 					PkiengineCrlCacheHits: PkiengineCrlCacheHitsMetricConfig{
 						Enabled: false,
 					},
@@ -164,7 +158,7 @@ func TestMetricsBuilderConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := loadMetricsBuilderConfig(t, tt.name)
-			diff := cmp.Diff(tt.want, cfg, cmpopts.IgnoreUnexported(PkiengineCertX509NotAfterMetricConfig{}, PkiengineCertX509NotBeforeMetricConfig{}, PkiengineCrlCacheEvictionsMetricConfig{}, PkiengineCrlCacheHitsMetricConfig{}, PkiengineCrlCacheMissesMetricConfig{}, PkiengineCrlProcessingStatusMetricConfig{}, PkiengineCrlX509NextUpdateMetricConfig{}, PkiengineCrlX509RevokedCertificatesMetricConfig{}, PkiengineCrlX509RevokedCertificatesReasonMetricConfig{}, PkiengineCrlX509ThisUpdateMetricConfig{}, PkiengineIssuerErrorsMetricConfig{}, PkiengineMountCertificatesStoredMetricConfig{}, PkiengineMountErrorsMetricConfig{}, PkiengineRateLimitThrottledMetricConfig{}, ResourceAttributeConfig{}))
+			diff := cmp.Diff(tt.want, cfg, cmpopts.IgnoreUnexported(PkiengineCertX509NotAfterMetricConfig{}, PkiengineCertX509NotBeforeMetricConfig{}, PkiengineCrlCacheHitsMetricConfig{}, PkiengineCrlCacheMissesMetricConfig{}, PkiengineCrlProcessingStatusMetricConfig{}, PkiengineCrlX509NextUpdateMetricConfig{}, PkiengineCrlX509RevokedCertificatesMetricConfig{}, PkiengineCrlX509RevokedCertificatesReasonMetricConfig{}, PkiengineCrlX509ThisUpdateMetricConfig{}, PkiengineIssuerErrorsMetricConfig{}, PkiengineMountCertificatesStoredMetricConfig{}, PkiengineMountErrorsMetricConfig{}, PkiengineRateLimitThrottledMetricConfig{}, ResourceAttributeConfig{}))
 			require.Emptyf(t, diff, "Config mismatch (-expected +actual):\n%s", diff)
 		})
 	}

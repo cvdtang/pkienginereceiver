@@ -149,17 +149,8 @@ metrics:
      - engine.mount
      - issuer.id
 
-  pkiengine.crl.cache.evictions:
-    description: Number of CRL cache evictions.
-    enabled: true
-    stability: development
-    gauge:
-      value_type: int
-    unit: "{evictions}"
-    attributes: []
-
   pkiengine.crl.cache.hits:
-    description: Number of CRL cache hits.
+    description: Number of CRLs reused from the cache of a previous scrape, as the CRL host reported them unchanged.
     enabled: true
     stability: development
     gauge:
@@ -168,7 +159,7 @@ metrics:
     attributes: []
 
   pkiengine.crl.cache.misses:
-    description: Number of CRL cache misses.
+    description: Number of CRLs downloaded and processed, as they were not cached or changed since the previous scrape.
     enabled: true
     stability: development
     gauge:

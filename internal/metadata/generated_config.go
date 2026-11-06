@@ -124,26 +124,6 @@ func (ms *PkiengineCertX509NotBeforeMetricConfig) Validate() error {
 	return nil
 }
 
-// PkiengineCrlCacheEvictionsMetricConfig provides config for the pkiengine.crl.cache.evictions metric.
-type PkiengineCrlCacheEvictionsMetricConfig struct {
-	Enabled          bool `mapstructure:"enabled"`
-	enabledSetByUser bool
-}
-
-func (ms *PkiengineCrlCacheEvictionsMetricConfig) Unmarshal(parser *confmap.Conf) error {
-	if parser == nil {
-		return nil
-	}
-
-	err := parser.Unmarshal(ms)
-	if err != nil {
-		return err
-	}
-
-	ms.enabledSetByUser = parser.IsSet("enabled")
-	return nil
-}
-
 // PkiengineCrlCacheHitsMetricConfig provides config for the pkiengine.crl.cache.hits metric.
 type PkiengineCrlCacheHitsMetricConfig struct {
 	Enabled          bool `mapstructure:"enabled"`
@@ -554,7 +534,6 @@ func (ms *PkiengineRateLimitThrottledMetricConfig) Unmarshal(parser *confmap.Con
 type MetricsConfig struct {
 	PkiengineCertX509NotAfter                 PkiengineCertX509NotAfterMetricConfig                 `mapstructure:"pkiengine.cert.x509.not_after"`
 	PkiengineCertX509NotBefore                PkiengineCertX509NotBeforeMetricConfig                `mapstructure:"pkiengine.cert.x509.not_before"`
-	PkiengineCrlCacheEvictions                PkiengineCrlCacheEvictionsMetricConfig                `mapstructure:"pkiengine.crl.cache.evictions"`
 	PkiengineCrlCacheHits                     PkiengineCrlCacheHitsMetricConfig                     `mapstructure:"pkiengine.crl.cache.hits"`
 	PkiengineCrlCacheMisses                   PkiengineCrlCacheMissesMetricConfig                   `mapstructure:"pkiengine.crl.cache.misses"`
 	PkiengineCrlProcessingStatus              PkiengineCrlProcessingStatusMetricConfig              `mapstructure:"pkiengine.crl.processing_status"`
@@ -579,9 +558,6 @@ func DefaultMetricsConfig() MetricsConfig {
 			Enabled:             true,
 			AggregationStrategy: AggregationStrategyAvg,
 			EnabledAttributes:   []PkiengineCertX509NotBeforeMetricAttributeKey{PkiengineCertX509NotBeforeMetricAttributeKeyCertType, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509IssuerCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SerialNumber, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCommonName, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectCountry, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganization, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectOrganizationalUnit, PkiengineCertX509NotBeforeMetricAttributeKeyCertX509SubjectSan, PkiengineCertX509NotBeforeMetricAttributeKeyEngineMount, PkiengineCertX509NotBeforeMetricAttributeKeyIssuerID},
-		},
-		PkiengineCrlCacheEvictions: PkiengineCrlCacheEvictionsMetricConfig{
-			Enabled: true,
 		},
 		PkiengineCrlCacheHits: PkiengineCrlCacheHitsMetricConfig{
 			Enabled: true,

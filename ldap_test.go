@@ -235,8 +235,8 @@ func Test_fetchCrlLdap_Success(t *testing.T) {
 		Return(mockConn, nil).
 		Once()
 
-	crl, _ := createTestCRL(t)
-	fetchable, data, err := crl.fetcher.fetchLDAP(t.Context(), mockDialer, testURI, timeout)
+	fetcher := &realCrlFetcher{}
+	fetchable, data, err := fetcher.fetchLDAP(t.Context(), mockDialer, testURI, timeout)
 
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), fetchable, "fetchable should be 1 on success")
@@ -255,8 +255,8 @@ func Test_fetchCrlLdap_Dial_Error(t *testing.T) {
 		Return(nil, dialErr).
 		Once()
 
-	crl, _ := createTestCRL(t)
-	fetchable, _, err := crl.fetcher.fetchLDAP(t.Context(), mockDialer, testURI, time.Second)
+	fetcher := &realCrlFetcher{}
+	fetchable, _, err := fetcher.fetchLDAP(t.Context(), mockDialer, testURI, time.Second)
 
 	require.Error(t, err, "expected an error from failed dial")
 	require.ErrorContains(t, err, "failed connecting to ldap server:")
@@ -325,8 +325,8 @@ func Test_fetchLDAP_Search_Scenarios(t *testing.T) {
 
 			mockDialer.On("Dial", expectedAddr, timeout).Return(mockConn, nil).Once()
 
-			crlEntry, _ := createTestCRL(t)
-			fetchable, data, err := crlEntry.fetcher.fetchLDAP(t.Context(), mockDialer, testURI, timeout)
+			fetcher := &realCrlFetcher{}
+			fetchable, data, err := fetcher.fetchLDAP(t.Context(), mockDialer, testURI, timeout)
 
 			require.Error(t, err)
 			require.ErrorContains(t, err, tt.wantErrContains)

@@ -103,9 +103,6 @@ func TestMetricsBuilder(t *testing.T) {
 			}
 			defaultMetricsCount++
 			allMetricsCount++
-			mb.RecordPkiengineCrlCacheEvictionsDataPoint(ts, 1)
-			defaultMetricsCount++
-			allMetricsCount++
 			mb.RecordPkiengineCrlCacheHitsDataPoint(ts, 1)
 			defaultMetricsCount++
 			allMetricsCount++
@@ -389,24 +386,12 @@ func TestMetricsBuilder(t *testing.T) {
 						_, ok = dp.Attributes().Get("issuer.id")
 						assert.False(t, ok)
 					}
-				case "pkiengine.crl.cache.evictions":
-					assert.False(t, validatedMetrics["pkiengine.crl.cache.evictions"], "Found a duplicate in the metrics slice: pkiengine.crl.cache.evictions")
-					validatedMetrics["pkiengine.crl.cache.evictions"] = true
-					assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
-					assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
-					assert.Equal(t, "Number of CRL cache evictions.", mi.Description())
-					assert.Equal(t, "{evictions}", mi.Unit())
-					dp := mi.Gauge().DataPoints().At(0)
-					assert.Equal(t, start, dp.StartTimestamp())
-					assert.Equal(t, ts, dp.Timestamp())
-					assert.Equal(t, pmetric.NumberDataPointValueTypeInt, dp.ValueType())
-					assert.Equal(t, int64(1), dp.IntValue())
 				case "pkiengine.crl.cache.hits":
 					assert.False(t, validatedMetrics["pkiengine.crl.cache.hits"], "Found a duplicate in the metrics slice: pkiengine.crl.cache.hits")
 					validatedMetrics["pkiengine.crl.cache.hits"] = true
 					assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
 					assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
-					assert.Equal(t, "Number of CRL cache hits.", mi.Description())
+					assert.Equal(t, "Number of CRLs reused from the cache of a previous scrape, as the CRL host reported them unchanged.", mi.Description())
 					assert.Equal(t, "{hits}", mi.Unit())
 					dp := mi.Gauge().DataPoints().At(0)
 					assert.Equal(t, start, dp.StartTimestamp())
@@ -418,7 +403,7 @@ func TestMetricsBuilder(t *testing.T) {
 					validatedMetrics["pkiengine.crl.cache.misses"] = true
 					assert.Equal(t, pmetric.MetricTypeGauge, mi.Type())
 					assert.Equal(t, 1, mi.Gauge().DataPoints().Len())
-					assert.Equal(t, "Number of CRL cache misses.", mi.Description())
+					assert.Equal(t, "Number of CRLs downloaded and processed, as they were not cached or changed since the previous scrape.", mi.Description())
 					assert.Equal(t, "{misses}", mi.Unit())
 					dp := mi.Gauge().DataPoints().At(0)
 					assert.Equal(t, start, dp.StartTimestamp())

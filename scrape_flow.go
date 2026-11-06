@@ -136,43 +136,31 @@ func (r *scrapeRun) collectIssuer(stageMount mount, clusterCfg clusterConfig, is
 	return result, true
 }
 
+// Claims the CRL series of an issuer and submits one CRL task per URI not yet collected in this scrape.
 func (r *scrapeRun) enqueueCRLTasks(pool *scrapeTaskPool, result issuerResult) {
-	for _, crlTask := range result.crlTasks {
-		if !r.shared.claimCRL(crlTask.uri, crlTask.role, crlTask.kind) {
+	for _, task := range result.crlTasks {
+		claimed, collect := r.shared.crls.claim(task)
+		if !claimed {
 			result.logger.Debug(
 				"skipping duplicate crl in scrape",
-				zap.String("crl.uri", crlTask.uri),
-				zap.String("crl.role", crlTask.role.String()),
-				zap.String("crl.kind", crlTask.kind.String()),
+				zap.String("crl.uri", task.uri),
+				zap.String("crl.role", task.role.String()),
+				zap.String("crl.kind", task.kind.String()),
 			)
 
 			continue
 		}
+		if !collect {
+			continue
+		}
 
+		logger := result.logger.With(zap.String("crl.uri", task.uri))
 		pool.submit(func() {
-			r.processCRL(result.logger, crlTask)
+			if _, err := r.shared.crls.collect(r.ctx, logger, task.uri); err != nil {
+				logger.Warn("failed processing crl", zap.Error(err))
+			}
 		})
 	}
-}
-
-// Collects and emits one CRL metric set.
-func (r *scrapeRun) processCRL(logger *zap.Logger, task crlTask) {
-	crl := newCRL(
-		logger,
-		r.shared,
-		task.uri,
-		task.role,
-		task.kind,
-	)
-
-	metrics, err := crl.collect(r.ctx)
-	if err != nil {
-		crl.logger.Warn("failed processing crl", zap.Error(err))
-
-		return
-	}
-
-	r.shared.emitCRL(crl, metrics)
 }
 
 func (r *scrapeRun) handleLeafPlanTask(pool *scrapeTaskPool, mountState *mountWorkState) {

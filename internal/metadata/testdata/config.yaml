@@ -7,8 +7,6 @@ all_set:
     pkiengine.cert.x509.not_before:
       enabled: true
       attributes: ["cert.type","cert.x509.issuer.common_name","cert.x509.serial_number","cert.x509.subject.common_name","cert.x509.subject.country","cert.x509.subject.organization","cert.x509.subject.organizational_unit","cert.x509.subject.san","engine.mount","issuer.id"]
-    pkiengine.crl.cache.evictions:
-      enabled: true
     pkiengine.crl.cache.hits:
       enabled: true
     pkiengine.crl.cache.misses:
@@ -50,8 +48,6 @@ reaggregate_set:
     pkiengine.cert.x509.not_before:
       enabled: true
       attributes: []
-    pkiengine.crl.cache.evictions:
-      enabled: true
     pkiengine.crl.cache.hits:
       enabled: true
     pkiengine.crl.cache.misses:
@@ -93,8 +89,6 @@ none_set:
     pkiengine.cert.x509.not_before:
       enabled: false
       attributes: ["cert.type","cert.x509.issuer.common_name","cert.x509.serial_number","cert.x509.subject.common_name","cert.x509.subject.country","cert.x509.subject.organization","cert.x509.subject.organizational_unit","cert.x509.subject.san","engine.mount","issuer.id"]
-    pkiengine.crl.cache.evictions:
-      enabled: false
     pkiengine.crl.cache.hits:
       enabled: false
     pkiengine.crl.cache.misses:

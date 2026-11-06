@@ -27,10 +27,16 @@ type config struct {
 	compiledRegex *regexp.Regexp
 }
 
+type cacheConfig struct {
+	Enabled bool `mapstructure:"enabled"`
+}
+
 type crlConfig struct {
-	Enabled       bool          `mapstructure:"enabled"`
-	ScrapeParent  bool          `mapstructure:"scrape_parent"`
-	CacheSize     int           `mapstructure:"cache_size"`
+	Enabled      bool        `mapstructure:"enabled"`
+	ScrapeParent bool        `mapstructure:"scrape_parent"`
+	Cache        cacheConfig `mapstructure:"cache"`
+	// Deprecated: use Cache. A value of 0 disables the cache, other values are ignored.
+	CacheSize     *int          `mapstructure:"cache_size"`
 	Timeout       time.Duration `mapstructure:"timeout"`
 	Retries       int           `mapstructure:"retries"`
 	RetryInterval time.Duration `mapstructure:"retry_interval"`
@@ -72,7 +78,7 @@ func (c *config) validate() error {
 	if c.ConcurrencyLimit < 0 {
 		return fmt.Errorf("concurrency limit must be greater than or equal to 0")
 	}
-	if c.Crl.CacheSize < 0 {
+	if c.Crl.CacheSize != nil && *c.Crl.CacheSize < 0 {
 		return fmt.Errorf("crl cache size must be greater than or equal to 0")
 	}
 	if c.Crl.Retries < 0 {

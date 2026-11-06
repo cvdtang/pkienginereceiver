@@ -174,9 +174,6 @@ var MetricsInfo = metricsInfo{
 		Name:       "pkiengine.cert.x509.not_before",
 		Attributes: []string{"cert.type", "cert.x509.issuer.common_name", "cert.x509.serial_number", "cert.x509.subject.common_name", "cert.x509.subject.country", "cert.x509.subject.organization", "cert.x509.subject.organizational_unit", "cert.x509.subject.san", "engine.mount", "issuer.id"},
 	},
-	PkiengineCrlCacheEvictions: metricInfo{
-		Name: "pkiengine.crl.cache.evictions",
-	},
 	PkiengineCrlCacheHits: metricInfo{
 		Name: "pkiengine.crl.cache.hits",
 	},
@@ -221,7 +218,6 @@ var MetricsInfo = metricsInfo{
 type metricsInfo struct {
 	PkiengineCertX509NotAfter                 metricInfo
 	PkiengineCertX509NotBefore                metricInfo
-	PkiengineCrlCacheEvictions                metricInfo
 	PkiengineCrlCacheHits                     metricInfo
 	PkiengineCrlCacheMisses                   metricInfo
 	PkiengineCrlProcessingStatus              metricInfo
@@ -476,56 +472,6 @@ func newMetricPkiengineCertX509NotBefore(cfg PkiengineCertX509NotBeforeMetricCon
 	return m
 }
 
-type metricPkiengineCrlCacheEvictions struct {
-	data     pmetric.Metric                         // data buffer for generated metric.
-	config   PkiengineCrlCacheEvictionsMetricConfig // metric config provided by user.
-	capacity int                                    // max observed number of data points added to the metric.
-}
-
-// init fills pkiengine.crl.cache.evictions metric with initial data.
-func (m *metricPkiengineCrlCacheEvictions) init() {
-	m.data.SetName("pkiengine.crl.cache.evictions")
-	m.data.SetDescription("Number of CRL cache evictions.")
-	m.data.SetUnit("{evictions}")
-	m.data.SetEmptyGauge()
-}
-
-func (m *metricPkiengineCrlCacheEvictions) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64) {
-	if !m.config.Enabled {
-		return
-	}
-	dp := m.data.Gauge().DataPoints().AppendEmpty()
-	dp.SetStartTimestamp(start)
-	dp.SetTimestamp(ts)
-	dp.SetIntValue(val)
-}
-
-// updateCapacity saves max length of data point slices that will be used for the slice capacity.
-func (m *metricPkiengineCrlCacheEvictions) updateCapacity() {
-	if m.data.Gauge().DataPoints().Len() > m.capacity {
-		m.capacity = m.data.Gauge().DataPoints().Len()
-	}
-}
-
-// emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
-func (m *metricPkiengineCrlCacheEvictions) emit(metrics pmetric.MetricSlice) {
-	if m.config.Enabled && m.data.Gauge().DataPoints().Len() > 0 {
-		m.updateCapacity()
-		m.data.MoveTo(metrics.AppendEmpty())
-		m.init()
-	}
-}
-
-func newMetricPkiengineCrlCacheEvictions(cfg PkiengineCrlCacheEvictionsMetricConfig) metricPkiengineCrlCacheEvictions {
-	m := metricPkiengineCrlCacheEvictions{config: cfg}
-
-	if cfg.Enabled {
-		m.data = pmetric.NewMetric()
-		m.init()
-	}
-	return m
-}
-
 type metricPkiengineCrlCacheHits struct {
 	data     pmetric.Metric                    // data buffer for generated metric.
 	config   PkiengineCrlCacheHitsMetricConfig // metric config provided by user.
@@ -535,7 +481,7 @@ type metricPkiengineCrlCacheHits struct {
 // init fills pkiengine.crl.cache.hits metric with initial data.
 func (m *metricPkiengineCrlCacheHits) init() {
 	m.data.SetName("pkiengine.crl.cache.hits")
-	m.data.SetDescription("Number of CRL cache hits.")
+	m.data.SetDescription("Number of CRLs reused from the cache of a previous scrape, as the CRL host reported them unchanged.")
 	m.data.SetUnit("{hits}")
 	m.data.SetEmptyGauge()
 }
@@ -585,7 +531,7 @@ type metricPkiengineCrlCacheMisses struct {
 // init fills pkiengine.crl.cache.misses metric with initial data.
 func (m *metricPkiengineCrlCacheMisses) init() {
 	m.data.SetName("pkiengine.crl.cache.misses")
-	m.data.SetDescription("Number of CRL cache misses.")
+	m.data.SetDescription("Number of CRLs downloaded and processed, as they were not cached or changed since the previous scrape.")
 	m.data.SetUnit("{misses}")
 	m.data.SetEmptyGauge()
 }
@@ -1385,7 +1331,6 @@ type MetricsBuilder struct {
 	resourceAttributeExcludeFilter                  map[string]filter.Filter
 	metricPkiengineCertX509NotAfter                 metricPkiengineCertX509NotAfter
 	metricPkiengineCertX509NotBefore                metricPkiengineCertX509NotBefore
-	metricPkiengineCrlCacheEvictions                metricPkiengineCrlCacheEvictions
 	metricPkiengineCrlCacheHits                     metricPkiengineCrlCacheHits
 	metricPkiengineCrlCacheMisses                   metricPkiengineCrlCacheMisses
 	metricPkiengineCrlProcessingStatus              metricPkiengineCrlProcessingStatus
@@ -1424,7 +1369,6 @@ func NewMetricsBuilder(mbc MetricsBuilderConfig, settings receiver.Settings, opt
 		buildInfo:                                       settings.BuildInfo,
 		metricPkiengineCertX509NotAfter:                 newMetricPkiengineCertX509NotAfter(mbc.Metrics.PkiengineCertX509NotAfter),
 		metricPkiengineCertX509NotBefore:                newMetricPkiengineCertX509NotBefore(mbc.Metrics.PkiengineCertX509NotBefore),
-		metricPkiengineCrlCacheEvictions:                newMetricPkiengineCrlCacheEvictions(mbc.Metrics.PkiengineCrlCacheEvictions),
 		metricPkiengineCrlCacheHits:                     newMetricPkiengineCrlCacheHits(mbc.Metrics.PkiengineCrlCacheHits),
 		metricPkiengineCrlCacheMisses:                   newMetricPkiengineCrlCacheMisses(mbc.Metrics.PkiengineCrlCacheMisses),
 		metricPkiengineCrlProcessingStatus:              newMetricPkiengineCrlProcessingStatus(mbc.Metrics.PkiengineCrlProcessingStatus),
@@ -1522,7 +1466,6 @@ func (mb *MetricsBuilder) EmitForResource(options ...ResourceMetricsOption) {
 	ils.Metrics().EnsureCapacity(mb.metricsCapacity)
 	mb.metricPkiengineCertX509NotAfter.emit(ils.Metrics())
 	mb.metricPkiengineCertX509NotBefore.emit(ils.Metrics())
-	mb.metricPkiengineCrlCacheEvictions.emit(ils.Metrics())
 	mb.metricPkiengineCrlCacheHits.emit(ils.Metrics())
 	mb.metricPkiengineCrlCacheMisses.emit(ils.Metrics())
 	mb.metricPkiengineCrlProcessingStatus.emit(ils.Metrics())
@@ -1573,11 +1516,6 @@ func (mb *MetricsBuilder) RecordPkiengineCertX509NotAfterDataPoint(ts pcommon.Ti
 // RecordPkiengineCertX509NotBeforeDataPoint adds a data point to pkiengine.cert.x509.not_before metric.
 func (mb *MetricsBuilder) RecordPkiengineCertX509NotBeforeDataPoint(ts pcommon.Timestamp, val int64, certTypeAttributeValue AttributeCertType, certX509IssuerCommonNameAttributeValue string, certX509SerialNumberAttributeValue string, certX509SubjectCommonNameAttributeValue string, certX509SubjectCountryAttributeValue []any, certX509SubjectOrganizationAttributeValue []any, certX509SubjectOrganizationalUnitAttributeValue []any, certX509SubjectSanAttributeValue []any, engineMountAttributeValue string, issuerIDAttributeValue string) {
 	mb.metricPkiengineCertX509NotBefore.recordDataPoint(mb.startTime, ts, val, certTypeAttributeValue.String(), certX509IssuerCommonNameAttributeValue, certX509SerialNumberAttributeValue, certX509SubjectCommonNameAttributeValue, certX509SubjectCountryAttributeValue, certX509SubjectOrganizationAttributeValue, certX509SubjectOrganizationalUnitAttributeValue, certX509SubjectSanAttributeValue, engineMountAttributeValue, issuerIDAttributeValue)
-}
-
-// RecordPkiengineCrlCacheEvictionsDataPoint adds a data point to pkiengine.crl.cache.evictions metric.
-func (mb *MetricsBuilder) RecordPkiengineCrlCacheEvictionsDataPoint(ts pcommon.Timestamp, val int64) {
-	mb.metricPkiengineCrlCacheEvictions.recordDataPoint(mb.startTime, ts, val)
 }
 
 // RecordPkiengineCrlCacheHitsDataPoint adds a data point to pkiengine.crl.cache.hits metric.
