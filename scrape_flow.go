@@ -28,7 +28,7 @@ type scrapeRun struct {
 	mb          *metadata.MetricsBuilder
 
 	errorTotals scrapeErrorTotals
-	throttled atomic.Int64
+	throttled   atomic.Int64
 
 	tasks  *semaphore.Weighted
 	mounts *semaphore.Weighted
@@ -223,13 +223,13 @@ func (r *scrapeRun) scheduleCRLs(ctx context.Context, result issuerResult) {
 	}
 }
 
-// Reads the leaf certificates of a mount as tasks.
+// Returns cached leaf certificates and reads the remaining ones as tasks.
 func (r *scrapeRun) collectLeafs(ctx context.Context, stageMount mount, serials []string) []leafCert {
-	var leafs []leafCert
+	leafs, uncached := r.scraper.leafCache.lookup(stageMount.path, serials)
 
 	var mu sync.Mutex
 	var wg sync.WaitGroup
-	for _, serial := range serials {
+	for _, serial := range uncached {
 		started := r.goTask(ctx, &wg, func() {
 			crt, err := readStoredCertificate(ctx, r.secretStore, stageMount.path, serial)
 			if err != nil {
@@ -239,6 +239,7 @@ func (r *scrapeRun) collectLeafs(ctx context.Context, stageMount mount, serials 
 			}
 
 			leaf := newLeafCert(crt)
+			r.scraper.leafCache.add(stageMount.path, serial, leaf)
 
 			mu.Lock()
 			leafs = append(leafs, leaf)

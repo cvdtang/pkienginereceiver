@@ -316,37 +316,46 @@ func TestScrapeCRLCacheHitMissMetrics(t *testing.T) {
 	assertEquivalentScrapeMetrics(t, expectedMetrics, actualMetrics)
 }
 
-func TestNewPkiEngineScraperCRLCacheSelection(t *testing.T) {
+func TestNewPkiEngineScraperCacheSelection(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name         string
 		configure    func(cfg *config)
 		wantCRLCache bool
+		wantLeaf     bool
 	}{
 		{
-			name:         "defaults enable the cache",
+			name:         "defaults enable both caches",
 			wantCRLCache: true,
+			wantLeaf:     true,
 		},
 		{
 			name:         "CRL disabled uses noop cache",
 			configure:    func(cfg *config) { cfg.Crl.Enabled = false },
 			wantCRLCache: false,
+			wantLeaf:     true,
 		},
 		{
-			name:         "cache disabled",
-			configure:    func(cfg *config) { cfg.Crl.Cache.Enabled = false },
+			name: "caches disabled",
+			configure: func(cfg *config) {
+				cfg.Crl.Cache.Enabled = false
+				cfg.Leaf.Cache.Enabled = false
+			},
 			wantCRLCache: false,
+			wantLeaf:     false,
 		},
 		{
-			name:         "deprecated cache size zero disables the cache",
+			name:         "deprecated cache size zero disables the CRL cache",
 			configure:    func(cfg *config) { cfg.Crl.CacheSize = new(0) },
 			wantCRLCache: false,
+			wantLeaf:     true,
 		},
 		{
 			name:         "deprecated cache size is otherwise ignored",
 			configure:    func(cfg *config) { cfg.Crl.CacheSize = new(10) },
 			wantCRLCache: true,
+			wantLeaf:     true,
 		},
 	}
 
@@ -357,6 +366,7 @@ func TestNewPkiEngineScraperCRLCacheSelection(t *testing.T) {
 			scraper, _ := createTestScraperWithConfig(t, tt.configure)
 			_, isMapCache := scraper.crlCache.(*mapCRLCache)
 			assert.Equal(t, tt.wantCRLCache, isMapCache)
+			assert.Equal(t, tt.wantLeaf, scraper.leafCache.enabled)
 		})
 	}
 }

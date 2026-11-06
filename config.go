@@ -43,7 +43,8 @@ type crlConfig struct {
 }
 
 type leafConfig struct {
-	Enabled bool `mapstructure:"enabled"`
+	Enabled bool        `mapstructure:"enabled"`
+	Cache   cacheConfig `mapstructure:"cache"`
 }
 
 func (c *config) workerCount() int {
