@@ -31,6 +31,8 @@ type pkiEngineScraper struct {
 
 	crlCache  crlCacheStore
 	crlClient *http.Client
+
+	leafCache *leafCertCache
 }
 
 func (s *pkiEngineScraper) start(ctx context.Context, _ component.Host) error {
@@ -62,6 +64,7 @@ func newPkiEngineScraper(cfg *config, settings receiver.Settings) *pkiEngineScra
 		settings:    settings,
 		startTime:   pcommon.NewTimestampFromTime(time.Now()),
 		crlClient:   newCrlHTTPClient(cfg.workerCount()),
+		leafCache:   newLeafCertCache(cfg.Leaf.Cache.Enabled),
 	}
 
 	if cfg.Crl.CacheSize != nil {
@@ -137,6 +140,7 @@ func (s *pkiEngineScraper) scrape(ctx context.Context) (pmetric.Metrics, error) 
 	}
 
 	outputs := run.collect(ctx, filteredMountPaths)
+	s.leafCache.retainMounts(filteredMountPaths)
 	run.crls.pruneCache()
 	run.emit(outputs)
 

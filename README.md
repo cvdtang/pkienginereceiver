@@ -93,6 +93,7 @@ receivers:
 
 ### Leaf certificates
 - `leaf_certificates.enabled` *(bool)*: (default = `false`) Enable collection of stored leaf certificates (`no_store=false`). Use with care in large deployments due to high cardinality and higher API load.
+- `leaf_certificates.cache.enabled` *(bool)*: (default = `true`) Cache stored leaf certificates across scrapes, so only certificates not seen before are read from the secret store.
 
 ### CRL
 - `crl.enabled` *(bool)*: (default = `true`) Enable CRL processing.

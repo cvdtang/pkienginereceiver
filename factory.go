@@ -40,6 +40,9 @@ func createDefaultConfig() component.Config {
 			RetryInterval: 3 * time.Second,
 			ScrapeParent:  true,
 		},
+		Leaf: leafConfig{
+			Cache: cacheConfig{Enabled: true},
+		},
 		Auth: authConfig{
 			AuthType: "token",
 			AuthAppRole: authAppRole{
