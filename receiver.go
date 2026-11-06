@@ -127,11 +127,8 @@ func (s *pkiEngineScraper) scrape(ctx context.Context) (pmetric.Metrics, error) 
 	}
 	defer s.crlClient.CloseIdleConnections()
 
-	// Shared state across all mount, issuer and CRL tasks.
-	crls := newCRLCollector(s.logger, s.cfg.Crl, s.crlCache, &realCrlFetcher{client: s.crlClient})
-	sharedState := newScrapeShared(&s.cfg, s.settings, crls)
-
-	ctx = withRateLimitCounter(ctx, &sharedState.rateObserver.throttled)
+	run := newScrapeRun(s, store)
+	ctx = withRateLimitCounter(ctx, &run.throttled)
 
 	// Exit early when no mounts match current filters.
 	filteredMountPaths, err := getFilteredMounts(ctx, s.logger, store, s.cfg)
@@ -139,17 +136,16 @@ func (s *pkiEngineScraper) scrape(ctx context.Context) (pmetric.Metrics, error) 
 		return pmetric.NewMetrics(), err
 	}
 
-	run := newScrapeRun(ctx, s, sharedState, store)
-	run.processMounts(filteredMountPaths)
-	crls.pruneCache()
-	sharedState.emitCRLs()
+	outputs := run.collect(ctx, filteredMountPaths)
+	run.crls.pruneCache()
+	run.emit(outputs)
 
 	// Emit global counters after all task-side counters are final.
-	s.recordGlobalMetrics(sharedState, &run.errorTotals, pcommon.NewTimestampFromTime(time.Now()))
+	run.recordGlobalMetrics(pcommon.NewTimestampFromTime(time.Now()))
 
-	rb := sharedState.mb.NewResourceBuilder()
+	rb := run.mb.NewResourceBuilder()
 	rb.SetEngineAddress(s.cfg.Address)
 	rb.SetEngineNamespace(s.cfg.Namespace)
 
-	return sharedState.mb.Emit(metadata.WithResource(rb.Emit())), nil
+	return run.mb.Emit(metadata.WithResource(rb.Emit())), nil
 }

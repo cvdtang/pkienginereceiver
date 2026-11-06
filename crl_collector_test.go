@@ -573,7 +573,7 @@ func TestCRLCacheRetainDropsStaleReferences(t *testing.T) {
 func TestCRLCollectorEmitsUncollectedSeries(t *testing.T) {
 	t.Parallel()
 
-	run := createTestScrapeState(t)
+	run := createTestScrapeRun(t)
 	task := crlTask{uri: testCrlURI, role: metadata.AttributeCrlRoleSubject, kind: metadata.AttributeCrlKindBase}
 	claimed, collect := run.crls.claim(task)
 	require.True(t, claimed)

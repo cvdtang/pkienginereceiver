@@ -19,10 +19,10 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
-func createTestCRL(t *testing.T) (crlTask, *scrapeShared) {
+func createTestCRL(t *testing.T) (crlTask, *scrapeRun) {
 	t.Helper()
 
-	return crlTask{uri: testCrlURI, role: metadata.AttributeCrlRoleSubject, kind: metadata.AttributeCrlKindBase}, createTestScrapeState(t)
+	return crlTask{uri: testCrlURI, role: metadata.AttributeCrlRoleSubject, kind: metadata.AttributeCrlKindBase}, createTestScrapeRun(t)
 }
 
 var (

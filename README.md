@@ -89,7 +89,7 @@ receivers:
 - `timeout` *(string)*: Optional value used to set scraper's context deadline.
 - `namespace` *(string)*: (default = `""`) Secret store namespace path.
 - `match_regex` *(string)*: (default = `".*"`) Regular expression in [RE2 syntax](https://github.com/google/re2/wiki/Syntax) of allowed mount paths, e.g. `pki/v1/ica/v\d`.
-- `concurrency_limit` *(int)*: Maximum number of concurrent worker tasks (mount/issuer/CRL). Defaults to the number of CPU cores determined by GOMAXPROCS.
+- `concurrency_limit` *(int)*: Maximum number of concurrent tasks, such as reading an issuer or fetching and parsing a CRL. Defaults to the number of CPU cores determined by GOMAXPROCS.
 
 ### Leaf certificates
 - `leaf_certificates.enabled` *(bool)*: (default = `false`) Enable collection of stored leaf certificates (`no_store=false`). Use with care in large deployments due to high cardinality and higher API load.

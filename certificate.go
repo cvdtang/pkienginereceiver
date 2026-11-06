@@ -4,7 +4,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"math"
 	"math/big"
 	"sort"
 	"strings"
@@ -49,7 +48,7 @@ func newCertificate(certData string) (certificate, error) {
 		serial:    serialToColonHex(cert.SerialNumber),
 		issuerCN:  cert.Issuer.CommonName,
 		subjectCN: cert.Subject.CommonName,
-		metrics:   collectCertificateMetrics(cert),
+		metrics:   certificateMetricsAt(time.Now(), cert.NotAfter, cert.NotBefore),
 		subject:   collectSubjectAttributes(cert),
 	}, nil
 }
@@ -85,16 +84,12 @@ func certSANs(crt *x509.Certificate) []string {
 	return san
 }
 
-// Computes the emit-time metric values from the parsed certificate.
-func collectCertificateMetrics(crt *x509.Certificate) certificateMetrics {
-	now := pcommon.NewTimestampFromTime(time.Now())
-	notAfterMinutes := int64(math.Floor(time.Until(crt.NotAfter).Minutes()))
-	notBeforeMinutes := int64(math.Floor(time.Until(crt.NotBefore).Minutes()))
-
+// Computes the metric values relative to now.
+func certificateMetricsAt(now, notAfter, notBefore time.Time) certificateMetrics {
 	return certificateMetrics{
-		ts:               now,
-		notAfterMinutes:  notAfterMinutes,
-		notBeforeMinutes: notBeforeMinutes,
+		ts:               pcommon.NewTimestampFromTime(now),
+		notAfterMinutes:  minutesUntil(now, notAfter),
+		notBeforeMinutes: minutesUntil(now, notBefore),
 	}
 }
 
@@ -135,32 +130,43 @@ func normalizeCertificateSerial(serial string) (string, bool) {
 //
 // When certType is AttributeCertTypeLeaf, callers must pass an empty issuerId.
 func (c certificate) emit(mb *metadata.MetricsBuilder, certType metadata.AttributeCertType, mount, issuerId string) {
+	emitCertificate(mb, c.metrics, certType, c.issuerCN, c.serial, c.subjectCN, c.subject, mount, issuerId)
+}
+
+func emitCertificate(
+	mb *metadata.MetricsBuilder,
+	metrics certificateMetrics,
+	certType metadata.AttributeCertType,
+	issuerCN, serial, subjectCN string,
+	subject certSubjectAttributes,
+	mount, issuerId string,
+) {
 	mb.RecordPkiengineCertX509NotAfterDataPoint(
-		c.metrics.ts,
-		c.metrics.notAfterMinutes,
+		metrics.ts,
+		metrics.notAfterMinutes,
 		certType,
-		c.issuerCN,
-		c.serial,
-		c.subjectCN,
-		c.subject.country,
-		c.subject.organization,
-		c.subject.organizationalUnit,
-		c.subject.san,
+		issuerCN,
+		serial,
+		subjectCN,
+		subject.country,
+		subject.organization,
+		subject.organizationalUnit,
+		subject.san,
 		mount,
 		issuerId,
 	)
 
 	mb.RecordPkiengineCertX509NotBeforeDataPoint(
-		c.metrics.ts,
-		c.metrics.notBeforeMinutes,
+		metrics.ts,
+		metrics.notBeforeMinutes,
 		certType,
-		c.issuerCN,
-		c.serial,
-		c.subjectCN,
-		c.subject.country,
-		c.subject.organization,
-		c.subject.organizationalUnit,
-		c.subject.san,
+		issuerCN,
+		serial,
+		subjectCN,
+		subject.country,
+		subject.organization,
+		subject.organizationalUnit,
+		subject.san,
 		mount,
 		issuerId,
 	)
