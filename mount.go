@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
-	"go.uber.org/zap"
 )
 
 type mountResult struct {
@@ -18,32 +17,6 @@ type mountResult struct {
 	ts pcommon.Timestamp
 	// Number of stored certificates, nil when certificates are not listed.
 	storedCertificates *int64
-}
-
-type mount struct {
-	logger      *zap.Logger
-	secretStore secretStore
-
-	path string
-	// Whether stored certificates are listed, for the stored certificates metric and leaf collection.
-	listCertificates bool
-}
-
-// Creates a mount processor for a PKI engine mount path.
-func newMount(
-	logger *zap.Logger,
-	secretStore secretStore,
-
-	path string,
-	listCertificates bool,
-) mount {
-	return mount{
-		logger:      logger.WithLazy(zap.String("engine.mount_path", path)),
-		secretStore: secretStore,
-
-		path:             path,
-		listCertificates: listCertificates,
-	}
 }
 
 type clusterConfig struct {
@@ -69,40 +42,33 @@ func parseClusterConfig(data *clusterConfigData) (clusterConfig, error) {
 	}, nil
 }
 
-// Reads mount config, mount metrics and issuer IDs.
-func (m *mount) collect(ctx context.Context) (mountResult, error) {
-	data, err := m.secretStore.readClusterConfiguration(ctx, m.path)
-	var clusterConfig clusterConfig
+// Reads the cluster configuration and the issuer IDs of a mount.
+func readMount(ctx context.Context, store secretStore, path string, listCertificates bool) (mountResult, error) {
+	clusterData, err := store.readClusterConfiguration(ctx, path)
+	var cluster clusterConfig
 	if err == nil {
-		clusterConfig, err = parseClusterConfig(data)
+		cluster, err = parseClusterConfig(clusterData)
 	}
 	if err != nil {
-		m.logger.Error("failed reading cluster config", zap.Error(err))
-
 		return mountResult{}, fmt.Errorf("failed reading cluster config: %w", err)
 	}
 
 	result := mountResult{
-		path:          m.path,
-		clusterConfig: clusterConfig,
+		path:          path,
+		clusterConfig: cluster,
 	}
 
-	if m.listCertificates {
-		result.certificateSerials, err = m.secretStore.listCertificates(ctx, m.path)
+	if listCertificates {
+		result.certificateSerials, err = store.listCertificates(ctx, path)
 		if err != nil {
-			m.logger.Error("failed listing leaf certificates", zap.Error(err))
-
 			return mountResult{}, fmt.Errorf("failed listing leaf certificates: %w", err)
 		}
-		storedCertificates := int64(len(result.certificateSerials))
-		result.storedCertificates = &storedCertificates
+		result.storedCertificates = new(int64(len(result.certificateSerials)))
 	}
 	result.ts = pcommon.NewTimestampFromTime(time.Now())
 
-	result.issuerIDs, err = m.secretStore.listIssuers(ctx, m.path)
+	result.issuerIDs, err = store.listIssuers(ctx, path)
 	if err != nil {
-		m.logger.Error("failed listing issuers", zap.Error(err))
-
 		return mountResult{}, fmt.Errorf("failed listing issuers: %w", err)
 	}
 
