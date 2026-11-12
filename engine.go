@@ -28,6 +28,7 @@ type secretStore interface {
 	listIssuers(ctx context.Context, mount string) ([]string, error)
 	readIssuer(ctx context.Context, mount string, id string) (*issuerData, error)
 	readCertificate(ctx context.Context, mount string, serial string) (*certificateData, error)
+	closeIdleConnections()
 }
 
 type clusterConfigData struct {

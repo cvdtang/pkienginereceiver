@@ -419,6 +419,39 @@ func (_m *mocksecretStore) EXPECT() *mocksecretStore_Expecter {
 	return &mocksecretStore_Expecter{mock: &_m.Mock}
 }
 
+// closeIdleConnections provides a mock function for the type mocksecretStore
+func (_mock *mocksecretStore) closeIdleConnections() {
+	_mock.Called()
+	return
+}
+
+// mocksecretStore_closeIdleConnections_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'closeIdleConnections'
+type mocksecretStore_closeIdleConnections_Call struct {
+	*mock.Call
+}
+
+// closeIdleConnections is a helper method to define mock.On call
+func (_e *mocksecretStore_Expecter) closeIdleConnections() *mocksecretStore_closeIdleConnections_Call {
+	return &mocksecretStore_closeIdleConnections_Call{Call: _e.mock.On("closeIdleConnections")}
+}
+
+func (_c *mocksecretStore_closeIdleConnections_Call) Run(run func()) *mocksecretStore_closeIdleConnections_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *mocksecretStore_closeIdleConnections_Call) Return() *mocksecretStore_closeIdleConnections_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *mocksecretStore_closeIdleConnections_Call) RunAndReturn(run func()) *mocksecretStore_closeIdleConnections_Call {
+	_c.Run(run)
+	return _c
+}
+
 // listCertificates provides a mock function for the type mocksecretStore
 func (_mock *mocksecretStore) listCertificates(ctx context.Context, mount string) ([]string, error) {
 	ret := _mock.Called(ctx, mount)
