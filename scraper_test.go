@@ -55,6 +55,7 @@ func createTestScraperWithConfig(t *testing.T, configure func(cfg *config)) (*pk
 
 	scraper := newPkiEngineScraper(cfg, receivertest.NewNopSettings(metadata.Type))
 	mockSecretStore := newMocksecretStore(t)
+	mockSecretStore.On("closeIdleConnections").Return().Maybe()
 	scraper.secretStore = mockSecretStore
 
 	scraper.logger = zap.NewNop()

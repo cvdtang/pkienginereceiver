@@ -14,8 +14,9 @@ type vault struct {
 	logger *zap.Logger
 	auth   authConfig
 
-	token  *vaultapi.Secret
-	client *vaultapi.Client
+	token      *vaultapi.Secret
+	client     *vaultapi.Client
+	httpClient *http.Client
 
 	// Deadline applied to the whole rawLogical retry loop so a single logical
 	// request cannot exceed the client timeout across multiple re-issues.
@@ -52,10 +53,15 @@ func newVault(ctx context.Context, cfg config, logger *zap.Logger) (*vault, erro
 		auth:           cfg.Auth,
 		token:          authToken,
 		client:         client,
+		httpClient:     config.HttpClient,
 		requestTimeout: config.Timeout,
 	}
 
 	return vault, nil
+}
+
+func (v *vault) closeIdleConnections() {
+	v.httpClient.CloseIdleConnections()
 }
 
 // Creates the client configuration from defaults and VAULT_* environment variables.

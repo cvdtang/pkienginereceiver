@@ -50,6 +50,12 @@ func (s *pkiEngineScraper) shutdown(ctx context.Context) error {
 	}
 	s.renewWg.Wait()
 
+	s.storeMu.Lock()
+	defer s.storeMu.Unlock()
+	if s.secretStore != nil {
+		s.secretStore.closeIdleConnections()
+	}
+
 	return nil
 }
 
