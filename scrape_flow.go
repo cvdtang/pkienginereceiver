@@ -105,19 +105,15 @@ func (r *scrapeRun) collect(ctx context.Context, mountPaths []string) []mountOut
 
 // Collects a mount, its issuers and its leaf certificates, and schedules the CRL tasks of its issuers.
 func (r *scrapeRun) collectMountTree(ctx context.Context, mountPath string) (mountOutput, bool) {
-	stageMount := newMount(
-		r.scraper.logger,
-		r.secretStore,
-		mountPath,
-		r.cfg.Metrics.PkiengineMountCertificatesStored.Enabled || r.cfg.Leaf.Enabled,
-	)
+	logger := r.mountLogger(mountPath)
+	listCertificates := r.cfg.Metrics.PkiengineMountCertificatesStored.Enabled || r.cfg.Leaf.Enabled
 
 	result, err := withSlot(ctx, r.tasks, func() (mountResult, error) {
-		return stageMount.collect(ctx)
+		return readMount(ctx, r.secretStore, mountPath, listCertificates)
 	})
 	if err != nil {
 		r.errorTotals.mountErrors.Add(1)
-		stageMount.logger.Warn("failed processing mount", zap.Error(err))
+		logger.Warn("failed processing mount", zap.Error(err))
 
 		return mountOutput{}, false
 	}
@@ -125,7 +121,7 @@ func (r *scrapeRun) collectMountTree(ctx context.Context, mountPath string) (mou
 	output := mountOutput{mount: result}
 	issuerSerials := make(map[string]struct{})
 	parentSerials := make(map[string]struct{})
-	for _, issuer := range r.collectIssuers(ctx, stageMount, result) {
+	for _, issuer := range r.collectIssuers(ctx, result) {
 		if issuer.isParent {
 			if issuer.certificateSerial != "" {
 				parentSerials[issuer.certificateSerial] = struct{}{}
@@ -139,25 +135,30 @@ func (r *scrapeRun) collectMountTree(ctx context.Context, mountPath string) (mou
 	}
 
 	if r.cfg.Leaf.Enabled {
-		serials := leafCandidates(stageMount.logger, result.certificateSerials, issuerSerials, parentSerials)
-		output.leafs = r.collectLeafs(ctx, stageMount, serials)
+		serials := leafCandidates(logger, result.certificateSerials, issuerSerials, parentSerials)
+		output.leafs = r.collectLeafs(ctx, mountPath, serials)
 	}
 
 	return output, true
 }
 
+// Returns the logger for a mount.
+func (r *scrapeRun) mountLogger(path string) *zap.Logger {
+	return r.scraper.logger.WithLazy(zap.String("engine.mount_path", path))
+}
+
 // Collects the issuers of a mount as tasks.
-func (r *scrapeRun) collectIssuers(ctx context.Context, stageMount mount, result mountResult) []issuerResult {
-	issuers := make([]issuerResult, len(result.issuerIDs))
-	collected := make([]bool, len(result.issuerIDs))
+func (r *scrapeRun) collectIssuers(ctx context.Context, mount mountResult) []issuerResult {
+	issuers := make([]issuerResult, len(mount.issuerIDs))
+	collected := make([]bool, len(mount.issuerIDs))
 
 	var wg sync.WaitGroup
-	for i, issuerID := range result.issuerIDs {
+	for i, issuerID := range mount.issuerIDs {
 		started := r.goTask(ctx, &wg, func() {
-			issuers[i], collected[i] = r.collectIssuer(ctx, stageMount, result.clusterConfig, issuerID)
+			issuers[i], collected[i] = r.collectIssuer(ctx, mount, issuerID)
 		})
 		if !started {
-			r.errorTotals.issuerErrors.Add(int64(len(result.issuerIDs) - i))
+			r.errorTotals.issuerErrors.Add(int64(len(mount.issuerIDs) - i))
 
 			break
 		}
@@ -174,21 +175,18 @@ func (r *scrapeRun) collectIssuers(ctx context.Context, stageMount mount, result
 	return output
 }
 
-// Collects one issuer and increments scrape-level issuer errors on failure.
-func (r *scrapeRun) collectIssuer(ctx context.Context, stageMount mount, clusterCfg clusterConfig, issuerID string) (issuerResult, bool) {
-	issuer := newIssuer(
-		stageMount.logger,
-		r.secretStore,
-		r.cfg.Crl,
-		stageMount.path,
-		issuerID,
-		clusterCfg,
-	)
+// Reads one issuer and increments scrape-level issuer errors on failure.
+func (r *scrapeRun) collectIssuer(ctx context.Context, mount mountResult, issuerID string) (issuerResult, bool) {
+	logger := r.mountLogger(mount.path).WithLazy(zap.String("issuer.id", issuerID))
 
-	result, collectErr := issuer.collect(ctx)
-	if collectErr != nil {
+	data, err := r.secretStore.readIssuer(ctx, mount.path, issuerID)
+	var result issuerResult
+	if err == nil {
+		result, err = parseIssuer(logger, data, mount, issuerID, r.cfg.Crl)
+	}
+	if err != nil {
 		r.errorTotals.issuerErrors.Add(1)
-		issuer.logger.Warn("failed processing issuer", zap.Error(collectErr))
+		logger.Warn("failed processing issuer", zap.Error(err))
 
 		return issuerResult{}, false
 	}
@@ -224,22 +222,23 @@ func (r *scrapeRun) scheduleCRLs(ctx context.Context, result issuerResult) {
 }
 
 // Returns cached leaf certificates and reads the remaining ones as tasks.
-func (r *scrapeRun) collectLeafs(ctx context.Context, stageMount mount, serials []string) []leafCert {
-	leafs, uncached := r.scraper.leafCache.lookup(stageMount.path, serials)
+func (r *scrapeRun) collectLeafs(ctx context.Context, mountPath string, serials []string) []leafCert {
+	logger := r.mountLogger(mountPath)
+	leafs, uncached := r.scraper.leafCache.lookup(mountPath, serials)
 
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	for _, serial := range uncached {
 		started := r.goTask(ctx, &wg, func() {
-			crt, err := readStoredCertificate(ctx, r.secretStore, stageMount.path, serial)
+			crt, err := readStoredCertificate(ctx, r.secretStore, mountPath, serial)
 			if err != nil {
-				stageMount.logger.Warn("failed processing certificate", zap.String("cert.serial", serial), zap.Error(err))
+				logger.Warn("failed processing certificate", zap.String("cert.serial", serial), zap.Error(err))
 
 				return
 			}
 
 			leaf := newLeafCert(crt)
-			r.scraper.leafCache.add(stageMount.path, serial, leaf)
+			r.scraper.leafCache.add(mountPath, serial, leaf)
 
 			mu.Lock()
 			leafs = append(leafs, leaf)
