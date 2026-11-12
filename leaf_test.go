@@ -18,7 +18,7 @@ func TestLeafCertEmitsCertificateValues(t *testing.T) {
 	_, certPEM := getTestCertDataWithOU(t, testLeafCommonName, "App")
 	crt, err := newCertificate(string(certPEM))
 	require.NoError(t, err)
-	leaf := newLeafCert(crt)
+	leaf := newLeafCert(crt, crlURLs{})
 
 	now := time.Now()
 	crt.metrics = certificateMetricsAt(now, crt.cert.NotAfter, crt.cert.NotBefore)

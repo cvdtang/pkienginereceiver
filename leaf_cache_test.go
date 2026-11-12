@@ -67,6 +67,7 @@ func TestScrapeReusesCachedLeafCertificates(t *testing.T) {
 
 	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
 	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(newTestClusterConfigData("", ""), nil)
+	mockSecretStore.On("readURLConfiguration", ctx, testMountPath).Return(&urlConfigData{}, nil)
 	mockSecretStore.On("listCertificates", ctx, testMountPath).Return([]string{testCertificateSerialKey}, nil).Twice()
 	mockSecretStore.On("listIssuers", ctx, testMountPath).Return([]string{}, nil)
 	mockSecretStore.On("readCertificate", ctx, testMountPath, testCertificateSerialKey).Return(&certificateData{Certificate: string(leafCertPEM)}, nil).Once()

@@ -200,7 +200,7 @@ resourceMetrics:
           - description: Number of CRLs downloaded and processed, as they were not cached or changed since the previous scrape.
             gauge:
               dataPoints:
-                - asInt: "6"
+                - asInt: "7"
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
             name: pkiengine.crl.cache.misses
@@ -208,6 +208,19 @@ resourceMetrics:
           - description: CRL processing status as an integer value.
             gauge:
               dataPoints:
+                - asInt: "2"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/standalone/crl
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
                 - asInt: "2"
                   attributes:
                     - key: crl.kind
@@ -301,6 +314,22 @@ resourceMetrics:
                         stringValue: subject
                     - key: crl.uri
                       value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/standalone/crl
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME Standalone CA 0
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "4319"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
                         stringValue: http://localhost:8200/v1/tenant-a/pki/standalone/issuer/00000000-0000-0000-0000-000000000000/crl/der
                     - key: crl.x509.issuer.common_name
                       value:
@@ -370,6 +399,22 @@ resourceMetrics:
                         stringValue: subject
                     - key: crl.uri
                       value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/standalone/crl
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME Standalone CA 0
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "0"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
                         stringValue: http://localhost:8200/v1/tenant-a/pki/standalone/issuer/00000000-0000-0000-0000-000000000000/crl/der
                     - key: crl.x509.issuer.common_name
                       value:
@@ -429,6 +474,22 @@ resourceMetrics:
           - description: Time since the CRL `thisUpdate` field.
             gauge:
               dataPoints:
+                - asInt: "-1"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/tenant-a/pki/standalone/crl
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME Standalone CA 0
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
                 - asInt: "-1"
                   attributes:
                     - key: crl.kind

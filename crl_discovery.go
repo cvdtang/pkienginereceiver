@@ -1,6 +1,7 @@
 package pkienginereceiver
 
 import (
+	"crypto/x509"
 	"strings"
 
 	"github.com/hashicorp/vault/sdk/helper/certutil"
@@ -8,7 +9,7 @@ import (
 	"github.com/cvdtang/pkienginereceiver/internal/metadata"
 )
 
-// CRL distribution points of an issuer URL configuration.
+// CRL distribution points of an issuer or mount-wide URL configuration.
 type crlURLs struct {
 	base  []string
 	delta []string
@@ -53,27 +54,31 @@ func crlTasks(cfg crlConfig, crt certificate, subject crlURLs) ([]crlTask, error
 		return nil, nil
 	}
 
-	tasks := appendCRLTasks(nil, subject.base, metadata.AttributeCrlRoleSubject, metadata.AttributeCrlKindBase)
-	tasks = appendCRLTasks(tasks, subject.delta, metadata.AttributeCrlRoleSubject, metadata.AttributeCrlKindDelta)
-
+	tasks := subject.tasks(metadata.AttributeCrlRoleSubject)
 	if !cfg.ScrapeParent {
 		return tasks, nil
 	}
 
-	tasks = appendCRLTasks(tasks, crt.cert.CRLDistributionPoints, metadata.AttributeCrlRoleIssuer, metadata.AttributeCrlKindBase)
+	parent, err := certCRLURLs(crt.cert)
 
-	delta, err := certutil.ParseDeltaCRLExtension(crt.cert)
-	if err != nil {
-		return tasks, err
-	}
-
-	return appendCRLTasks(tasks, delta, metadata.AttributeCrlRoleIssuer, metadata.AttributeCrlKindDelta), nil
+	return append(tasks, parent.tasks(metadata.AttributeCrlRoleIssuer)...), err
 }
 
-// Appends a CRL task per URI.
-func appendCRLTasks(tasks []crlTask, uris []string, role metadata.AttributeCrlRole, kind metadata.AttributeCrlKind) []crlTask {
-	for _, uri := range uris {
-		tasks = append(tasks, crlTask{uri: uri, role: role, kind: kind})
+// Reads the CRL distribution points and Freshest CRL extensions of a certificate.
+func certCRLURLs(crt *x509.Certificate) (crlURLs, error) {
+	delta, err := certutil.ParseDeltaCRLExtension(crt)
+
+	return crlURLs{base: crt.CRLDistributionPoints, delta: delta}, err
+}
+
+// Returns a CRL task per URL for the role.
+func (u crlURLs) tasks(role metadata.AttributeCrlRole) []crlTask {
+	tasks := make([]crlTask, 0, len(u.base)+len(u.delta))
+	for _, uri := range u.base {
+		tasks = append(tasks, crlTask{uri: uri, role: role, kind: metadata.AttributeCrlKindBase})
+	}
+	for _, uri := range u.delta {
+		tasks = append(tasks, crlTask{uri: uri, role: role, kind: metadata.AttributeCrlKindDelta})
 	}
 
 	return tasks

@@ -21,11 +21,12 @@ var _ secretStore = (*vault)(nil)
 const httpMethodList = "LIST"
 
 type secretStore interface {
-	readClusterConfiguration(ctx context.Context, mount string) (*clusterConfigData, error)
 	listMountPathsTypePki(ctx context.Context) ([]string, error)
+	readClusterConfiguration(ctx context.Context, mount string) (*clusterConfigData, error)
+	readURLConfiguration(ctx context.Context, mount string) (*urlConfigData, error)
+	listCertificates(ctx context.Context, mount string) ([]string, error)
 	listIssuers(ctx context.Context, mount string) ([]string, error)
 	readIssuer(ctx context.Context, mount string, id string) (*issuerData, error)
-	listCertificates(ctx context.Context, mount string) ([]string, error)
 	readCertificate(ctx context.Context, mount string, serial string) (*certificateData, error)
 }
 
@@ -34,11 +35,19 @@ type clusterConfigData struct {
 	AIAPath *string `json:"aia_path"`
 }
 
+type urlConfigData struct {
+	CRLDistributionPoints      []string `json:"crl_distribution_points"`
+	DeltaCRLDistributionPoints []string `json:"delta_crl_distribution_points"`
+	EnableTemplating           bool     `json:"enable_templating"`
+}
+
 type issuerData struct {
 	Certificate                string          `json:"certificate"`
 	KeyID                      json.RawMessage `json:"key_id"`
+	IssuingCertificates        []string        `json:"issuing_certificates"`
 	CRLDistributionPoints      []string        `json:"crl_distribution_points"`
 	DeltaCRLDistributionPoints []string        `json:"delta_crl_distribution_points"`
+	OCSPServers                []string        `json:"ocsp_servers"`
 	EnableAIAURLTemplating     bool            `json:"enable_aia_url_templating"`
 }
 
@@ -156,6 +165,11 @@ func (v *vault) rawRequest(ctx context.Context, method string, requestPath strin
 // API: https://developer.hashicorp.com/vault/api-docs/secret/pki#read-cluster-configuration
 func (v *vault) readClusterConfiguration(ctx context.Context, mount string) (*clusterConfigData, error) {
 	return vaultRequest[clusterConfigData](ctx, v, http.MethodGet, path.Join(mount, "config/cluster"))
+}
+
+// API: https://developer.hashicorp.com/vault/api-docs/secret/pki#read-urls
+func (v *vault) readURLConfiguration(ctx context.Context, mount string) (*urlConfigData, error) {
+	return vaultRequest[urlConfigData](ctx, v, http.MethodGet, path.Join(mount, "config/urls"))
 }
 
 // Call secret store to list mounts, only return mounts of type `pki`.

@@ -26,6 +26,15 @@ resource "vault_pki_secret_backend_crl_config" "standalone" {
   enable_delta = true
 }
 
+resource "vault_pki_secret_backend_config_urls" "standalone" {
+  namespace = local.namespace
+  # Set after the roots are generated, so they carry no CRL distribution points.
+  depends_on = [vault_pki_secret_backend_root_cert.standalone]
+
+  backend                 = vault_mount.pki_standalone.path
+  crl_distribution_points = ["${var.secret_store_host}/v1/${local.ns_path}${vault_mount.pki_standalone.path}/crl"]
+}
+
 resource "vault_pki_secret_backend_root_cert" "standalone" {
 
   count     = var.num_standalone
@@ -49,6 +58,8 @@ resource "vault_pki_secret_backend_root_cert" "standalone" {
 resource "vault_pki_secret_backend_issuer" "standalone" {
   count     = var.num_standalone
   namespace = local.namespace
+  # Set after the leafs are issued, so they carry the mount-wide URL.
+  depends_on = [vault_pki_secret_backend_cert.standalone]
 
   backend                   = vault_mount.pki_standalone.path
   issuer_ref                = vault_pki_secret_backend_root_cert.standalone[count.index].issuer_id
@@ -74,7 +85,7 @@ resource "vault_pki_secret_backend_role" "standalone" {
   namespace = local.namespace
 
   backend          = vault_mount.pki_standalone.path
-  issuer_ref       = vault_pki_secret_backend_issuer.standalone[count.index].issuer_id
+  issuer_ref       = vault_pki_secret_backend_root_cert.standalone[count.index].issuer_id
   name             = "acme-standalone-role-${count.index}"
   ttl              = 3600
   key_type         = "ec"
@@ -95,8 +106,9 @@ resource "vault_pki_secret_backend_cert" "standalone" {
     }
   }
 
-  namespace = local.namespace
-  backend   = vault_mount.pki_standalone.path
+  namespace  = local.namespace
+  backend    = vault_mount.pki_standalone.path
+  depends_on = [vault_pki_secret_backend_config_urls.standalone]
 
   name = vault_pki_secret_backend_role.standalone[each.value.role_idx].name
 

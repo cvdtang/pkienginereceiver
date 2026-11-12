@@ -50,12 +50,17 @@ func parseIssuer(logger *zap.Logger, data *issuerData, mount mountResult, id str
 		zap.String("cert.issuer.common_name", crt.issuerCN),
 	)
 
-	own := crlURLs{
+	urls := crlURLs{
 		base:       data.CRLDistributionPoints,
 		delta:      data.DeltaCRLDistributionPoints,
 		templating: data.EnableAIAURLTemplating,
 	}
-	tasks, err := crlTasks(cfg, crt, own.resolve(id, mount.clusterConfig))
+	// The secret store only writes the mount-wide URLs into certificates of issuers without any AIA URLs of their own,
+	// so an issuer with only issuing certificate or OCSP URLs has no CRL distribution points.
+	if len(urls.base)+len(urls.delta)+len(data.IssuingCertificates)+len(data.OCSPServers) == 0 {
+		urls = mount.crlURLs
+	}
+	tasks, err := crlTasks(cfg, crt, urls.resolve(id, mount.clusterConfig))
 	if err != nil {
 		logger.Error("failed parsing delta CRL extension", zap.Error(err))
 	}

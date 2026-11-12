@@ -11,12 +11,21 @@ import (
 type mountResult struct {
 	path               string
 	clusterConfig      clusterConfig
+	crlURLs            crlURLs
 	issuerIDs          []string
 	certificateSerials []string
 
 	ts pcommon.Timestamp
 	// Number of stored certificates, nil when certificates are not listed.
 	storedCertificates *int64
+}
+
+// Optional reads of a mount.
+type mountOptions struct {
+	// Lists the stored certificates, for the stored certificates metric and leaf collection.
+	listCertificates bool
+	// Reads the mount-wide URL configuration, for CRL discovery.
+	readURLs bool
 }
 
 type clusterConfig struct {
@@ -43,7 +52,7 @@ func parseClusterConfig(data *clusterConfigData) (clusterConfig, error) {
 }
 
 // Reads the cluster configuration and the issuer IDs of a mount.
-func readMount(ctx context.Context, store secretStore, path string, listCertificates bool) (mountResult, error) {
+func readMount(ctx context.Context, store secretStore, path string, opts mountOptions) (mountResult, error) {
 	clusterData, err := store.readClusterConfiguration(ctx, path)
 	var cluster clusterConfig
 	if err == nil {
@@ -58,7 +67,21 @@ func readMount(ctx context.Context, store secretStore, path string, listCertific
 		clusterConfig: cluster,
 	}
 
-	if listCertificates {
+	if opts.readURLs {
+		urlData, err := store.readURLConfiguration(ctx, path)
+		if err != nil {
+			return mountResult{}, fmt.Errorf("failed reading url config: %w", err)
+		}
+		if urlData != nil {
+			result.crlURLs = crlURLs{
+				base:       urlData.CRLDistributionPoints,
+				delta:      urlData.DeltaCRLDistributionPoints,
+				templating: urlData.EnableTemplating,
+			}
+		}
+	}
+
+	if opts.listCertificates {
 		result.certificateSerials, err = store.listCertificates(ctx, path)
 		if err != nil {
 			return mountResult{}, fmt.Errorf("failed listing leaf certificates: %w", err)

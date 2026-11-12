@@ -82,6 +82,11 @@ To avoid unnecessary API calls and duplicate metric emission:
    - skip serials that match copied parent issuer serials.
 
 # CRL
+## Discovery
+Subject-role CRLs belong to the issuers themselves. The CRL distribution points of the issuer (`GET <mount>/issuer/<id>`) are used when the issuer has any AIA URLs of its own (CRL, issuing certificate or OCSP), and otherwise those of the mount (`GET <mount>/config/urls`), as the secret store only writes the mount URLs into certificates of issuers without any.
+
+With leaf collection enabled, the CRL distribution points of the stored leaf certificates are added, as certificates keep the URLs of their issuance.
+
 ## Caching
 Optionally, an in-memory cache is reused across scrape runs to avoid repeated downloads and parsing of CRLs. It keeps only the processed values and HTTP validators of each CRL, not the CRL itself. Instead of a size limit, CRLs not referenced by any issuer in the last 3 scrapes are dropped, so the cache holds the recently referenced CRLs. A CRL is not dropped right away, as a scrape cut short by errors or a timeout cannot tell an unreferenced CRL from an unreached one, and dropping a still referenced CRL forces a full download. A failed fetch keeps the cached CRL and its validators, so the next scrape revalidates it. Within a single scrape run, each unique CRL URI is checked over the network at most once.
 

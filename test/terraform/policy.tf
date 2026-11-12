@@ -12,6 +12,10 @@ path "pki/+/config/cluster" {
   capabilities = [ "read" ]
 }
 
+path "pki/+/config/urls" {
+  capabilities = [ "read" ]
+}
+
 path "pki/+/certs" {
   capabilities = [ "list" ]
 }
