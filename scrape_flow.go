@@ -103,13 +103,16 @@ func (r *scrapeRun) collect(ctx context.Context, mountPaths []string) []mountOut
 	return result
 }
 
-// Collects a mount, its issuers and its leaf certificates, and schedules the CRL tasks of its issuers.
+// Collects a mount, its issuers and its leaf certificates, and schedules the CRL tasks of its issuers and leaf certificates.
 func (r *scrapeRun) collectMountTree(ctx context.Context, mountPath string) (mountOutput, bool) {
 	logger := r.mountLogger(mountPath)
-	listCertificates := r.cfg.Metrics.PkiengineMountCertificatesStored.Enabled || r.cfg.Leaf.Enabled
+	opts := mountOptions{
+		listCertificates: r.cfg.Metrics.PkiengineMountCertificatesStored.Enabled || r.cfg.Leaf.Enabled,
+		readURLs:         r.cfg.Crl.Enabled,
+	}
 
 	result, err := withSlot(ctx, r.tasks, func() (mountResult, error) {
-		return readMount(ctx, r.secretStore, mountPath, listCertificates)
+		return readMount(ctx, r.secretStore, mountPath, opts)
 	})
 	if err != nil {
 		r.errorTotals.mountErrors.Add(1)
@@ -121,6 +124,7 @@ func (r *scrapeRun) collectMountTree(ctx context.Context, mountPath string) (mou
 	output := mountOutput{mount: result}
 	issuerSerials := make(map[string]struct{})
 	parentSerials := make(map[string]struct{})
+	scheduledCRLs := make(map[crlTask]struct{})
 	for _, issuer := range r.collectIssuers(ctx, result) {
 		if issuer.isParent {
 			if issuer.certificateSerial != "" {
@@ -131,12 +135,19 @@ func (r *scrapeRun) collectMountTree(ctx context.Context, mountPath string) (mou
 		}
 		issuerSerials[issuer.certificateSerial] = struct{}{}
 		output.issuers = append(output.issuers, issuer)
-		r.scheduleCRLs(ctx, issuer)
+		r.scheduleCRLs(ctx, issuer.logger, issuer.crlTasks, scheduledCRLs)
 	}
 
 	if r.cfg.Leaf.Enabled {
 		serials := leafCandidates(logger, result.certificateSerials, issuerSerials, parentSerials)
 		output.leafs = r.collectLeafs(ctx, mountPath, serials)
+
+		// Leafs keep the CRL distribution points of their issuance, also those no longer configured.
+		if r.cfg.Crl.Enabled {
+			for i := range output.leafs {
+				r.scheduleCRLs(ctx, logger, output.leafs[i].crlTasks(), scheduledCRLs)
+			}
+		}
 	}
 
 	return output, true
@@ -194,12 +205,17 @@ func (r *scrapeRun) collectIssuer(ctx context.Context, mount mountResult, issuer
 	return result, true
 }
 
-// Claims the CRL series of an issuer and starts one CRL task per URI not yet collected in this scrape.
-func (r *scrapeRun) scheduleCRLs(ctx context.Context, result issuerResult) {
-	for _, task := range result.crlTasks {
+// Claims the CRL series of the tasks and starts one CRL task per URI not yet collected in this scrape.
+func (r *scrapeRun) scheduleCRLs(ctx context.Context, logger *zap.Logger, tasks []crlTask, scheduled map[crlTask]struct{}) {
+	for _, task := range tasks {
+		if _, ok := scheduled[task]; ok {
+			continue
+		}
+		scheduled[task] = struct{}{}
+
 		claimed, collect := r.crls.claim(task)
 		if !claimed {
-			result.logger.Debug(
+			logger.Debug(
 				"skipping duplicate crl in scrape",
 				zap.String("crl.uri", task.uri),
 				zap.String("crl.role", task.role.String()),
@@ -212,10 +228,10 @@ func (r *scrapeRun) scheduleCRLs(ctx context.Context, result issuerResult) {
 			continue
 		}
 
-		logger := result.logger.WithLazy(zap.String("crl.uri", task.uri))
+		crlLogger := logger.WithLazy(zap.String("crl.uri", task.uri))
 		r.goTask(ctx, &r.crlWg, func() {
-			if _, err := r.crls.collect(ctx, logger, task.uri); err != nil {
-				logger.Warn("failed processing crl", zap.Error(err))
+			if _, err := r.crls.collect(ctx, crlLogger, task.uri); err != nil {
+				crlLogger.Warn("failed processing crl", zap.Error(err))
 			}
 		})
 	}
@@ -237,7 +253,12 @@ func (r *scrapeRun) collectLeafs(ctx context.Context, mountPath string, serials 
 				return
 			}
 
-			leaf := newLeafCert(crt)
+			crls, err := certCRLURLs(crt.cert)
+			if err != nil {
+				logger.Warn("failed parsing delta CRL extension", zap.String("cert.serial", serial), zap.Error(err))
+			}
+
+			leaf := newLeafCert(crt, crls)
 			r.scraper.leafCache.add(mountPath, serial, leaf)
 
 			mu.Lock()

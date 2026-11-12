@@ -833,6 +833,74 @@ func (_c *mocksecretStore_readIssuer_Call) RunAndReturn(run func(ctx context.Con
 	return _c
 }
 
+// readURLConfiguration provides a mock function for the type mocksecretStore
+func (_mock *mocksecretStore) readURLConfiguration(ctx context.Context, mount string) (*urlConfigData, error) {
+	ret := _mock.Called(ctx, mount)
+
+	if len(ret) == 0 {
+		panic("no return value specified for readURLConfiguration")
+	}
+
+	var r0 *urlConfigData
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*urlConfigData, error)); ok {
+		return returnFunc(ctx, mount)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *urlConfigData); ok {
+		r0 = returnFunc(ctx, mount)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*urlConfigData)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, mount)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// mocksecretStore_readURLConfiguration_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'readURLConfiguration'
+type mocksecretStore_readURLConfiguration_Call struct {
+	*mock.Call
+}
+
+// readURLConfiguration is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mount string
+func (_e *mocksecretStore_Expecter) readURLConfiguration(ctx any, mount any) *mocksecretStore_readURLConfiguration_Call {
+	return &mocksecretStore_readURLConfiguration_Call{Call: _e.mock.On("readURLConfiguration", ctx, mount)}
+}
+
+func (_c *mocksecretStore_readURLConfiguration_Call) Run(run func(ctx context.Context, mount string)) *mocksecretStore_readURLConfiguration_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *mocksecretStore_readURLConfiguration_Call) Return(urlConfigDataMoqParam *urlConfigData, err error) *mocksecretStore_readURLConfiguration_Call {
+	_c.Call.Return(urlConfigDataMoqParam, err)
+	return _c
+}
+
+func (_c *mocksecretStore_readURLConfiguration_Call) RunAndReturn(run func(ctx context.Context, mount string) (*urlConfigData, error)) *mocksecretStore_readURLConfiguration_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // newMockldapConn creates a new instance of mockldapConn. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func newMockldapConn(t interface {

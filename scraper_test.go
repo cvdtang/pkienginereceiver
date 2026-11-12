@@ -137,6 +137,7 @@ func TestScrape(t *testing.T) {
 	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
 
 	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(newTestClusterConfigData("", ""), nil)
+	mockSecretStore.On("readURLConfiguration", ctx, testMountPath).Return(&urlConfigData{}, nil)
 
 	mockSecretStore.On("listCertificates", ctx, testMountPath).Return([]string{testCertificateSerialKey}, nil)
 
@@ -208,6 +209,7 @@ func TestScrapeIssuerErrorMetric(t *testing.T) {
 	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
 
 	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(newTestClusterConfigData("", ""), nil)
+	mockSecretStore.On("readURLConfiguration", ctx, testMountPath).Return(&urlConfigData{}, nil)
 
 	mockSecretStore.On("listCertificates", ctx, testMountPath).Return([]string{testCertificateSerialKey}, nil)
 
@@ -246,6 +248,7 @@ func TestScrapeMountErrorMetricOnListCertificatesFailure(t *testing.T) {
 
 	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
 	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(newTestClusterConfigData("", ""), nil)
+	mockSecretStore.On("readURLConfiguration", ctx, testMountPath).Return(&urlConfigData{}, nil)
 	mockSecretStore.On("listCertificates", ctx, testMountPath).Return(nil, errTest)
 
 	err := scraper.start(ctx, newMdatagenNopHost())
@@ -290,6 +293,7 @@ func TestScrapeCRLCacheHitMissMetrics(t *testing.T) {
 
 	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
 	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(newTestClusterConfigData("", ""), nil)
+	mockSecretStore.On("readURLConfiguration", ctx, testMountPath).Return(&urlConfigData{}, nil)
 	mockSecretStore.On("listCertificates", ctx, testMountPath).Return([]string{testCertificateSerialKey}, nil)
 	mockSecretStore.On("listIssuers", ctx, testMountPath).Return([]string{testIssuerID}, nil)
 	mockSecretStore.On("readIssuer", ctx, testMountPath, testIssuerID).Return(&issuerData{Certificate: string(certPEM), CRLDistributionPoints: []string{crlURI}, DeltaCRLDistributionPoints: []string{crlURI}, EnableAIAURLTemplating: false}, nil)
@@ -383,6 +387,7 @@ func TestScrapeSkipsCertificateListWhenDisabled(t *testing.T) {
 
 	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
 	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(newTestClusterConfigData("", ""), nil)
+	mockSecretStore.On("readURLConfiguration", ctx, testMountPath).Return(&urlConfigData{}, nil)
 	mockSecretStore.On("listIssuers", ctx, testMountPath).Return([]string{}, nil)
 
 	err := scraper.start(ctx, newMdatagenNopHost())
@@ -409,6 +414,7 @@ func TestScrapeSkipsIssuerCertificatesFromCertificateList(t *testing.T) {
 
 	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
 	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(newTestClusterConfigData("", ""), nil)
+	mockSecretStore.On("readURLConfiguration", ctx, testMountPath).Return(&urlConfigData{}, nil)
 	mockSecretStore.On("listCertificates", ctx, testMountPath).Return([]string{issuerSerialRef, testCertificateSerialKey}, nil)
 	mockSecretStore.On("listIssuers", ctx, testMountPath).Return([]string{testIssuerID}, nil)
 	mockSecretStore.On("readIssuer", ctx, testMountPath, testIssuerID).Return(&issuerData{Certificate: string(issuerCertPEM), KeyID: json.RawMessage(`"key-local"`)}, nil)

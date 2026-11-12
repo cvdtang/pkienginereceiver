@@ -55,6 +55,7 @@ func TestScrapeBoundsLeafCertificateReads(t *testing.T) {
 	var tracker inFlightTracker
 	mockSecretStore.On("listMountPathsTypePki", ctx).Return([]string{testMountPath}, nil)
 	mockSecretStore.On("readClusterConfiguration", ctx, testMountPath).Return(newTestClusterConfigData("", ""), nil)
+	mockSecretStore.On("readURLConfiguration", ctx, testMountPath).Return(&urlConfigData{}, nil)
 	mockSecretStore.On("listCertificates", ctx, testMountPath).Return(serials, nil)
 	mockSecretStore.On("listIssuers", ctx, testMountPath).Return([]string{}, nil)
 	mockSecretStore.On("readCertificate", ctx, testMountPath, mock.Anything).Run(func(mock.Arguments) {
@@ -143,6 +144,7 @@ func TestScrapeTaskLimit(t *testing.T) {
 			track := func(mock.Arguments) { work() }
 			mockSecretStore.On("listMountPathsTypePki", mock.Anything).Return(mountPaths, nil)
 			mockSecretStore.On("readClusterConfiguration", mock.Anything, mock.Anything).Run(track).Return(newTestClusterConfigData("", ""), nil)
+			mockSecretStore.On("readURLConfiguration", mock.Anything, mock.Anything).Run(track).Return(&urlConfigData{}, nil)
 			mockSecretStore.On("listCertificates", mock.Anything, mock.Anything).Run(track).Return([]string{"01", "02", "03", "04", "05"}, nil)
 			mockSecretStore.On("listIssuers", mock.Anything, mock.Anything).Run(track).Return([]string{"a", "b", "c"}, nil)
 			mockSecretStore.On("readIssuer", mock.Anything, mock.Anything, mock.Anything).Run(track).Return(

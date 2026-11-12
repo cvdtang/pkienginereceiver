@@ -92,12 +92,12 @@ receivers:
 - `concurrency_limit` *(int)*: Maximum number of concurrent tasks, such as reading an issuer or fetching and parsing a CRL. Defaults to the number of CPU cores determined by GOMAXPROCS.
 
 ### Leaf certificates
-- `leaf_certificates.enabled` *(bool)*: (default = `false`) Enable collection of stored leaf certificates (`no_store=false`). Use with care in large deployments due to high cardinality and higher API load.
+- `leaf_certificates.enabled` *(bool)*: (default = `false`) Enable collection of stored leaf certificates (`no_store=false`), including the CRLs they reference. Use with care in large deployments due to high cardinality and additional API load.
 - `leaf_certificates.cache.enabled` *(bool)*: (default = `true`) Cache stored leaf certificates across scrapes, so only certificates not seen before are read from the secret store.
 
 ### CRL
 - `crl.enabled` *(bool)*: (default = `true`) Enable CRL processing.
-- `crl.scrape_parent` *(bool)*: (default = `true`) Enable scraping issuer-role (parent) CRLs referenced in issuer certificates. When `false`, only subject-role CRLs from issuer API fields are scraped.
+- `crl.scrape_parent` *(bool)*: (default = `true`) Enable scraping issuer-role (parent) CRLs referenced in issuer certificates. When `false`, only subject-role CRLs of the issuers themselves are scraped.
 - `crl.cache.enabled` *(bool)*: (default = `true`) Cache processed CRLs across scrapes, so unchanged HTTP CRLs are revalidated instead of downloaded. The cache holds the CRLs referenced in the last 3 scrapes.
 - `crl.cache_size` *(int)*: Deprecated, use `crl.cache.enabled`. A value of `0` disables the CRL cache, other values are ignored.
 - `crl.timeout` *(string)*: (default = `5s`) Maximum time to wait for a CRL fetch response.
@@ -215,6 +215,11 @@ path "sys/mounts" {
 
 # ref: https://developer.hashicorp.com/vault/api-docs/secret/pki#read-cluster-configuration
 path "pki/config/cluster" {
+  capabilities = [ "read" ]
+}
+
+# ref: https://developer.hashicorp.com/vault/api-docs/secret/pki#read-urls
+path "pki/config/urls" {
   capabilities = [ "read" ]
 }
 

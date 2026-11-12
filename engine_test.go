@@ -52,6 +52,39 @@ func vaultJSONResponse(w http.ResponseWriter, body string) {
 	_, _ = w.Write([]byte(body))
 }
 
+// Ensures listMountPathsTypePki returns only mounts of type pki from the sys/mounts response.
+func TestVaultListMountPathsTypePki(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v1/sys/mounts", r.URL.Path)
+		vaultJSONResponse(w, `{"data":{"pki/":{"type":"pki"},"pki-other/":{"type":"pki"},"kv/":{"type":"kv"}}}`)
+	}))
+	defer server.Close()
+
+	v := newTestVault(t, server.URL)
+	ctx, observer := ctxWithRateObserver(t)
+	mounts, err := v.listMountPathsTypePki(ctx)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"pki/", "pki-other/"}, mounts)
+	assert.Equal(t, int64(0), observer.Load())
+}
+
+// Ensures listMountPathsTypePki reports an error when the sys/mounts response carries no data.
+func TestVaultListMountPathsTypePkiEmptyData(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		vaultJSONResponse(w, `{}`)
+	}))
+	defer server.Close()
+
+	v := newTestVault(t, server.URL)
+	_, err := v.listMountPathsTypePki(t.Context())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "data from server response is empty")
+}
+
 // Ensures readClusterConfiguration issues a GET to the pki config/cluster path and parses the cluster config from the response.
 func TestVaultReadClusterConfiguration(t *testing.T) {
 	t.Parallel()
@@ -74,20 +107,25 @@ func TestVaultReadClusterConfiguration(t *testing.T) {
 	assert.Equal(t, int64(0), observer.Load())
 }
 
-// Ensures a 404 response yields no data without an error, preserving Vault SDK semantics.
-func TestVaultReadNotFound(t *testing.T) {
+// Ensures readURLConfiguration issues a GET to the pki config/urls path and parses the URL config from the response.
+func TestVaultReadURLConfiguration(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-		vaultJSONResponse(w, `{"errors":["unsupported path"]}`)
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "/v1/pki/config/urls", r.URL.Path)
+
+		vaultJSONResponse(w, `{"data":{"crl_distribution_points":["http://example.com/v1/pki/crl"],"delta_crl_distribution_points":[],"enable_templating":true}}`)
 	}))
 	defer server.Close()
 
-	v := newTestVault(t, server.URL)
-	issuer, err := v.readIssuer(t.Context(), "pki/", "missing")
+	urlCfg, err := newTestVault(t, server.URL).readURLConfiguration(t.Context(), "pki/")
 	require.NoError(t, err)
-	assert.Nil(t, issuer)
+	assert.Equal(t, &urlConfigData{
+		CRLDistributionPoints:      []string{"http://example.com/v1/pki/crl"},
+		DeltaCRLDistributionPoints: []string{},
+		EnableTemplating:           true,
+	}, urlCfg)
 }
 
 // Ensures listIssuers issues a LIST request with list=true and returns the issuer keys.
@@ -109,22 +147,76 @@ func TestVaultListIssuers(t *testing.T) {
 	assert.Equal(t, []string{"issuer-1", "issuer-2"}, issuerIDs)
 }
 
-// Ensures listMountPathsTypePki returns only mounts of type pki from the sys/mounts response.
-func TestVaultListMountPathsTypePki(t *testing.T) {
+// Ensures readIssuer decodes all issuer fields.
+func TestVaultReadIssuerDecodesFields(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/v1/sys/mounts", r.URL.Path)
-		vaultJSONResponse(w, `{"data":{"pki/":{"type":"pki"},"pki-other/":{"type":"pki"},"kv/":{"type":"kv"}}}`)
+		assert.Equal(t, "/v1/pki/issuer/abc", r.URL.Path)
+		vaultJSONResponse(w, `{"data":{"certificate":"PEM","key_id":"7b0f","crl_distribution_points":["http://crl"],`+
+			`"delta_crl_distribution_points":["http://delta"],"issuing_certificates":["http://ca"],"ocsp_servers":["http://ocsp"],`+
+			`"enable_aia_url_templating":true}}`)
+	}))
+	defer server.Close()
+
+	issuer, err := newTestVault(t, server.URL).readIssuer(t.Context(), "pki/", "abc")
+	require.NoError(t, err)
+	require.NotNil(t, issuer)
+	assert.Equal(t, "PEM", issuer.Certificate)
+	assert.JSONEq(t, `"7b0f"`, string(issuer.KeyID))
+	assert.Equal(t, []string{"http://crl"}, issuer.CRLDistributionPoints)
+	assert.Equal(t, []string{"http://delta"}, issuer.DeltaCRLDistributionPoints)
+	assert.Equal(t, []string{"http://ca"}, issuer.IssuingCertificates)
+	assert.Equal(t, []string{"http://ocsp"}, issuer.OCSPServers)
+	assert.True(t, issuer.EnableAIAURLTemplating)
+}
+
+// Ensures a 404 response yields no data without an error, preserving Vault SDK semantics.
+func TestVaultReadNotFound(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		vaultJSONResponse(w, `{"errors":["unsupported path"]}`)
 	}))
 	defer server.Close()
 
 	v := newTestVault(t, server.URL)
-	ctx, observer := ctxWithRateObserver(t)
-	mounts, err := v.listMountPathsTypePki(ctx)
+	issuer, err := v.readIssuer(t.Context(), "pki/", "missing")
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{"pki/", "pki-other/"}, mounts)
-	assert.Equal(t, int64(0), observer.Load())
+	assert.Nil(t, issuer)
+}
+
+// Ensures empty bodies and missing list paths yield no data without an error, preserving SDK semantics.
+func TestVaultEmptyAndNotFoundResponses(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/pki/cert/empty":
+			w.WriteHeader(http.StatusNoContent)
+		case "/v1/pki/certs":
+			w.WriteHeader(http.StatusNotFound)
+			vaultJSONResponse(w, `{"errors":[]}`)
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+			vaultJSONResponse(w, `{"errors":["boom"]}`)
+		}
+	}))
+	defer server.Close()
+
+	v := newTestVault(t, server.URL)
+
+	cert, err := v.readCertificate(t.Context(), "pki/", "empty")
+	require.NoError(t, err)
+	assert.Nil(t, cert)
+
+	serials, err := v.listCertificates(t.Context(), "pki/")
+	require.NoError(t, err)
+	assert.Empty(t, serials)
+
+	_, err = v.readIssuer(t.Context(), "pki/", "fails")
+	require.ErrorContains(t, err, "boom")
 }
 
 // Ensures a 429 response is retried after the wait floor and counted once by the rate observer.
@@ -207,21 +299,6 @@ func TestVaultCountsSdkRetriedRateLimits(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, clusterCfg)
 	assert.Equal(t, int64(2), observer.Load())
-}
-
-// Ensures listMountPathsTypePki reports an error when the sys/mounts response carries no data.
-func TestVaultListMountPathsTypePkiEmptyData(t *testing.T) {
-	t.Parallel()
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		vaultJSONResponse(w, `{}`)
-	}))
-	defer server.Close()
-
-	v := newTestVault(t, server.URL)
-	_, err := v.listMountPathsTypePki(t.Context())
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "data from server response is empty")
 }
 
 // Records request order and response body Close() calls to assert the 429
@@ -321,57 +398,4 @@ func TestVaultClosesRateLimitedResponseBodyBeforeRetry(t *testing.T) {
 	assert.Equal(t, "req:/v1/pki/config/cluster", events[0])
 	assert.Equal(t, "close:429:/v1/pki/config/cluster", events[1])
 	assert.Equal(t, "req:/v1/pki/config/cluster", events[2])
-}
-
-// Ensures readIssuer decodes all issuer fields.
-func TestVaultReadIssuerDecodesFields(t *testing.T) {
-	t.Parallel()
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/v1/pki/issuer/abc", r.URL.Path)
-		vaultJSONResponse(w, `{"data":{"certificate":"PEM","key_id":"7b0f","crl_distribution_points":["http://crl"],`+
-			`"delta_crl_distribution_points":["http://delta"],"enable_aia_url_templating":true}}`)
-	}))
-	defer server.Close()
-
-	issuer, err := newTestVault(t, server.URL).readIssuer(t.Context(), "pki/", "abc")
-	require.NoError(t, err)
-	require.NotNil(t, issuer)
-	assert.Equal(t, "PEM", issuer.Certificate)
-	assert.JSONEq(t, `"7b0f"`, string(issuer.KeyID))
-	assert.Equal(t, []string{"http://crl"}, issuer.CRLDistributionPoints)
-	assert.Equal(t, []string{"http://delta"}, issuer.DeltaCRLDistributionPoints)
-	assert.True(t, issuer.EnableAIAURLTemplating)
-}
-
-// Ensures empty bodies and missing list paths yield no data without an error, preserving SDK semantics.
-func TestVaultEmptyAndNotFoundResponses(t *testing.T) {
-	t.Parallel()
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/v1/pki/cert/empty":
-			w.WriteHeader(http.StatusNoContent)
-		case "/v1/pki/certs":
-			w.WriteHeader(http.StatusNotFound)
-			vaultJSONResponse(w, `{"errors":[]}`)
-		default:
-			w.WriteHeader(http.StatusInternalServerError)
-			vaultJSONResponse(w, `{"errors":["boom"]}`)
-		}
-	}))
-	defer server.Close()
-
-	v := newTestVault(t, server.URL)
-
-	cert, err := v.readCertificate(t.Context(), "pki/", "empty")
-	require.NoError(t, err)
-	assert.Nil(t, cert)
-
-	serials, err := v.listCertificates(t.Context(), "pki/")
-	require.NoError(t, err)
-	assert.Empty(t, serials)
-
-	_, err = v.readIssuer(t.Context(), "pki/", "fails")
-	require.ErrorContains(t, err, "boom")
 }
