@@ -94,3 +94,9 @@ variable "rate_limit_standalone" {
   type        = bool
   default     = false
 }
+
+variable "revocations" {
+  description = "Revoke leaf certificates so the base and delta CRLs list entries"
+  type        = bool
+  default     = true
+}

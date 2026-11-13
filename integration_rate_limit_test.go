@@ -7,15 +7,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/consumer/consumertest"
-	"go.opentelemetry.io/collector/pdata/pmetric"
 )
 
-// Verifies rate limit handling against a real secret store. A 1 request/s
-// quota is applied to the standalone PKI mount and the scraper must both
-// observe the throttling (sustained positive pkiengine.rate_limit.throttled
-// counters) and still complete a full, error-free scrape through the retry
-// loop. The counter value is nondeterministic (it counts 429s per scrape), so
-// behavior is asserted with invariants rather than a golden file.
+// Verifies rate limit handling against a real secret store.
+// A 1 request/s quota is applied to the standalone PKI mount and a single scrape must both observe the throttling and still complete a full, error-free scrape through the retry loop.
+// The counter value is nondeterministic (it counts 429s per scrape),
+// so behavior is asserted with invariants rather than a golden file.
 func TestRateLimit(t *testing.T) {
 	t.Parallel()
 	if testing.Short() {
@@ -80,40 +77,22 @@ func runRateLimitPhase(t *testing.T, img integrationImage, tag string, namespace
 	vars.renewableToken = terraformOutputString(t, ctx, tf, "renewable_token")
 
 	tc := integrationTestCase{
-		name:          "rate-limit",
-		cfgMatchRegex: "^pki/standalone/$",
-		tfVars:        vars,
-		auth:          tokenAuth,
+		name:               "rate-limit",
+		cfgMatchRegex:      "^pki/standalone/$",
+		tfVars:             vars,
+		auth:               tokenAuth,
+		collectionInterval: testRateLimitCollectionInterval,
 	}
 
 	sink, _, shutdown := startScraperReceiver(t, ctx, &IntegrationSuite{}, tc, secretStoreAddr, false)
 	defer shutdown()
 
-	assertThrottledSustained(t, sink)
-	assertRateLimitedScrapeCompleted(t, sink)
+	assertThrottledScrapeCompleted(t, sink)
 }
 
-// The throttled counter is per-scrape (reset each scrape cycle), so multiple
-// snapshots carrying a positive count prove the quota keeps biting across
-// scrape cycles rather than a single one-off 429.
-func assertThrottledSustained(t *testing.T, sink *consumertest.MetricsSink) {
-	t.Helper()
-
-	assert.Eventually(t, func() bool {
-		throttledSnapshots := 0
-		for _, metrics := range sink.AllMetrics() {
-			if throttledCountFromSnapshot(metrics) > 0 {
-				throttledSnapshots++
-			}
-		}
-
-		return throttledSnapshots >= 2
-	}, testRateLimitTimeout, testScrapeInterval)
-}
-
-// The retry loop must complete a full scrape despite throttling: the standalone
-// mount reports one issuer and one leaf certificate with no processing errors.
-func assertRateLimitedScrapeCompleted(t *testing.T, sink *consumertest.MetricsSink) {
+// The retry loop must carry a throttled scrape to completion:
+// the same scrape counts 429 responses and reports the standalone mount's issuer and leaf certificate without processing errors.
+func assertThrottledScrapeCompleted(t *testing.T, sink *consumertest.MetricsSink) {
 	t.Helper()
 
 	assert.Eventually(t, func() bool {
@@ -122,13 +101,9 @@ func assertRateLimitedScrapeCompleted(t *testing.T, sink *consumertest.MetricsSi
 			return false
 		}
 
-		return metricValue(lastMetrics, "pkiengine.mount.certificates_stored") == 2 &&
+		return metricValue(lastMetrics, "pkiengine.rate_limit.throttled") > 0 &&
+			metricValue(lastMetrics, "pkiengine.mount.certificates_stored") == 2 &&
 			metricValue(lastMetrics, "pkiengine.issuer.errors") == 0 &&
 			metricValue(lastMetrics, "pkiengine.mount.errors") == 0
 	}, testRateLimitTimeout, testScrapeInterval)
-}
-
-// Returns the sum of the pkiengine.rate_limit.throttled data points in a snapshot.
-func throttledCountFromSnapshot(metrics pmetric.Metrics) int64 {
-	return metricValue(metrics, "pkiengine.rate_limit.throttled")
 }
