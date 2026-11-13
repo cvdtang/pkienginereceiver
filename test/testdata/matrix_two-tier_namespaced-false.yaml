@@ -140,6 +140,90 @@ resourceMetrics:
                         stringValue: leaf
                     - key: cert.x509.issuer.common_name
                       value:
+                        stringValue: ACME intermediate 0
+                    - key: cert.x509.serial_number
+                      value:
+                        stringValue: "00:00:00:00:00:00:00:00"
+                    - key: cert.x509.subject.common_name
+                      value:
+                        stringValue: revoked-base.role-0.example.org
+                    - key: cert.x509.subject.country
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: US
+                    - key: cert.x509.subject.organization
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: ACME org
+                    - key: cert.x509.subject.organizational_unit
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: App
+                    - key: cert.x509.subject.san
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: revoked-base.role-0.example.org
+                    - key: engine.mount
+                      value:
+                        stringValue: pki/ica_0/
+                    - key: issuer.id
+                      value:
+                        stringValue: ""
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "123456"
+                  attributes:
+                    - key: cert.type
+                      value:
+                        stringValue: leaf
+                    - key: cert.x509.issuer.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                    - key: cert.x509.serial_number
+                      value:
+                        stringValue: "00:00:00:00:00:00:00:00"
+                    - key: cert.x509.subject.common_name
+                      value:
+                        stringValue: revoked-delta.role-0.example.org
+                    - key: cert.x509.subject.country
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: US
+                    - key: cert.x509.subject.organization
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: ACME org
+                    - key: cert.x509.subject.organizational_unit
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: App
+                    - key: cert.x509.subject.san
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: revoked-delta.role-0.example.org
+                    - key: engine.mount
+                      value:
+                        stringValue: pki/ica_0/
+                    - key: issuer.id
+                      value:
+                        stringValue: ""
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "123456"
+                  attributes:
+                    - key: cert.type
+                      value:
+                        stringValue: leaf
+                    - key: cert.x509.issuer.common_name
+                      value:
                         stringValue: ACME root v1
                     - key: cert.x509.serial_number
                       value:
@@ -287,6 +371,90 @@ resourceMetrics:
                           values:
                             - stringValue: alt-0.role-0.example.org
                             - stringValue: leaf-0.role-0.example.org
+                    - key: engine.mount
+                      value:
+                        stringValue: pki/ica_0/
+                    - key: issuer.id
+                      value:
+                        stringValue: ""
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "-1"
+                  attributes:
+                    - key: cert.type
+                      value:
+                        stringValue: leaf
+                    - key: cert.x509.issuer.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                    - key: cert.x509.serial_number
+                      value:
+                        stringValue: "00:00:00:00:00:00:00:00"
+                    - key: cert.x509.subject.common_name
+                      value:
+                        stringValue: revoked-base.role-0.example.org
+                    - key: cert.x509.subject.country
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: US
+                    - key: cert.x509.subject.organization
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: ACME org
+                    - key: cert.x509.subject.organizational_unit
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: App
+                    - key: cert.x509.subject.san
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: revoked-base.role-0.example.org
+                    - key: engine.mount
+                      value:
+                        stringValue: pki/ica_0/
+                    - key: issuer.id
+                      value:
+                        stringValue: ""
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "-1"
+                  attributes:
+                    - key: cert.type
+                      value:
+                        stringValue: leaf
+                    - key: cert.x509.issuer.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                    - key: cert.x509.serial_number
+                      value:
+                        stringValue: "00:00:00:00:00:00:00:00"
+                    - key: cert.x509.subject.common_name
+                      value:
+                        stringValue: revoked-delta.role-0.example.org
+                    - key: cert.x509.subject.country
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: US
+                    - key: cert.x509.subject.organization
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: ACME org
+                    - key: cert.x509.subject.organizational_unit
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: App
+                    - key: cert.x509.subject.san
+                      value:
+                        arrayValue:
+                          values:
+                            - stringValue: revoked-delta.role-0.example.org
                     - key: engine.mount
                       value:
                         stringValue: pki/ica_0/
@@ -813,7 +981,7 @@ resourceMetrics:
                         stringValue: ACME root v1
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
-                - asInt: "0"
+                - asInt: "1"
                   attributes:
                     - key: crl.kind
                       value:
@@ -829,7 +997,7 @@ resourceMetrics:
                         stringValue: ACME intermediate 0
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
-                - asInt: "0"
+                - asInt: "1"
                   attributes:
                     - key: crl.kind
                       value:
@@ -909,7 +1077,7 @@ resourceMetrics:
                         stringValue: ACME root v1
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
-                - asInt: "0"
+                - asInt: "1"
                   attributes:
                     - key: crl.kind
                       value:
@@ -925,7 +1093,7 @@ resourceMetrics:
                         stringValue: ACME intermediate 0
                   startTimeUnixNano: "1000000"
                   timeUnixNano: "2000000"
-                - asInt: "0"
+                - asInt: "1"
                   attributes:
                     - key: crl.kind
                       value:
@@ -975,6 +1143,87 @@ resourceMetrics:
                   timeUnixNano: "2000000"
             name: pkiengine.crl.x509.revoked_certificates
             unit: '{count}'
+          - description: Number of entries in the CRL `revokedCertificates` field, by RFC 5280 revocation reason.
+            gauge:
+              dataPoints:
+                - asInt: "1"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/crl/der
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                    - key: crl.x509.revoked_certificate.reason
+                      value:
+                        stringValue: unspecified
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "1"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: base
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/crl/pem
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                    - key: crl.x509.revoked_certificate.reason
+                      value:
+                        stringValue: unspecified
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "1"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/crl/delta/der
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                    - key: crl.x509.revoked_certificate.reason
+                      value:
+                        stringValue: unspecified
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+                - asInt: "1"
+                  attributes:
+                    - key: crl.kind
+                      value:
+                        stringValue: delta
+                    - key: crl.role
+                      value:
+                        stringValue: subject
+                    - key: crl.uri
+                      value:
+                        stringValue: http://localhost:8200/v1/pki/ica_0/issuer/00000000-0000-0000-0000-000000000000/crl/delta/pem
+                    - key: crl.x509.issuer.common_name
+                      value:
+                        stringValue: ACME intermediate 0
+                    - key: crl.x509.revoked_certificate.reason
+                      value:
+                        stringValue: unspecified
+                  startTimeUnixNano: "1000000"
+                  timeUnixNano: "2000000"
+            name: pkiengine.crl.x509.revoked_certificates.reason
+            unit: '{entry}'
           - description: Time since the CRL `thisUpdate` field.
             gauge:
               dataPoints:
@@ -1199,7 +1448,7 @@ resourceMetrics:
           - description: Number of certificates stored in the mount.
             gauge:
               dataPoints:
-                - asInt: "1"
+                - asInt: "3"
                   attributes:
                     - key: engine.mount
                       value:

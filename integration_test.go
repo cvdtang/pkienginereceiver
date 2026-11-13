@@ -3,13 +3,14 @@ package pkienginereceiver
 import (
 	"context"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"flag"
 	"fmt"
-	"io"
 	"math/big"
 	"net"
 	"net/url"
@@ -83,6 +84,9 @@ const (
 	// Rate limited requests wait at least one second plus jitter before being
 	// re-issued, so a full scrape of the throttled mount takes several seconds.
 	testRateLimitTimeout = 120 * time.Second
+	// Longer than a throttled scrape,
+	// so the rate limit test sees a single scrape.
+	testRateLimitCollectionInterval = time.Minute
 )
 
 type tfProjectVars struct {
@@ -101,6 +105,7 @@ type tfProjectVars struct {
 	numTwoTier                 int
 	numLeaf                    int
 	rateLimitStandalone        bool
+	revocations                bool
 }
 
 type authScenario struct {
@@ -162,6 +167,8 @@ type integrationTestCase struct {
 	cfgMatchRegex string
 	tfVars        tfProjectVars
 	auth          authScenario
+	// Defaults to testCollectionInterval.
+	collectionInterval time.Duration
 }
 
 // The canonical auth method used by the golden flight record matrix. Scraped
@@ -200,6 +207,16 @@ func (suite *IntegrationSuite) SetupSuite() {
 		t.Logf("SetupSuite completed in %s", time.Since(start))
 	}()
 
+	// Install the terraform providers while k3s boots.
+	tfInitDone := make(chan error, 1)
+	go func() {
+		_, err := terraformDataDir()
+		tfInitDone <- err
+	}()
+	defer func() {
+		require.NoError(t, <-tfInitDone)
+	}()
+
 	nw, err := network.New(ctx)
 	require.NoError(t, err)
 	testcontainers.CleanupNetwork(t, nw)
@@ -208,18 +225,27 @@ func (suite *IntegrationSuite) SetupSuite() {
 	k3sContainer, err := k3s.Run(ctx, k3sImage,
 		testcontainers.WithWaitStrategy(wait.ForLog("k3s is up and running")),
 		testcontainers.WithCmdArgs(
-			// Integration tests only require kube API/controller for SA auth and OIDC/JWKS flows.
+			// Integration tests only require the kube API (TokenRequest, TokenReview, OIDC/JWKS) plus the controller populating the long-lived service account token secret.
+			// Nothing is scheduled, so no node is needed.
 			"--disable=local-storage",
 			"--disable=metrics-server",
 			"--disable=servicelb",
+			"--disable=coredns",
 			"--disable-cloud-controller",
 			"--disable-helm-controller",
-			"--disable=coredns",
+			"--disable-agent",
+			"--disable-scheduler",
+			"--disable-network-policy",
+			"--disable-kube-proxy",
+			"--egress-selector-mode=disabled",
+			// The controller manager starts its informers only once every enabled controller is initialized.
+			"--kube-controller-manager-arg=controllers=serviceaccount-token-controller",
 		),
 		network.WithNetwork([]string{}, nw),
 	)
 	require.NoError(t, err)
-	testcontainers.CleanupContainer(t, k3sContainer)
+	// Throwaway containers, so skip the graceful stop.
+	testcontainers.CleanupContainer(t, k3sContainer, testcontainers.StopTimeout(0))
 	suite.k3s = k3sContainer
 
 	kubeConfigYaml, err := k3sContainer.GetKubeConfig(ctx)
@@ -269,11 +295,16 @@ func (suite *IntegrationSuite) TestMatrix() {
 
 	for _, img := range integrationMatrixImages {
 		for _, tag := range img.tags {
-			testName := fmt.Sprintf("image=%s/version=%s", img.subtestImageName, tag)
-			suite.T().Run(testName, func(t *testing.T) {
-				t.Parallel()
-				suite.runImageVersion(t, img, tag, baseVars)
-			})
+			for _, namespaced := range []bool{false, true} {
+				if namespaced && !img.runNamespacedTests {
+					continue
+				}
+				testName := fmt.Sprintf("image=%s/version=%s/namespaced=%t", img.subtestImageName, tag, namespaced)
+				suite.T().Run(testName, func(t *testing.T) {
+					t.Parallel()
+					suite.runCell(t, img, tag, namespaced, baseVars)
+				})
+			}
 		}
 	}
 }
@@ -327,16 +358,17 @@ func (suite *IntegrationSuite) baseTFVars() tfProjectVars {
 		numTwoTier:                 1,
 		numLeaf:                    1,
 		rateLimitStandalone:        false,
+		revocations:                true,
 	}
 }
 
-func (suite *IntegrationSuite) runImageVersion(t *testing.T, img integrationImage, tag string, baseVars tfProjectVars) {
+func (suite *IntegrationSuite) runCell(t *testing.T, img integrationImage, tag string, namespaced bool, baseVars tfProjectVars) {
 	t.Helper()
 
 	ctx := t.Context()
 	start := time.Now()
 	defer func() {
-		t.Logf("image matrix completed in %s", time.Since(start))
+		t.Logf("matrix cell completed in %s", time.Since(start))
 	}()
 
 	secretStoreContainer := startSecretStoreContainer(t, ctx, img, tag, suite.nw)
@@ -344,24 +376,6 @@ func (suite *IntegrationSuite) runImageVersion(t *testing.T, img integrationImag
 	tf := setupTerraform(t, ctx, t.TempDir(), secretStoreContainer)
 	secretStoreAddr := resolveSecretStoreAddress(t, ctx, secretStoreContainer)
 	k3dAddr := "https://" + net.JoinHostPort(suite.k3s.GetContainerID()[:12], "6443")
-
-	suite.runNamespacedMode(t, ctx, tf, false, baseVars, secretStoreAddr, k3dAddr)
-	if img.runNamespacedTests {
-		suite.runNamespacedMode(t, ctx, tf, true, baseVars, secretStoreAddr, k3dAddr)
-	}
-}
-
-// Applies the terraform project once for the given namespaced mode and runs the
-// golden flight record and auth method matrices against the resulting state.
-func (suite *IntegrationSuite) runNamespacedMode(
-	t *testing.T,
-	ctx context.Context,
-	tf *tfexec.Terraform,
-	namespaced bool,
-	baseVars tfProjectVars,
-	secretStoreAddr, k3dAddr string,
-) {
-	t.Helper()
 
 	vars := baseVars
 	vars.namespaced = namespaced
@@ -398,7 +412,7 @@ func startSecretStoreContainer(t *testing.T, ctx context.Context, img integratio
 		Started:          true,
 	})
 	require.NoError(t, err)
-	testcontainers.CleanupContainer(t, secretStoreContainer)
+	testcontainers.CleanupContainer(t, secretStoreContainer, testcontainers.StopTimeout(0))
 
 	return secretStoreContainer
 }
@@ -414,11 +428,102 @@ func resolveSecretStoreAddress(t *testing.T, ctx context.Context, container test
 	return "http://" + net.JoinHostPort(host, natPort.Port())
 }
 
+// Terraform init (provider installation) dominates the setup time of a matrix cell,
+// so it runs once per terraform configuration into the user cache and all workspaces share the result through TF_DATA_DIR.
+var terraformDataDir = sync.OnceValues(initTerraformDataDir)
+
+func initTerraformDataDir() (string, error) {
+	sourceDir := filepath.Join("test", "terraform")
+	key, err := terraformConfigHash(sourceDir)
+	if err != nil {
+		return "", err
+	}
+
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return "", err
+	}
+	baseDir := filepath.Join(cacheDir, "pkienginereceiver")
+	dir := filepath.Join(baseDir, "terraform-"+key)
+	dataDir := filepath.Join(dir, ".terraform")
+	if _, err := os.Stat(dataDir); err == nil {
+		return dataDir, nil
+	}
+
+	if err := os.MkdirAll(baseDir, 0o750); err != nil {
+		return "", err
+	}
+	tmpDir, err := os.MkdirTemp(baseDir, "init-")
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	if err := copyTerraformDir(sourceDir, tmpDir); err != nil {
+		return "", err
+	}
+	execPath, err := exec.LookPath("terraform")
+	if err != nil {
+		return "", fmt.Errorf("terraform binary not found in PATH: %w", err)
+	}
+	tf, err := tfexec.NewTerraform(tmpDir, execPath)
+	if err != nil {
+		return "", err
+	}
+	tf.SetStderr(os.Stderr)
+	if err := tf.Init(context.Background(), tfexec.Reconfigure(true)); err != nil {
+		return "", fmt.Errorf("terraform init failed: %w", err)
+	}
+
+	if err := os.Rename(tmpDir, dir); err != nil {
+		if _, statErr := os.Stat(dataDir); statErr != nil {
+			return "", err
+		}
+	}
+
+	// Each data dir holds ~100MB of providers,
+	// so drop those of previous configurations.
+	stale, err := filepath.Glob(filepath.Join(baseDir, "terraform-*"))
+	if err != nil {
+		return "", err
+	}
+	for _, staleDir := range stale {
+		if staleDir != dir {
+			_ = os.RemoveAll(staleDir)
+		}
+	}
+
+	return dataDir, nil
+}
+
+// Hashes the terraform files so a changed configuration or lock file gets a fresh data dir.
+func terraformConfigHash(dir string) (string, error) {
+	files, err := terraformFiles(dir)
+	if err != nil {
+		return "", err
+	}
+
+	h := sha256.New()
+	for _, name := range files {
+		content, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			return "", err
+		}
+		_, _ = fmt.Fprintf(h, "%s\x00%d\x00", name, len(content))
+		h.Write(content)
+	}
+
+	return hex.EncodeToString(h.Sum(nil))[:16], nil
+}
+
 func setupTerraform(t *testing.T, ctx context.Context, tfDir string, secretStoreContainer testcontainers.Container) *tfexec.Terraform {
 	t.Helper()
 
-	sourceDir := filepath.Join("test", "terraform")
-	copyTerraformFiles(t, sourceDir, tfDir)
+	dataDir, err := terraformDataDir()
+	require.NoError(t, err)
+
+	err = copyTerraformDir(filepath.Join("test", "terraform"), tfDir)
+	require.NoError(t, err)
 
 	execPath, err := exec.LookPath("terraform")
 	require.NoError(t, err, "terraform binary not found in PATH")
@@ -429,16 +534,16 @@ func setupTerraform(t *testing.T, ctx context.Context, tfDir string, secretStore
 	// tf.SetStdout(os.Stdout)
 	tf.SetStderr(os.Stderr)
 
-	err = tf.Init(ctx, tfexec.Reconfigure(true))
-	require.NoError(t, err, "terraform init failed")
-
 	secretStoreAddr := resolveSecretStoreAddress(t, ctx, secretStoreContainer)
 
-	// SetEnv replaces the whole environment, so only pass the bare minimum:
+	// SetEnv replaces the whole environment,
+	// so only pass the bare minimum:
 	// PATH for the local-exec provisioners (curl, ...),
+	// the shared initialized data dir,
 	// plus the secret store connection settings.
 	env := map[string]string{
 		"PATH":        os.Getenv("PATH"),
+		"TF_DATA_DIR": dataDir,
 		"VAULT_ADDR":  secretStoreAddr,
 		"VAULT_TOKEN": devRootToken,
 	}
@@ -475,6 +580,7 @@ func terraformApplyOptions(vars tfProjectVars, secretStoreAddr, k3dAddr string) 
 		tfexec.Var(fmt.Sprintf("num_two_tier=%d", vars.numTwoTier)),
 		tfexec.Var(fmt.Sprintf("num_leaf=%d", vars.numLeaf)),
 		tfexec.Var(fmt.Sprintf("rate_limit_standalone=%t", vars.rateLimitStandalone)),
+		tfexec.Var(fmt.Sprintf("revocations=%t", vars.revocations)),
 	}
 }
 
@@ -506,6 +612,9 @@ func startScraperReceiver(t *testing.T, ctx context.Context, suite *IntegrationS
 	cfg.MatchRegex = tc.cfgMatchRegex
 	cfg.InitialDelay = 0
 	cfg.CollectionInterval = testCollectionInterval
+	if tc.collectionInterval > 0 {
+		cfg.CollectionInterval = tc.collectionInterval
+	}
 	cfg.Crl.Enabled = crlEnabled
 	cfg.Leaf.Enabled = true
 
@@ -597,39 +706,48 @@ func goldenPathLock(path string) *sync.Mutex {
 	return lock.(*sync.Mutex)
 }
 
-// Copy Terraform files to enable parallel apply.
-func copyTerraformFiles(t *testing.T, src, dst string) {
-	t.Helper()
+// Returns the sorted names of the terraform configuration files, templates and the dependency lock file.
+func terraformFiles(dir string) ([]string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
 
-	entries, err := os.ReadDir(src)
-	require.NoError(t, err)
-
+	var files []string
 	for _, entry := range entries {
-		if !entry.IsDir() && (strings.HasSuffix(entry.Name(), ".tf") || strings.HasSuffix(entry.Name(), ".tfvars")) {
-			srcPath := filepath.Join(src, entry.Name())
-			dstPath := filepath.Join(dst, entry.Name())
-			copyTerraformFile(t, srcPath, dstPath)
+		name := entry.Name()
+		if !entry.IsDir() && (strings.HasSuffix(name, ".tf") || strings.HasSuffix(name, ".tfvars") || strings.HasSuffix(name, ".tftpl") || name == ".terraform.lock.hcl") {
+			files = append(files, name)
 		}
 	}
+
+	return files, nil
 }
 
-func copyTerraformFile(t *testing.T, srcPath, dstPath string) {
-	t.Helper()
+// Copy Terraform files to enable parallel apply.
+func copyTerraformDir(src, dst string) error {
+	files, err := terraformFiles(src)
+	if err != nil {
+		return err
+	}
 
-	in, err := os.Open(srcPath)
-	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, in.Close())
-	}()
+	root, err := os.OpenRoot(dst)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = root.Close() }()
 
-	out, err := os.Create(dstPath)
-	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, out.Close())
-	}()
+	for _, name := range files {
+		content, err := os.ReadFile(filepath.Join(src, name))
+		if err != nil {
+			return err
+		}
+		if err := root.WriteFile(name, content, 0o600); err != nil {
+			return err
+		}
+	}
 
-	_, err = io.Copy(out, in)
-	require.NoError(t, err)
+	return nil
 }
 
 func setupK8sAuthResources(t *testing.T, ctx context.Context, k8s *kubernetes.Clientset, ns string) (string, string) {

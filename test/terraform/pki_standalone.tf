@@ -59,7 +59,10 @@ resource "vault_pki_secret_backend_issuer" "standalone" {
   count     = var.num_standalone
   namespace = local.namespace
   # Set after the leafs are issued, so they carry the mount-wide URL.
-  depends_on = [vault_pki_secret_backend_cert.standalone]
+  depends_on = [
+    vault_pki_secret_backend_cert.standalone,
+    vault_pki_secret_backend_cert.standalone_revoked,
+  ]
 
   backend                   = vault_mount.pki_standalone.path
   issuer_ref                = vault_pki_secret_backend_root_cert.standalone[count.index].issuer_id

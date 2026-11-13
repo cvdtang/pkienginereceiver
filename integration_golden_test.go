@@ -30,7 +30,7 @@ func (suite *IntegrationSuite) runGoldenMatrix(t *testing.T, ctx context.Context
 	t.Helper()
 
 	for _, scenario := range integrationMatrixScenarios {
-		t.Run(fmt.Sprintf("golden/namespaced=%t/scenario=%s", vars.namespaced, scenario.name), func(t *testing.T) {
+		t.Run(fmt.Sprintf("golden/scenario=%s", scenario.name), func(t *testing.T) {
 			expectedFile := fmt.Sprintf("matrix_%s_namespaced-%t.yaml", scenario.name, vars.namespaced)
 			tc := integrationTestCase{
 				name:          scenario.name,

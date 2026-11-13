@@ -1,0 +1,25 @@
+set -eu
+
+revoke() {
+  curl --fail --silent --show-error --output /dev/null \
+    -X POST \
+    -H "X-Vault-Token: $VAULT_TOKEN" \
+    -d "{\"serial_number\": \"$1\"}" \
+    "${api}/revoke"
+}
+
+rebuild() {
+  curl --fail --silent --show-error --output /dev/null \
+    -H "X-Vault-Token: $VAULT_TOKEN" \
+    "${api}/$1"
+}
+
+%{ for serial in base_serials ~}
+revoke "${serial}"
+%{ endfor ~}
+rebuild crl/rotate
+
+%{ for serial in delta_serials ~}
+revoke "${serial}"
+%{ endfor ~}
+rebuild crl/rotate-delta

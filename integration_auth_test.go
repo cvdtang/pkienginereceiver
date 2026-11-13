@@ -62,7 +62,7 @@ func (suite *IntegrationSuite) runAuthMatrix(t *testing.T, ctx context.Context, 
 	t.Helper()
 
 	for _, auth := range integrationMatrixAuthScenarios {
-		t.Run(fmt.Sprintf("auth/namespaced=%t/method=%s", vars.namespaced, auth.name), func(t *testing.T) {
+		t.Run(fmt.Sprintf("auth/method=%s", auth.name), func(t *testing.T) {
 			tc := integrationTestCase{
 				name:          auth.name,
 				cfgMatchRegex: "^pki/standalone/$",
@@ -78,9 +78,7 @@ func (suite *IntegrationSuite) runAuthMatrix(t *testing.T, ctx context.Context, 
 	}
 }
 
-// Verifies a completed, error-free scrape for the configured auth method and
-// that the resulting token is being renewed. The standalone mount stores one
-// issuer and one leaf certificate.
+// Verifies a completed, error-free scrape for the configured auth method and that the resulting token is being renewed.
 func assertAuthScrapeSucceeds(t *testing.T, sink *consumertest.MetricsSink, observedLogs *observer.ObservedLogs) {
 	t.Helper()
 
@@ -90,7 +88,7 @@ func assertAuthScrapeSucceeds(t *testing.T, sink *consumertest.MetricsSink, obse
 			return false
 		}
 
-		return metricValue(lastMetrics, "pkiengine.mount.certificates_stored") == 2 &&
+		return metricValue(lastMetrics, "pkiengine.mount.certificates_stored") == 4 &&
 			metricValue(lastMetrics, "pkiengine.issuer.errors") == 0 &&
 			metricValue(lastMetrics, "pkiengine.mount.errors") == 0
 	}, testScrapeTimeout, testScrapeInterval)
